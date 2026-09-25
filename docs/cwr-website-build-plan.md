@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phases 4–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phases 5–7 not started.
 
 ## Goal
 
@@ -56,6 +56,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `team_members` | Profile pages, order, visibility (hidden keeps the page), portrait size |
 | `redirects` | Legacy map + automatic redirects on slug change/removal |
 | `inbox_threads`, `inbox_messages` | Contact form, chat handoffs, TouchUp booking requests; status (`new`/`assigned`/`replied`/`closed`), assignee, internal notes, replies |
+| `alert_deliveries` | Every alert/reply email and its outcome (sent / failed / not sent) for retry and dead-letter visibility |
 | `notification_recipients` | Who gets contact / chat / booking alerts |
 | `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs` | Versioned policy file, preset test questions, pass/fail gate for publishing |
 | `chat_sessions`, `chat_messages` | Logged chats for weekly review |

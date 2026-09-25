@@ -15,7 +15,7 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "db:start": "supabase start",
+    "db:start": "SUPABASE_AUTH_CAPTCHA_SECRET=${SUPABASE_AUTH_CAPTCHA_SECRET:-1x0000000000000000000000000000000AA} supabase start -x studio,imgproxy,vector,logflare,edge-runtime,supavisor",
     "db:test": "supabase test db",
     "db:lint": "supabase db lint --local --schema cwr --level warning --fail-on warning",
     "db:check": "node scripts/check-migrations.mjs",
@@ -31,6 +31,7 @@
   "dependencies": {
     "@jsquash/avif": "2.1.1",
     "@jsquash/webp": "1.5.0",
+    "@marsidev/react-turnstile": "1.6.1",
     "@opennextjs/cloudflare": "1.20.6",
     "@supabase/ssr": "0.12.7",
     "@supabase/supabase-js": "2.117.2",

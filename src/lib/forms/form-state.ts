@@ -2,20 +2,24 @@ import type { z } from "zod";
 
 import type { FormFieldConfig } from "@/lib/forms/request-forms";
 
-// Result of a request-form submission, shared by the server action and the form UI.
-// "unavailable" means the details passed every check but online intake is not
-// switched on yet (it arrives with the inbox in Phase 4); nothing is stored.
+// Result of a public request-form submission, shared by the server action and the form UI.
 
 export type FieldValues = Record<string, string>;
 export type FieldErrors = Record<string, string>;
 
-export type RequestFormStatus = "idle" | "invalid" | "unavailable";
+/**
+ * idle: nothing sent yet · invalid: fields to fix · sent: in the inbox ·
+ * blocked: the bot check did not pass · limited: too many sends from this connection ·
+ * failed: could not be saved (visitor keeps their text).
+ */
+export type RequestFormStatus = "idle" | "invalid" | "sent" | "blocked" | "limited" | "failed";
 
 export type RequestFormState = {
   status: RequestFormStatus;
   values: FieldValues;
   fieldErrors: FieldErrors;
   responseId: string;
+  sentTo: { name: string; email: string | null } | null;
 };
 
 export type RequestFormSchema = z.ZodObject<Record<string, z.ZodType<unknown, string>>>;
@@ -25,6 +29,7 @@ export const INITIAL_FORM_STATE: RequestFormState = {
   values: {},
   fieldErrors: {},
   responseId: "initial",
+  sentTo: null,
 };
 
 export function getFieldValues(formData: FormData, fields: FormFieldConfig[]): FieldValues {
@@ -49,11 +54,6 @@ export function getFieldErrors(schema: RequestFormSchema, values: FieldValues): 
   return Object.fromEntries(entries.filter((entry): entry is [string, string] => entry[1] !== null));
 }
 
-type RequestFormInput = { schema: RequestFormSchema; fields: FormFieldConfig[]; formData: FormData };
-
-export function getRequestFormState({ schema, fields, formData }: RequestFormInput): RequestFormState {
-  const values = getFieldValues(formData, fields);
-  const fieldErrors = getFieldErrors(schema, values);
-  const status: RequestFormStatus = Object.keys(fieldErrors).length > 0 ? "invalid" : "unavailable";
-  return { status, values, fieldErrors, responseId: crypto.randomUUID() };
+export function getResultState({ status, values, fieldErrors = {}, sentTo = null }: { status: RequestFormStatus; values: FieldValues; fieldErrors?: FieldErrors; sentTo?: RequestFormState["sentTo"] }): RequestFormState {
+  return { status, values, fieldErrors, sentTo, responseId: crypto.randomUUID() };
 }

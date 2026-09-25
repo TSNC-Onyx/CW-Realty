@@ -17,7 +17,9 @@ Without them the site still runs, but phone, email, office address, and database
 
 Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_PUBLIC_`):
 
-- `SUPABASE_SERVICE_ROLE_KEY` — used only on the server for invites, photo uploads, and the content import.
+- `SUPABASE_SERVICE_ROLE_KEY` — used only on the server for invites, photo uploads, the content import, and alert emails.
+- `MAILERSEND_API_KEY` — alert and reply emails (with Worker variables `ALERT_FROM_EMAIL`, `ALERT_FROM_NAME`).
+- `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`).
 
 ## Admin portal
 
@@ -27,7 +29,8 @@ Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_P
 ## Local development
 
 ```bash
-npx supabase start
+npm run db:start
 npm run content:import:local
+source scripts/local-test-env.sh
 npm run dev
 ```

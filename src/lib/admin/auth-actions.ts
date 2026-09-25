@@ -11,6 +11,7 @@ import {
   ADMIN_SET_PASSWORD_PATH,
   getSafeAdminPath,
 } from "@/lib/admin/paths";
+import { TURNSTILE_FIELD } from "@/lib/security/turnstile-field-name";
 import { createSessionClient, type SessionClient } from "@/lib/supabase/server-client";
 
 // Sign-in steps (Phase 3 plan, task 3). Each returns a plain message for the form or
@@ -32,8 +33,10 @@ export async function signInAction(_state: ActionState, formData: FormData): Pro
   const parsed = signInSchema.safeParse(values);
   if (!parsed.success) return getErrorState({ message: "Fix the fields below.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
   const supabase = await createSessionClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const captchaToken = String(formData.get(TURNSTILE_FIELD) ?? "") || undefined;
+  const { error } = await supabase.auth.signInWithPassword({ ...parsed.data, options: { captchaToken } });
   if (error?.status === TOO_MANY_ATTEMPTS) return getErrorState({ message: "Too many attempts. Wait a few minutes, then try again.", values });
+  if (error?.code === "captcha_failed") return getErrorState({ message: "Please complete the quick check, then sign in again.", values });
   if (error) return getErrorState({ message: "That email and password don't match an account. Check them and try again.", values });
   redirect(await getMfaNextStep(supabase, getSafeAdminPath(values.next)));
 }
@@ -86,7 +89,7 @@ export async function requestPasswordResetAction(_state: ActionState, formData: 
   // The email link is built from the Auth "Site URL" setting (supabase/templates/recovery.html),
   // never from request headers, so a forged Host header cannot redirect the link.
   const supabase = await createSessionClient();
-  await supabase.auth.resetPasswordForEmail(parsedEmail.data);
+  await supabase.auth.resetPasswordForEmail(parsedEmail.data, { captchaToken: String(formData.get(TURNSTILE_FIELD) ?? "") || undefined });
   return getSuccessState("If that email belongs to an admin account, a reset link is on its way. It works for one hour.");
 }
 

@@ -1,7 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "cw-realty",
-  "main": ".open-next/worker.js",
+  // Custom entry: the Next.js app plus the alert-email queue consumers (worker.ts).
+  "main": "worker.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
@@ -20,5 +21,21 @@
     "logs": { "enabled": true, "invocation_logs": true },
     "traces": { "enabled": true, "head_sampling_rate": 1 }
   },
-  "upload_source_maps": true
+  "upload_source_maps": true,
+  // Public project URL for the queue consumer (the site itself uses NEXT_PUBLIC_SUPABASE_URL).
+  // Previews and production share this one Supabase project; change both together.
+  "vars": {
+    "SUPABASE_URL": "https://egadvqpatnlkvgiiszzx.supabase.co"
+  },
+  // Public form posts: at most 5 per visitor per minute (Infra §2).
+  "ratelimits": [{ "name": "FORM_RATE_LIMITER", "namespace_id": "1001", "simple": { "limit": 5, "period": 60 } }],
+  // Alert emails: retried with backoff, then parked in a dead-letter queue (Infra §3).
+  // Both queues must exist in the Cloudflare account before deploying (runbook).
+  "queues": {
+    "producers": [{ "binding": "CWR_ALERTS", "queue": "cwr-alerts" }],
+    "consumers": [
+      { "queue": "cwr-alerts", "max_batch_size": 10, "max_retries": 5, "dead_letter_queue": "cwr-alerts-dlq" },
+      { "queue": "cwr-alerts-dlq", "max_batch_size": 10, "max_retries": 0 }
+    ]
+  }
 }

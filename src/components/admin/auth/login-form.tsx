@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { AdminField } from "@/components/admin/admin-field";
 import { AuthForm } from "@/components/admin/auth/auth-form";
+import { TurnstileField } from "@/components/forms/turnstile-field";
 import { useAuthForm } from "@/components/admin/auth/use-auth-form";
 import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import { signInAction } from "@/lib/admin/auth-actions";
@@ -16,6 +17,7 @@ export function LoginForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       <AdminField name="email" label="Email" type="email" autoComplete="username" defaultValue={state.values.email} error={state.fieldErrors.email} />
       <AdminField name="password" label="Password" type="password" autoComplete="current-password" error={state.fieldErrors.password} />
+      <TurnstileField action="admin-sign-in" resetKey={state.responseId} />
       <Link href={ADMIN_FORGOT_PASSWORD_PATH} className="text-link justify-self-start">
         Forgot your password?
       </Link>

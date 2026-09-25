@@ -38,10 +38,17 @@ export function getTotpCode(secret: string): string {
   return new TOTP({ secret: Secret.fromBase32(secret), digits: 6, period: 30 }).generate();
 }
 
+/** Waits for Cloudflare Turnstile (test keys pass automatically) to put its token in the form. */
+export async function waitForBotCheck(page: Page): Promise<void> {
+  if (!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY) return;
+  await expect.poll(async () => page.locator('input[name="cf-turnstile-response"]').first().inputValue().catch(() => ""), { timeout: 20_000 }).not.toBe("");
+}
+
 export async function signInWithPassword(page: Page, admin: TestAdmin): Promise<void> {
   await page.goto("/admin/login");
   await page.getByLabel("Email").fill(admin.email);
   await page.getByLabel("Password").fill(admin.password);
+  await waitForBotCheck(page);
   await page.getByRole("button", { name: "Sign in" }).click();
 }
 
