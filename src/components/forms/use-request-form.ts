@@ -39,10 +39,10 @@ function getFixedFieldsAfterBlur({ fixedFields, name, hadError, hasError }: {
   return nextFixedFields;
 }
 
-export function useRequestForm(action: RequestFormAction, schema: RequestFormSchema) {
+export function useRequestForm(action: RequestFormAction, schema: RequestFormSchema, { initialValues = {} }: { initialValues?: FieldValues } = {}) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
   const [handledResponseId, setHandledResponseId] = useState(state.responseId);
-  const [values, setValues] = useState<FieldValues>(state.values);
+  const [values, setValues] = useState<FieldValues>(() => ({ ...initialValues, ...state.values }));
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(state.fieldErrors);
   const [fixedFields, setFixedFields] = useState<ReadonlySet<string>>(new Set());
   const [isSummaryVisible, setIsSummaryVisible] = useState(state.status === "invalid");
