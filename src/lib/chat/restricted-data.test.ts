@@ -14,6 +14,7 @@ describe("hasRestrictedNumber", () => {
     "My checking account is 1234567890, can you help?",
     "routing: 021000021",
     "Driver license # 40912345",
+    "My ID number is 88812345",
   ])("flags %s", (text) => {
     // Arrange / Act
     const isFlagged = hasRestrictedNumber(text);
@@ -22,7 +23,7 @@ describe("hasRestrictedNumber", () => {
     expect(isFlagged).toBe(true);
   });
 
-  it.each(["Call me at (336) 555-0123", "+1 336 555 0123", "336.555.0123", "Is 1204 Oak St still $350,000?", "ZIP 27401", "Built in 1998 on 0.25 acres"])("allows %s", (text) => {
+  it.each(["Call me at (336) 555-0123", "+1 336 555 0123", "336.555.0123", "Is 1204 Oak St still $350,000?", "ZIP 27401", "Built in 1998 on 0.25 acres", "Homes near 27410-1234?", "Is listing id 100234 still available?", "MLS 1234567"])("allows %s", (text) => {
     // Arrange / Act
     const isFlagged = hasRestrictedNumber(text);
 

@@ -38,11 +38,14 @@ function getWordRuns(words: string[]): string[] {
   return Array.from({ length: Math.max(words.length - COPY_RUN_WORDS + 1, 0) }, (_unused, start) => words.slice(start, start + COPY_RUN_WORDS).join(" "));
 }
 
+// Only policy positions whose first word also starts a reply run are compared, so a long
+// policy costs a word scan, not a copy of every run in it.
 function isCopyingPolicy(reply: string, policyBody: string): boolean {
-  const replyRuns = getWordRuns(getWords(reply));
-  if (replyRuns.length === 0) return false;
-  const policyRuns = new Set(getWordRuns(getWords(policyBody)));
-  return replyRuns.some((run) => policyRuns.has(run));
+  const replyRuns = new Set(getWordRuns(getWords(reply)));
+  if (replyRuns.size === 0) return false;
+  const firstWords = new Set([...replyRuns].map((run) => run.split(" ", 1)[0]));
+  const policyWords = getWords(policyBody);
+  return policyWords.some((word, start) => firstWords.has(word) && replyRuns.has(policyWords.slice(start, start + COPY_RUN_WORDS).join(" ")));
 }
 
 function isLeaking(reply: string, policyBody: string): boolean {
