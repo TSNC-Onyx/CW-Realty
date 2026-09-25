@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot`, from `build1` (`docs/cwr-phase-5-chatbot-plan.md`); Phases 6–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); Phases 6–7 not started.
 
 ## Goal
 
@@ -73,6 +73,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Inbox | All | All | Assigned to them |
 | Notifications | Edit | Edit | — |
 | Chatbot policy | Edit | — | — |
+| Chat history (logged chats) | Read | Read | — |
 | Users & roles, Trash restore/purge | Yes | Restore only | — |
 
 ### Retention (Infra §4)
