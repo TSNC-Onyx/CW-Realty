@@ -34,7 +34,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | DB access | `@supabase/supabase-js` 2.117 + `@supabase/ssr` 0.12 over HTTP (built-in pooling) | Connection pooling requirement; service-role key server-only |
 | Auth | Supabase Auth, email + password + TOTP MFA required for every admin role | Infra §2, Admin §7 |
 | Validation | Zod 4 schemas shared by forms and server actions | Infra §2 "shared schemas" |
-| Styling | Tailwind CSS 4 with design tokens (black/white/gold `#E6BD35`), one serif display + one sans variable font, self-hosted | Style §1 |
+| Styling | Tailwind CSS 4 with design tokens, self-hosted variable fonts; owner-chosen theme **Modern Editorial**, fully specified in `docs/constitution/02-style-ui-ux.md` §11 | Style §1, §11 |
 | Images | Supabase Storage; resized to AVIF/WebP on upload with width/height stored | Style §3, §8 |
 | Chatbot | Claude API (`@anthropic-ai/sdk`), server-side only; first-party widget (no third-party script) | Features §2, CSP |
 | Background work | Cloudflare Queues with retry + dead-letter queue | Infra §3, §6 |
@@ -90,7 +90,7 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 6. Security headers + strict CSP in `middleware.ts`; request ID propagation; Sentry.
 
 **Phase 1 — Public shell**
-7. Design tokens, fonts, layout, header (≤64px, sticky), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
+7. Design tokens (Style §11), fonts, layout, header (60px mobile / 88px desktop, sticky), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
 8. Redirect middleware reading `cwr.redirects` (single hop, normalization rules); 404 page.
 9. Static pages: Home, About, Contact (form), Privacy Policy, Resources (FAQs & Homework), Connections, CWR TouchUp (booking request form), Property Search placeholder.
 

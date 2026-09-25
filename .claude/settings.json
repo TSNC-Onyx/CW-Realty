@@ -3,6 +3,9 @@
     "allow": [
       "Read",
       "Edit(./**)",
+      "Write(./docs/**)",
+      "Artifact",
+      "Bash(python3 *)",
       "Bash(git status*)",
       "Bash(git diff*)",
       "Bash(git log*)",
