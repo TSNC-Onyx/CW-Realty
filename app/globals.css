@@ -449,3 +449,8 @@
 @utility toast-enter {
   animation: toast-enter 200ms var(--ease-out);
 }
+
+/* §11.14 chat panel opening, same 250ms rise as the mobile menu */
+@utility chat-panel-enter {
+  animation: menu-open 250ms var(--ease-out);
+}
