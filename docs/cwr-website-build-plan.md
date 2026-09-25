@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phases 2–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phases 2–7 not started.
 
 ## Goal
 
@@ -51,7 +51,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Table | Purpose |
 |---|---|
 | `tenants`, `memberships` | One CWR tenant; user ↔ role (`owner`, `manager`, `staff`) |
-| `site_settings` | Phone, email, contact names, footer text — edited once, used everywhere |
+| `site_settings` | Phone, email, contact names, footer text, office address, firm license number — edited once, used everywhere |
 | `listings`, `listing_photos` | Featured properties: status (`active`/`pending`/`sold`), publish state (`draft`/`live`), order, photos with required alt text |
 | `team_members` | Profile pages, order, visibility (hidden keeps the page) |
 | `redirects` | Legacy map + automatic redirects on slug change/removal |

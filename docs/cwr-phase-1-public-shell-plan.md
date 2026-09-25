@@ -27,7 +27,7 @@ Every public page of the new site exists with the Modern Editorial look, a worki
 
 | # | Question | Decision | Source |
 |---|---|---|---|
-| 1 | Where do phone/email/address come from? | `cwr.site_settings` (Admin §4 "edit once, updates everywhere"). New expand-only migration adds `office_address` and inserts the CWR row with the values on the live site (336-708-0560, charlie@charliewardrealty.com, 806 Green Valley Road, Suite 200, Greensboro, NC 27408). Editable later in the admin portal | Admin §4, Infra §3 |
+| 1 | Where do phone/email/address come from? | `cwr.site_settings` (Admin §4 "edit once, updates everywhere"). New expand-only migration adds office address and license columns and inserts the CWR row with the values on the live site (336-708-0560, charlie@charliewardrealty.com, 806 Green Valley Road, Suite 200, Greensboro, NC 27408). Editable later in the admin portal | Admin §4, Infra §3 |
 | 2 | Page must still work if the database is down | Yes: header/footer/bar hide phone and email pieces and point to `/contact`; nothing crashes | Infra §3 "fail gracefully" |
 | 3 | Forms before the inbox exists | Full form UI, on-blur checks, shared Zod schema, server validation. After passing validation the server answers "online messages open soon — call or email", and keeps what the visitor typed | Infra §1 (release unfinished work safely), Style §11.12 |
 | 4 | Redirect lookups cost a database call | Only for paths that are not a known page and pass the redirect path pattern; 1.5 s timeout; on failure the request continues (404) | Infra §3, §5 |
@@ -112,9 +112,10 @@ Risk: low — each is a planned hand-off noted above. No human approval needed (
 
 | Check | Result |
 |---|---|
-| Unit tests (`npm test`) | 39 passed |
+| Unit tests (`npm test`) | 59 passed |
 | Database tests (`supabase test db`) | 88 passed (7 files, incl. new `060-site-settings`) |
 | `npm run lint`, `npm run typecheck`, `npm run db:check`, `npm run design:check`, `db:lint` | pass |
 | Playwright (`npm run test:e2e`) without and with a database | 117 passed each |
 | Lighthouse (home, desktop) | Performance 100, Accessibility 100, Best practices 96, SEO 100 — budgets pass |
 | Workers build (`opennextjs-cloudflare build` + `wrangler dev`) | renders, 301 normalization, graceful 404 |
+| Independent review against this plan | 3 gaps found (shared 1.5 s lookup deadline, Menu without JavaScript, redirect lookup tests) — all fixed and re-reviewed |
