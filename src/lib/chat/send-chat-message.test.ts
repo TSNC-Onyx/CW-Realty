@@ -46,7 +46,7 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect({ result, logged: vi.mocked(chatLog.recordChatExchange).mock.calls.length }).toEqual({
-      result: { status: "replied", sessionId: SESSION_ID, reply: { outcome: "answer", text: "Weekdays, 9 to 5.", citedSections: ["Office hours"] } },
+      result: { status: "replied", sessionId: SESSION_ID, question: "When are you open?", reply: { outcome: "answer", text: "Weekdays, 9 to 5.", citedSections: ["Office hours"] } },
       logged: 1,
     });
   });
@@ -94,7 +94,7 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect({ result, started: vi.mocked(chatLog.startChatSession).mock.calls.length }).toEqual({
-      result: { status: "replied", sessionId: null, reply: { outcome: "handoff", text: HANDOFF_TEXT.unavailable, citedSections: [] } },
+      result: { status: "replied", sessionId: null, question: "When are you open?", reply: { outcome: "handoff", text: HANDOFF_TEXT.unavailable, citedSections: [] } },
       started: 0,
     });
   });
@@ -122,6 +122,28 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect(result.status === "replied" && result.reply.text).toBe(HANDOFF_TEXT.unavailable);
+  });
+
+  it("returns the question with ID numbers removed, for the widget to show and keep", async () => {
+    // Arrange / Act
+    const result = await sendChatMessage({ input: getInput({ message: "My SSN is 123-45-6789" }), visitor: VISITOR });
+
+    // Assert
+    expect(result.status === "replied" && result.question).toBe("My SSN is [number removed]");
+  });
+
+  it("sends the model only the latest turns of a long chat", async () => {
+    // Arrange
+    const model = vi.fn().mockResolvedValue(null);
+    const turns = Array.from({ length: 30 }, (_unused, index) => ({ role: index % 2 === 0 ? ("visitor" as const) : ("assistant" as const), body: `turn ${index}` }));
+    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, visitorMessageCount: 15, turns });
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(model);
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(model.mock.calls[0]?.[0].turns).toHaveLength(21);
   });
 
   it("rejects an empty question before doing any work", async () => {

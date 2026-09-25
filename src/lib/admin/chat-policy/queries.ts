@@ -15,9 +15,9 @@ export type PolicyVersion = { id: string; version: number; status: PolicyStatus;
 
 export type WorkingPolicy = { draftId: string | null; draftVersion: number | null; body: string; updatedAt: string | null };
 
-export type PolicyTest = { id: string; question: string; expected_outcome: ChatOutcome; expected_section: string | null; updated_at: string };
+export type PolicyTest = { id: string; question: string; expected_outcome: ChatOutcome; expected_section: string | null };
 
-export type PolicyTestRun = { is_passed: boolean; ran_at: string; results: PolicyTestResult[] };
+export type PolicyTestRun = { is_passed: boolean; ran_at: string; results: PolicyTestResult[]; policy_updated_at: string | null; tests_updated_at: string | null };
 
 export async function fetchPolicyVersions({ supabase, tenantId }: AdminContext): Promise<PolicyVersion[]> {
   const { data } = await supabase.from("chat_policies").select("id, version, status, published_at, updated_at").eq("tenant_id", tenantId).order("version", { ascending: false }).limit(HISTORY_LIMIT).returns<PolicyVersion[]>();
@@ -39,18 +39,23 @@ export async function fetchWorkingPolicy(admin: AdminContext, versions: PolicyVe
 }
 
 export async function fetchPolicyTests({ supabase, tenantId }: AdminContext): Promise<PolicyTest[]> {
-  const { data } = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section, updated_at").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
+  const { data } = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
   return data ?? [];
 }
 
 export async function fetchLatestTestRun({ supabase, tenantId }: AdminContext, policyId: string): Promise<PolicyTestRun | null> {
-  const { data } = await supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results").eq("tenant_id", tenantId).eq("policy_id", policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
+  const { data } = await supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results, policy_updated_at, tests_updated_at").eq("tenant_id", tenantId).eq("policy_id", policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
   return data;
 }
 
-/** A passing run counts only if it is newer than the draft's last save and every test question. */
-export function isRunCurrent({ run, draft, tests }: { run: PolicyTestRun | null; draft: WorkingPolicy; tests: PolicyTest[] }): boolean {
+/** Newest change to any test question, active or not: the stamp a test run must match. */
+export async function fetchTestsChangedAt({ supabase, tenantId }: AdminContext): Promise<string | null> {
+  const { data } = await supabase.from("chat_policy_tests").select("updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(1).maybeSingle<{ updated_at: string }>();
+  return data?.updated_at ?? null;
+}
+
+/** Same rule as cwr.publish_chat_policy: the run checked this exact save and this exact set of questions. */
+export function isRunCurrent({ run, draft, testsChangedAt }: { run: PolicyTestRun | null; draft: WorkingPolicy; testsChangedAt: string | null }): boolean {
   if (!run || !draft.updatedAt) return false;
-  const changedAt = [draft.updatedAt, ...tests.map((test) => test.updated_at)].map((time) => new Date(time).getTime());
-  return new Date(run.ran_at).getTime() >= Math.max(...changedAt);
+  return run.policy_updated_at === draft.updatedAt && run.tests_updated_at === testsChangedAt;
 }

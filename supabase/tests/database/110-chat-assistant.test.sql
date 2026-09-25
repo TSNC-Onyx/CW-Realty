@@ -1,6 +1,6 @@
 -- Chat assistant: reply outcomes and the guarded test-run recorder.
 begin;
-select plan(10);
+select plan(12);
 select cwr_test.create_fixture();
 
 -- ---------------------------------------------------------------- reply outcomes
@@ -52,6 +52,25 @@ select throws_ok(
   'A run is refused when a test question was added while it ran'
 );
 
+insert into cwr.chat_policy_test_runs (tenant_id, policy_id, is_passed, policy_updated_at, tests_updated_at)
+values (cwr_test.id('tenant_a'), cwr_test.id('draft_policy'), true, '2000-01-01T00:00:00Z',
+        (select max(updated_at) from cwr.chat_policy_tests where tenant_id = cwr_test.id('tenant_a')));
+select throws_ok(
+  $$ select cwr.transition('chat_policy_status', cwr_test.id('draft_policy'), 'published') $$,
+  '23514',
+  'Run the policy tests and pass them before publishing',
+  'A passing run for a different save of the draft does not allow publishing'
+);
+
+select lives_ok(
+  format(
+    $$ select cwr.record_chat_policy_test_run(%L, %L, %L, true, '[]'::jsonb, null) $$,
+    cwr_test.id('draft_policy'),
+    (select updated_at from cwr.chat_policies where id = cwr_test.id('draft_policy')),
+    (select max(updated_at) from cwr.chat_policy_tests where tenant_id = cwr_test.id('tenant_a'))
+  ),
+  'A run of the current draft and questions is recorded'
+);
 select cwr.transition('chat_policy_status', cwr_test.id('draft_policy'), 'published');
 select throws_ok(
   format(

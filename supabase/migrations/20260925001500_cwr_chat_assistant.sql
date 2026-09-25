@@ -1,5 +1,6 @@
 -- Chat assistant (Phase 5; Features §2, Admin §6).
--- Expand-only: one nullable column and one new service-only function.
+-- Expand-only: three nullable columns, one new service-only function, and a stricter
+-- publish check.
 
 -- ---------------------------------------------------------------------------
 -- Weekly review: each assistant reply records whether it answered from the policy
@@ -11,6 +12,15 @@ alter table cwr.chat_messages
   add constraint chat_messages_outcome_only_on_replies check (role = 'assistant' or outcome is null);
 
 create index chat_messages_handoff_idx on cwr.chat_messages (tenant_id, created_at desc) where outcome = 'handoff';
+
+-- ---------------------------------------------------------------------------
+-- Each run records exactly which saved draft and which set of test questions it checked,
+-- so publishing can demand an exact match (see cwr.publish_chat_policy below).
+-- ---------------------------------------------------------------------------
+
+alter table cwr.chat_policy_test_runs
+  add column policy_updated_at timestamptz,
+  add column tests_updated_at timestamptz;
 
 -- ---------------------------------------------------------------------------
 -- A policy test run is saved only if the draft text and the test questions are the
@@ -55,8 +65,8 @@ begin
       using errcode = 'check_violation';
   end if;
 
-  insert into cwr.chat_policy_test_runs (tenant_id, policy_id, is_passed, results, ran_by)
-  values (v_policy.tenant_id, v_policy.id, p_is_passed, p_results, p_ran_by)
+  insert into cwr.chat_policy_test_runs (tenant_id, policy_id, is_passed, results, ran_by, policy_updated_at, tests_updated_at)
+  values (v_policy.tenant_id, v_policy.id, p_is_passed, p_results, p_ran_by, v_policy.updated_at, p_tests_updated_at)
   returning id into v_run_id;
   return v_run_id;
 end;
@@ -66,3 +76,43 @@ revoke execute on function cwr.record_chat_policy_test_run(uuid, timestamptz, ti
   from public, anon, authenticated;
 grant execute on function cwr.record_chat_policy_test_run(uuid, timestamptz, timestamptz, boolean, jsonb, uuid)
   to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Publishing (Admin §6) now also requires the passing run to have checked this exact save
+-- of the draft and this exact set of test questions. Comparing times alone could be beaten
+-- by a save that committed just after a run although it started before it. Runs without
+-- these stamps predate the recorder; only the server writes runs, always through it.
+-- ---------------------------------------------------------------------------
+
+create or replace function cwr.publish_chat_policy()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_tests_updated_at timestamptz := (
+    select max(t.updated_at) from cwr.chat_policy_tests t where t.tenant_id = new.tenant_id
+  );
+begin
+  if not exists (
+    select 1 from cwr.chat_policy_test_runs r
+    where r.policy_id = new.id and r.is_passed
+      and r.ran_at >= old.updated_at
+      and r.ran_at >= coalesce(v_tests_updated_at, old.updated_at)
+      and (
+        r.policy_updated_at is null
+        or (r.policy_updated_at = old.updated_at and r.tests_updated_at is not distinct from v_tests_updated_at)
+      )
+  ) then
+    raise exception 'Run the policy tests and pass them before publishing'
+      using errcode = 'check_violation';
+  end if;
+
+  update cwr.chat_policies
+  set status = 'archived'
+  where tenant_id = new.tenant_id and status = 'published' and id <> new.id;
+  new.published_at := now();
+  return new;
+end;
+$$;

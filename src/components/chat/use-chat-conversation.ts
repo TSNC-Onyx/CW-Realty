@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { sendChatMessageAction } from "@/lib/chat/chat-actions";
 import type { AssistantReply } from "@/lib/chat/assistant-reply";
+import { getRedactedText } from "@/lib/chat/restricted-data";
 
 // The widget's side of a chat: what it shows and the session id, kept in this tab's
 // sessionStorage so a page load does not lose the conversation. The history the assistant
@@ -65,13 +66,13 @@ export function useChatConversation() {
     const result = await sendChatMessageAction({ sessionId: chat.sessionId, message: question, turnstileToken });
     setPendingQuestion(null);
     if (chat.sessionId === null) setBotCheckKey(crypto.randomUUID());
-    if (result.status === "replied") setChat((current) => ({ sessionId: result.sessionId, entries: [...current.entries, ...getEntries({ question, reply: result.reply })] }));
+    if (result.status === "replied") setChat((current) => ({ sessionId: result.sessionId, entries: [...current.entries, ...getEntries({ question: result.question, reply: result.reply })] }));
     if (result.status === "expired") setChat((current) => ({ ...current, sessionId: null }));
     if (result.status !== "replied") setNotice(result.status === "expired" ? EXPIRED_NOTICE : result.message);
     return result.status === "replied";
   };
 
-  const latestQuestion = pendingQuestion ?? chat.entries.findLast((entry) => entry.role === "visitor")?.text ?? "";
+  const latestQuestion = getRedactedText(pendingQuestion ?? chat.entries.findLast((entry) => entry.role === "visitor")?.text ?? "");
 
   return { sessionId: chat.sessionId, entries: chat.entries, pendingQuestion, notice, botCheckKey, latestQuestion, submitQuestion, dismissNotice: () => setNotice(null) };
 }

@@ -13,7 +13,6 @@ const SESSION_IDLE_LIMIT_MS = 24 * 60 * 60 * 1000;
 const HOUR_MS = 60 * 60 * 1000;
 // Site-wide cost guard (Phase 5 plan, decision 8): beyond this, chat offers a person only.
 const MAX_NEW_CHATS_PER_HOUR = 200;
-const HISTORY_TURN_LIMIT = 20;
 
 export class ChatLogError extends Error {
   constructor(readonly context: { step: string; cause?: unknown }) {
@@ -70,7 +69,7 @@ export async function fetchOpenChatSession(sessionId: string): Promise<ChatSessi
   if (error) throw new ChatLogError({ step: "fetchOpenChatSession", cause: error });
   if (!data) return null;
   const turns = await fetchSessionTurns(data.id);
-  return { id: data.id, tenantId: data.tenant_id, visitorMessageCount: turns.filter((turn) => turn.role === "visitor").length, turns: turns.slice(-HISTORY_TURN_LIMIT) };
+  return { id: data.id, tenantId: data.tenant_id, visitorMessageCount: turns.filter((turn) => turn.role === "visitor").length, turns };
 }
 
 /** Saves the visitor's question (numbers removed) and the reply in one statement. Both rows
@@ -87,7 +86,8 @@ export async function recordChatExchange({ session, question, reply }: { session
   if (touchError) throw new ChatLogError({ step: "touchChatSession", cause: touchError });
 }
 
+/** Links the chat to its first hand-off only; a later hand-off never re-points it. */
 export async function linkChatHandoff({ sessionId, threadId }: { sessionId: string; threadId: string }): Promise<void> {
-  const { error } = await createServiceClient().from("chat_sessions").update({ inbox_thread_id: threadId }).eq("id", sessionId);
+  const { error } = await createServiceClient().from("chat_sessions").update({ inbox_thread_id: threadId }).eq("id", sessionId).is("inbox_thread_id", null);
   if (error) throw new ChatLogError({ step: "linkChatHandoff", cause: error });
 }

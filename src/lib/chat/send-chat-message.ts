@@ -6,29 +6,32 @@ import { fetchChatTenantId, fetchOpenChatSession, fetchPublishedPolicy, isOverHo
 import type { SendChatResult } from "@/lib/chat/chat-results";
 import { CHAT_TURNSTILE_ACTION, MAX_VISITOR_MESSAGES_PER_CHAT, chatMessageSchema, type ChatMessageInput } from "@/lib/chat/chat-schemas";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
+import { getRedactedText } from "@/lib/chat/restricted-data";
 import { isOverChatLimit } from "@/lib/security/rate-limit";
 import { verifyTurnstileToken } from "@/lib/security/turnstile";
 import type { Visitor } from "@/lib/security/visitor";
 
 // One visitor question → one logged reply (Phase 5 plan, architecture context).
 
+// The model sees the latest turns only; the full chat stays in the log and the hand-off.
+const HISTORY_TURN_LIMIT = 20;
 const LIMITED_MESSAGE = "You're sending messages quickly. Wait a minute, then try again.";
 const BLOCKED_MESSAGE = "We couldn't confirm you're a person. Reload the page and try again.";
 const FULL_MESSAGE = "This chat has reached its length limit. Tap “Talk to a person” and our team will pick it up from here.";
 
 type OpenedSession = { session: ChatSession } | { result: SendChatResult };
 
-async function openNewSession({ turnstileToken, visitor }: { turnstileToken: string; visitor: Visitor }): Promise<OpenedSession> {
+async function openNewSession({ question, turnstileToken, visitor }: { question: string; turnstileToken: string; visitor: Visitor }): Promise<OpenedSession> {
   const isHuman = await verifyTurnstileToken({ token: turnstileToken, remoteIp: visitor.ip, expectedAction: CHAT_TURNSTILE_ACTION, expectedHostname: visitor.hostname });
   if (!isHuman) return { result: { status: "error", message: BLOCKED_MESSAGE } };
   const tenantId = await fetchChatTenantId();
-  if (await isOverHourlyChatLimit(tenantId)) return { result: { status: "replied", sessionId: null, reply: getHandoffReply(HANDOFF_TEXT.unavailable) } };
+  if (await isOverHourlyChatLimit(tenantId)) return { result: { status: "replied", sessionId: null, question: getRedactedText(question), reply: getHandoffReply(HANDOFF_TEXT.unavailable) } };
   const policy = await fetchPublishedPolicy(tenantId);
   return { session: await startChatSession({ tenantId, policyId: policy?.id ?? null }) };
 }
 
-async function openSession({ sessionId, turnstileToken, visitor }: { sessionId: string | null; turnstileToken: string; visitor: Visitor }): Promise<OpenedSession> {
-  if (sessionId === null) return openNewSession({ turnstileToken, visitor });
+async function openSession({ sessionId, message, turnstileToken, visitor }: { sessionId: string | null; message: string; turnstileToken: string; visitor: Visitor }): Promise<OpenedSession> {
+  if (sessionId === null) return openNewSession({ question: message, turnstileToken, visitor });
   const session = await fetchOpenChatSession(sessionId);
   return session ? { session } : { result: { status: "expired" } };
 }
@@ -54,7 +57,8 @@ export async function sendChatMessage({ input, visitor }: { input: ChatMessageIn
   const { session } = opened;
   if (session.visitorMessageCount >= MAX_VISITOR_MESSAGES_PER_CHAT) return { status: "error", message: FULL_MESSAGE };
   const question = parsed.data.message;
-  const reply = await fetchReplyOrHandoff({ tenantId: session.tenantId, turns: [...session.turns, { role: "visitor", body: question }] });
+  const turns: ChatTurn[] = [...session.turns.slice(-HISTORY_TURN_LIMIT), { role: "visitor", body: question }];
+  const reply = await fetchReplyOrHandoff({ tenantId: session.tenantId, turns });
   await recordChatExchange({ session, question, reply });
-  return { status: "replied", sessionId: session.id, reply };
+  return { status: "replied", sessionId: session.id, question: getRedactedText(question), reply };
 }

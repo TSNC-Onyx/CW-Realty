@@ -12,9 +12,21 @@ import { Message } from "@/components/ui/message";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Style §11.13 AI chat window: 380px panel on desktop, full screen on phones; labeled
-// "AI · NOT A PERSON"; "Talk to a person" always visible. Escape closes it.
+// "AI · NOT A PERSON"; "Talk to a person" always visible. Escape closes it. While it covers
+// the whole screen, Tab stays inside it (the page behind cannot be seen).
 
 type ChatView = "chat" | "handoff";
+
+const FULL_SCREEN_QUERY = "(width < 1024px)";
+const FOCUSABLE_SELECTOR = "a[href], button:not([disabled]), textarea, input:not([type='hidden']), select, [tabindex]:not([tabindex='-1'])";
+
+function getFocusTarget({ panel, isBackward }: { panel: HTMLElement; isBackward: boolean }): HTMLElement | null {
+  const focusable = [...panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter((element) => element.getClientRects().length > 0);
+  const [first, last] = [focusable[0], focusable.at(-1)];
+  if (isBackward && document.activeElement === first) return last ?? null;
+  if (!isBackward && document.activeElement === last) return first ?? null;
+  return null;
+}
 
 function ChatHeader({ onClose }: { onClose: () => void }) {
   return (
@@ -57,6 +69,11 @@ export function ChatPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
 
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === "Escape") onClose();
+    if (event.key !== "Tab" || !window.matchMedia(FULL_SCREEN_QUERY).matches) return;
+    const target = getFocusTarget({ panel: event.currentTarget, isBackward: event.shiftKey });
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
   };
 
   return (

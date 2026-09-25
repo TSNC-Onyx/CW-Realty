@@ -113,18 +113,19 @@ export async function removePolicyTestAction(testId: string): Promise<QuickResul
 // ------------------------------------------------------------------ test run
 
 type DraftToTest = { id: string; body: string; updated_at: string };
-type TestRow = { question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null };
+type TestRow = { question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null; is_active: boolean; updated_at: string };
 
 async function fetchDraftToTest({ supabase, tenantId }: AdminContext, policyId: string): Promise<DraftToTest | null> {
   const { data } = await supabase.from("chat_policies").select("id, body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).eq("status", "draft").maybeSingle<DraftToTest>();
   return data;
 }
 
+/** One read, so the questions asked and the "changed at" stamp always describe the same set. */
 async function fetchTestCases({ supabase, tenantId }: AdminContext): Promise<{ testCases: PolicyTestCase[]; changedAt: string | null }> {
-  const { data } = await supabase.from("chat_policy_tests").select("question, expected_outcome, expected_section, updated_at").eq("tenant_id", tenantId).eq("is_active", true).returns<(TestRow & { updated_at: string })[]>();
-  const { data: newest } = await supabase.from("chat_policy_tests").select("updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(1).maybeSingle<{ updated_at: string }>();
-  const testCases = (data ?? []).map((row) => ({ question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false }));
-  return { testCases, changedAt: newest?.updated_at ?? null };
+  const { data } = await supabase.from("chat_policy_tests").select("question, expected_outcome, expected_section, is_active, updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).returns<TestRow[]>();
+  const rows = data ?? [];
+  const testCases = rows.filter((row) => row.is_active).map((row) => ({ question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false }));
+  return { testCases, changedAt: rows[0]?.updated_at ?? null };
 }
 
 async function saveTestRun({ draft, changedAt, results, userId }: { draft: DraftToTest; changedAt: string | null; results: PolicyTestResult[]; userId: string }) {

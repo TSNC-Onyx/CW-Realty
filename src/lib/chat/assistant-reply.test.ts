@@ -59,6 +59,29 @@ describe("getCheckedReply", () => {
     expect(reply.outcome).toBe("handoff");
   });
 
+  it("hands off a copied passage even when its formatting is changed", () => {
+    // Arrange
+    const policy = "# Fees\n**Listing fee:** the *seller* pays 5% at closing; the buyer's agent is paid from that fee, and no other fees apply to either side unless both agree in writing.";
+
+    // Act
+    const reply = getCheckedReply({
+      modelReply: { outcome: "answer", reply: "Listing fee - the seller pays 5% at closing. The buyer’s agent is paid from that fee, and no other fees apply to either side unless both agree in writing!", citedSections: ["Fees"] },
+      sections: ["Fees"],
+      policyBody: policy,
+    });
+
+    // Assert
+    expect(reply.outcome).toBe("handoff");
+  });
+
+  it("keeps a short phrase taken from the policy", () => {
+    // Arrange / Act
+    const reply = getReply({ reply: "We are open weekdays from 9 to 5." });
+
+    // Assert
+    expect(reply.outcome).toBe("answer");
+  });
+
   it("hands off an empty reply", () => {
     // Arrange / Act
     const reply = getReply({ reply: "   " });

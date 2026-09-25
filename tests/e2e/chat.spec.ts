@@ -53,6 +53,21 @@ test("the phone action bar's Chat button opens the chat full screen", async ({ p
   expect((await panel.boundingBox())?.width).toBe(VIEWPORTS.phone.width);
 });
 
+test("on a phone, Tab stays inside the full-screen chat", async ({ page }) => {
+  // Arrange
+  await page.setViewportSize(VIEWPORTS.phone);
+  await page.goto("/about");
+  await page.getByRole("navigation", { name: "Quick contact" }).getByRole("link", { name: "Chat" }).click();
+  const panel = page.getByRole("dialog", { name: "CWR Assistant" });
+  await expect(panel.getByLabel("Your question")).toBeFocused();
+
+  // Act
+  for (let press = 0; press < 6; press += 1) await page.keyboard.press("Tab");
+
+  // Assert
+  expect(await panel.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+});
+
 test("the open chat has no WCAG 2.2 AA violations", async ({ page }) => {
   // Arrange
   await openChatOnDesktop(page);

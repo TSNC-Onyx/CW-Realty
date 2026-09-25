@@ -8,9 +8,9 @@ import { getMatchingSection } from "@/lib/chat/policy-sections";
 // Anything else becomes a hand-off to a person with fixed, pre-approved wording.
 
 const MAX_REPLY_LENGTH = 1500;
-// A reply sharing this many consecutive characters with the policy is copying it.
-const COPY_WINDOW_LENGTH = 150;
-const COPY_WINDOW_STEP = 50;
+// A reply sharing this many words in a row with the policy (ignoring case, punctuation, and
+// formatting) is copying it rather than answering in its own words.
+const COPY_RUN_WORDS = 20;
 
 export const HANDOFF_TEXT = {
   outsidePolicy: "I can't answer that from our policy, but a person on our team can. Tap “Talk to a person” and leave your details.",
@@ -30,17 +30,19 @@ export const modelReplySchema = z.object({
 
 export type ModelReply = z.infer<typeof modelReplySchema>;
 
-function getCollapsedText(text: string): string {
-  return text.replace(/\s+/g, " ").trim().toLowerCase();
+function getWords(text: string): string[] {
+  return text.normalize("NFKD").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter((word) => word !== "");
+}
+
+function getWordRuns(words: string[]): string[] {
+  return Array.from({ length: Math.max(words.length - COPY_RUN_WORDS + 1, 0) }, (_unused, start) => words.slice(start, start + COPY_RUN_WORDS).join(" "));
 }
 
 function isCopyingPolicy(reply: string, policyBody: string): boolean {
-  const collapsedReply = getCollapsedText(reply);
-  const collapsedPolicy = getCollapsedText(policyBody);
-  for (let start = 0; start + COPY_WINDOW_LENGTH <= collapsedReply.length; start += COPY_WINDOW_STEP) {
-    if (collapsedPolicy.includes(collapsedReply.slice(start, start + COPY_WINDOW_LENGTH))) return true;
-  }
-  return false;
+  const replyRuns = getWordRuns(getWords(reply));
+  if (replyRuns.length === 0) return false;
+  const policyRuns = new Set(getWordRuns(getWords(policyBody)));
+  return replyRuns.some((run) => policyRuns.has(run));
 }
 
 function isLeaking(reply: string, policyBody: string): boolean {

@@ -8,7 +8,7 @@ import { PolicyTestForm } from "@/components/admin/chat-policy/policy-test-form"
 import { PolicyTestList } from "@/components/admin/chat-policy/policy-test-list";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Message } from "@/components/ui/message";
-import { fetchLatestTestRun, fetchPolicyTests, fetchPolicyVersions, fetchWorkingPolicy, isRunCurrent, type PolicyStatus, type PolicyTestRun, type PolicyVersion } from "@/lib/admin/chat-policy/queries";
+import { fetchLatestTestRun, fetchPolicyTests, fetchPolicyVersions, fetchTestsChangedAt, fetchWorkingPolicy, isRunCurrent, type PolicyStatus, type PolicyTestRun, type PolicyVersion } from "@/lib/admin/chat-policy/queries";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -47,10 +47,10 @@ function TestRunResults({ run, isCurrent }: { run: PolicyTestRun; isCurrent: boo
 
 export default async function ChatPolicyPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
-  const [versions, tests] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin)]);
+  const [versions, tests, testsChangedAt] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin)]);
   const working = await fetchWorkingPolicy(admin, versions);
   const run = working.draftId ? await fetchLatestTestRun(admin, working.draftId) : null;
-  const isCurrent = isRunCurrent({ run, draft: working, tests });
+  const isCurrent = isRunCurrent({ run, draft: working, testsChangedAt });
   return (
     <>
       <h1 className="type-h1 mb-2">Chatbot policy</h1>

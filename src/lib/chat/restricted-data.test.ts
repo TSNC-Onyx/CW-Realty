@@ -3,7 +3,18 @@ import { describe, expect, it } from "vitest";
 import { REMOVED_NUMBER_TEXT, getRedactedText, hasRestrictedNumber } from "@/lib/chat/restricted-data";
 
 describe("hasRestrictedNumber", () => {
-  it.each(["My SSN is 123-45-6789", "ssn 123 45 6789", "card 4111 1111 1111 1111", "account 000123456789012"])("flags %s", (text) => {
+  it.each([
+    "My SSN is 123-45-6789",
+    "ssn 123 45 6789",
+    "123.45.6789",
+    "123 - 45 - 6789",
+    "card 4111 1111 1111 1111",
+    "4111.1111.1111.1111",
+    "account 000123456789012",
+    "My checking account is 1234567890, can you help?",
+    "routing: 021000021",
+    "Driver license # 40912345",
+  ])("flags %s", (text) => {
     // Arrange / Act
     const isFlagged = hasRestrictedNumber(text);
 
@@ -11,7 +22,7 @@ describe("hasRestrictedNumber", () => {
     expect(isFlagged).toBe(true);
   });
 
-  it.each(["Call me at (336) 555-0123", "+1 336 555 0123", "Is 1204 Oak St still $350,000?", "ZIP 27401"])("allows %s", (text) => {
+  it.each(["Call me at (336) 555-0123", "+1 336 555 0123", "336.555.0123", "Is 1204 Oak St still $350,000?", "ZIP 27401", "Built in 1998 on 0.25 acres"])("allows %s", (text) => {
     // Arrange / Act
     const isFlagged = hasRestrictedNumber(text);
 
