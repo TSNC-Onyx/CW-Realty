@@ -56,3 +56,10 @@ Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the
 | `/services/cwr-touchup` | `/cwrtouchup`, `/services` |
 | `/connections` | `/sell` |
 | `/resources` | `/faq` |
+
+## Owner decisions (2026-09-25)
+
+| Topic | Decision |
+|---|---|
+| Property Search | Triad NC MLS search, likely via an embed; ship a placeholder until the provider is chosen |
+| Bookings | Only CWR TouchUp appointments are bookable; "booking" events track TouchUp bookings |
