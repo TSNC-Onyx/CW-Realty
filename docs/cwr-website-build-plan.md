@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. No application code exists yet.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `phase-0-foundation`; Phases 1–7 not started.
 
 ## Goal
 
@@ -20,10 +20,10 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 
 ## Current state (verified 2026-09-25)
 
-- Repo: `TSNC-Onyx/CW-Realty` (**public**), branch `build1`; docs only.
+- Repo: `TSNC-Onyx/CW-Realty` (**public**); planning docs on `build1`, Phase 0 code on `phase-0-foundation`.
 - Domain: DNS hosted at Wix (`ns6/ns7.wixdns.net`); email on Google Workspace (MX `aspmx.l.google.com`).
 - Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): legacy property-management schema in `public` with demo data; no versioned migrations; 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
-- Local tooling: Node 25.9, npm 11.12, gh 2.92.
+- Local tooling: Node 25.9, npm 11.12, gh 2.92; Supabase CLI pinned in `package.json` (run via `npx supabase`); local Supabase uses ports 553xx because another project holds the defaults.
 
 ## Architecture
 
@@ -92,7 +92,7 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 
 **Phase 1 — Public shell**
 7. Design tokens (Style §11), fonts, layout, header (60px mobile / 88px desktop, sticky), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
-8. Redirect middleware reading `cwr.redirects` (single hop, normalization rules); 404 page.
+8. Redirect middleware reading `cwr.redirects` (single hop, normalization rules); hidden team members 302 to `/team` via `cwr.is_hidden_team_member()`; 404 page.
 9. Static pages: Home, About, Contact (form), Privacy Policy, Resources (FAQs & Homework), Connections, CWR TouchUp (booking request form), Property Search placeholder.
 
 **Phase 2 — Data-driven pages**
@@ -132,6 +132,7 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 - TouchUp "booking" is a request form (preferred dates/times) confirmed by staff, not a live calendar.
 - Every admin account (all three roles) must use MFA.
 - The chatbot policy file lives in the database, never in this public repo.
+- Hosted database changes are applied only by `supabase db push` in the Deploy workflow — never via the Supabase MCP `apply_migration`, which records different version numbers and breaks later pushes.
 
 ## Owner approvals (2026-09-25)
 
