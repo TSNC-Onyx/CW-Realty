@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `phase-0-foundation`; Phases 1–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phases 1–7 not started.
 
 ## Goal
 
@@ -20,7 +20,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 
 ## Current state (verified 2026-09-25)
 
-- Repo: `TSNC-Onyx/CW-Realty` (**public**); planning docs on `build1`, Phase 0 code on `phase-0-foundation`.
+- Repo: `TSNC-Onyx/CW-Realty` (**public**); docs and Phase 0 code on `build1`.
 - Domain: DNS hosted at Wix (`ns6/ns7.wixdns.net`); email on Google Workspace (MX `aspmx.l.google.com`).
 - Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): legacy property-management schema in `public` with demo data; no versioned migrations; 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
 - Local tooling: Node 25.9, npm 11.12, gh 2.92; Supabase CLI pinned in `package.json` (run via `npx supabase`); local Supabase uses ports 553xx because another project holds the defaults.
