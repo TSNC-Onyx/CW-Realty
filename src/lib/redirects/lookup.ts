@@ -78,16 +78,20 @@ async function fetchHiddenMemberRedirect(
 /**
  * Where an already-normalized path should go: a stored redirect (301/308), a hidden
  * team member (302 to /team), or null to serve the page. Throws SupabaseQueryError.
+ * A stored redirect that lands on a hidden member goes straight to /team (one hop).
  * For team pages the tenant is looked up alongside the redirect to save a round trip.
  */
 export async function fetchRedirectDecision(path: string): Promise<RedirectDecision | null> {
   const client = getPublicClient();
   if (!client || !isRedirectCandidate(path)) return null;
-  const slug = getTeamMemberSlug(path);
-  const [storedRedirect, tenantId] = await Promise.all([
+  const isTeamPath = getTeamMemberSlug(path) !== null;
+  const [storedRedirect, tenantIdForPath] = await Promise.all([
     fetchStoredRedirect(client, path),
-    slug ? fetchTenantId(client) : Promise.resolve(null),
+    isTeamPath ? fetchTenantId(client) : Promise.resolve(null),
   ]);
-  if (storedRedirect) return storedRedirect;
-  return slug ? fetchHiddenMemberRedirect(client, { slug, tenantId }) : null;
+  const slug = getTeamMemberSlug(storedRedirect?.targetPath ?? path);
+  if (!slug) return storedRedirect;
+  const tenantId = tenantIdForPath ?? (await fetchTenantId(client));
+  const hiddenMemberRedirect = await fetchHiddenMemberRedirect(client, { slug, tenantId });
+  return hiddenMemberRedirect ?? storedRedirect;
 }

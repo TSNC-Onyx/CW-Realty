@@ -125,3 +125,27 @@ test.describe("redirects and missing pages", () => {
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("We can't find that page");
   });
 });
+
+test("preview and local hosts tell search engines not to index them", async ({ request }) => {
+  // Arrange
+  const path = "/";
+
+  // Act
+  const response = await request.get(path);
+
+  // Assert
+  expect(response.headers()["x-robots-tag"]).toBe("noindex, nofollow");
+});
+
+for (const path of ["/listings/no-such-home", "/team/no-such-person", "/listings?page=abc", "/listings?page=0"]) {
+  test(`${path} answers 404`, async ({ request }) => {
+    // Arrange
+    const missingPath = path;
+
+    // Act
+    const response = await request.get(missingPath);
+
+    // Assert
+    expect(response.status()).toBe(404);
+  });
+}

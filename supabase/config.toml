@@ -116,6 +116,13 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
+# Public listing and team photos (AVIF/WebP variants). Writes only with the
+# service-role key on the server; see docs/cwr-phase-2-data-pages-plan.md.
+[storage.buckets.cwr-media]
+public = true
+file_size_limit = "10MiB"
+allowed_mime_types = ["image/avif", "image/webp"]
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false

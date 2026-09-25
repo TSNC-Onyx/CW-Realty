@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phases 2–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phases 3–7 not started.
 
 ## Goal
 
@@ -53,7 +53,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `tenants`, `memberships` | One CWR tenant; user ↔ role (`owner`, `manager`, `staff`) |
 | `site_settings` | Phone, email, contact names, footer text, office address, firm license number — edited once, used everywhere |
 | `listings`, `listing_photos` | Featured properties: status (`active`/`pending`/`sold`), publish state (`draft`/`live`), order, photos with required alt text |
-| `team_members` | Profile pages, order, visibility (hidden keeps the page) |
+| `team_members` | Profile pages, order, visibility (hidden keeps the page), portrait size |
 | `redirects` | Legacy map + automatic redirects on slug change/removal |
 | `inbox_threads`, `inbox_messages` | Contact form, chat handoffs, TouchUp booking requests; status (`new`/`assigned`/`replied`/`closed`), assignee, internal notes, replies |
 | `notification_recipients` | Who gets contact / chat / booking alerts |

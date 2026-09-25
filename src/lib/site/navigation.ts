@@ -57,6 +57,8 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
   "/connections",
   "/services/cwr-touchup",
   "/property-search",
+  "/listings",
+  "/team",
 ]);
 
 export function getFooterColumns(): { heading: string; links: NavLink[] }[] {
