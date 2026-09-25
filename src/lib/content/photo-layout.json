@@ -1,0 +1,6 @@
+{
+  "$comment": "Photo file layout shared by the site, the content import, and the Phase 3 upload pipeline. Each photo is a folder in the bucket holding {width}.{format}; widths above the original are saved at the original size.",
+  "bucket": "cwr-media",
+  "widths": [640, 1280, 1920],
+  "formats": ["avif", "webp"]
+}

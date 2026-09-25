@@ -1,0 +1,191 @@
+{
+  "$comment": "Content from the current Wix site (charliewardrealty.com, read 2026-09-25), lightly edited for spelling and plain language. Imported once by scripts/import-live-site-content.mjs; the owner corrects it in the admin portal.",
+  "listings": [
+    {
+      "slug": "5423-pine-level-dr-browns-summit-nc",
+      "streetAddress": "5423 Pine Level Dr",
+      "city": "Browns Summit",
+      "postalCode": "27214",
+      "priceDollars": 225000,
+      "status": "active",
+      "bedrooms": 3,
+      "bathrooms": 1.5,
+      "squareFeet": 1050,
+      "sortOrder": 1,
+      "description": "Yes, there is still such a thing as quiet living with country charm. This 3-bedroom, 1½-bath home has all-new flooring, a new stove, and a new dishwasher. The primary bedroom has an updated half bath, and the second bedroom has closet shelving.\n\nEnjoy plenty of outdoor space in front and back. The backyard is fully fenced, with a pet pen at the far rear. Come in through the front door or from the side carport. Close to Hwy 29, I-840, and I-73. It's move-in ready — see it today.\n\nMLS #1199839. Built in 1947. One level.",
+      "photos": [
+        { "source": "https://static.wixstatic.com/media/2faef7_65cbd67f94d54e7185d3711ded33e1bd~mv2.webp", "alt": "Front of the one-story brick home at 5423 Pine Level Dr, set among tall pines" },
+        { "source": "https://static.wixstatic.com/media/2faef7_128232d55d9f490a89b10bc5bfdef543~mv2.webp", "alt": "Brick ranch home with a side carport and front steps" },
+        { "source": "https://static.wixstatic.com/media/2faef7_357451844649423b842f2d1e10c7baba~mv2.webp", "alt": "Living room with new wood-look flooring and a double window" },
+        { "source": "https://static.wixstatic.com/media/2faef7_8c37e56143594e79a071e2680bd59a35~mv2.webp", "alt": "Kitchen with white cabinets, a black stove, and a stainless dishwasher" },
+        { "source": "https://static.wixstatic.com/media/2faef7_004a2a9c9ba54c5682580ec1b0e48fb1~mv2.webp", "alt": "Carpeted bedroom with a large window" },
+        { "source": "https://static.wixstatic.com/media/2faef7_96e2eea152e64ddba1f86376c3e94fce~mv2.webp", "alt": "Full bathroom with a tub and shower" },
+        { "source": "https://static.wixstatic.com/media/2faef7_b5e9ec62fd64454b9581ca84a4d0999b~mv2.webp", "alt": "Back of the home and the fenced backyard" },
+        { "source": "https://static.wixstatic.com/media/2faef7_502637448a0e4f62899f5d5d515b62a0~mv2.webp", "alt": "Large open backyard lined with trees" }
+      ]
+    },
+    {
+      "slug": "3826-burlington-rd-greensboro-nc",
+      "streetAddress": "3826 Burlington Rd",
+      "city": "Greensboro",
+      "postalCode": "27405",
+      "priceDollars": 850000,
+      "status": "active",
+      "bedrooms": null,
+      "bathrooms": null,
+      "squareFeet": 4986,
+      "sortOrder": 2,
+      "description": "Looking for a profitable auto repair and sales facility? This commercial property has 9 garage bays, a used-parts shed, storage, upstairs shelving, 5 lifts, a metal shop, a tire balancer, and more. With a little care and experience, it has room to grow into a thriving business — and it's all included in the asking price.\n\nRetail, auto repair. Building class C. Built in 1968. 0.72 acres with 121 feet of frontage on Burlington Rd. Zoned LI. In an Opportunity Zone. For investors or owner-users.",
+      "photos": [
+        { "source": "https://static.wixstatic.com/media/2faef7_c309722b94de421fbe12ad1543b58c63~mv2.jpg", "alt": "Auto repair building at 3826 Burlington Rd with open garage bays" },
+        { "source": "https://static.wixstatic.com/media/2faef7_805a0de9bc1c424f99269a8ae606df6a~mv2.jpg", "alt": "Brick section of the building beside a grassy lot" },
+        { "source": "https://static.wixstatic.com/media/2faef7_c8ae9a735e6f477186b57ea336195764~mv2.jpg", "alt": "Wide view of the garage bays and parking area" },
+        { "source": "https://static.wixstatic.com/media/2faef7_b17e77275c1148f39b8c5f9db44ed818~mv2.jpg", "alt": "Aerial view of the 0.72-acre lot outlined in orange" }
+      ]
+    },
+    {
+      "slug": "1514-woodridge-ave-greensboro-nc",
+      "streetAddress": "1514 Woodridge Ave",
+      "city": "Greensboro",
+      "postalCode": "27405",
+      "priceDollars": 239000,
+      "status": "pending",
+      "bedrooms": 3,
+      "bathrooms": 3,
+      "squareFeet": 2036,
+      "sortOrder": 3,
+      "description": "Forget the Powerball — your winning number is 1-5-1-4! First-time buyers, established buyers, and investors: this 3-bedroom, 3-bath brick home in an established Greensboro neighborhood was built to last. It shows some wear, but it has solid wood kitchen cabinets, a built-in gas range, a breakfast nook, and a formal dining area. Three bedrooms and two baths are on the main floor, including a private bath in the primary bedroom.\n\nBonus: a fully outfitted basement with a large full bath, kitchenette, bedroom space, private entrance, and double doors to the patio — room for an in-law suite, a returning college student, or rental space.\n\nThe large backyard backs up to a natural wooded area for privacy. Easy access to I-40, Wendover Ave, and Hwy 29.\n\nMLS #1204576. Built in 1969. Two levels.",
+      "photos": [
+        { "source": "https://static.wixstatic.com/media/2faef7_18c6ff0e6d024ec59a66d2e6db443cbcf000.jpg", "alt": "Front of the brick home at 1514 Woodridge Ave with landscaped shrubs", "crop": "trim" }
+      ]
+    },
+    {
+      "slug": "912-rocky-meadows-ln",
+      "streetAddress": "912 Rocky Meadows Ln",
+      "city": "Concord",
+      "postalCode": "28025",
+      "priceDollars": 295000,
+      "status": "sold",
+      "bedrooms": 3,
+      "bathrooms": 2.5,
+      "squareFeet": null,
+      "sortOrder": 4,
+      "description": "This 3-bedroom, 2.5-bath home sits on a cul-de-sac with a secluded backyard that backs up to HOA common area and the Rocky River. Enjoy a large wooden deck in every season, an open floor plan, a fireplace, second-floor laundry, a bonus room, and a garage. Close to Charlotte and a short commute to the Triad.\n\nMLS #1037062. Built in 2003. Two stories.",
+      "photos": [
+        { "source": "https://static.wixstatic.com/media/aba887_432bde201bc4445ab6da87d51b775943~mv2.jpg", "alt": "Two-story home at 912 Rocky Meadows Ln with an attached garage and a green lawn" }
+      ]
+    }
+  ],
+  "team": [
+    {
+      "slug": "charlie-ward",
+      "fullName": "Charlie Ward Sr.",
+      "jobTitle": "Broker in charge and team leader",
+      "email": "charlie@charliewardrealty.com",
+      "phone": "+13367080560",
+      "isVisible": true,
+      "sortOrder": 1,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_f8e971797b1f445bab8b5d357b0d3c2a~mv2.jpg", "alt": "Portrait of Charlie Ward Sr." },
+      "bio": "Buying my first home put me on the path to a career in real estate. I learned that owning property brings real advantages — financial stability, tax benefits, and a starting line toward generational wealth. Home is where most of life happens, so it's an important decision.\n\nI have managed rental property and worked in human resources with the United States Postal Service. Now I help families enjoy the benefits of owning a home. I believe in continuing education: every industry changes, and it's our job to stay informed so we can give you the best service.\n\nMy Workforce Housing Specialist certification reflects my commitment to first-time buyers and workforce housing clients. Special financing is available for people in certain civic careers, such as firefighters, nurses, and teachers. I am also registered with HUD to represent buyers and sellers of foreclosed homes that have gone back to the lender for resale.\n\nI'm proud to hold the Graduate REALTOR® Institute (GRI) designation, with advanced classes such as “The ABCs of Financing,” “Mastering Real Estate Negotiations,” and “Technology Tools and Resources.” We keep learning so we stay current on the ideas, policies, and strategies behind buying, selling, and investing in real estate."
+    },
+    {
+      "slug": "ashley-edwards",
+      "fullName": "Ashley Edwards",
+      "jobTitle": "Broker",
+      "email": null,
+      "phone": null,
+      "isVisible": true,
+      "sortOrder": 2,
+      "photo": { "source": "https://static.wixstatic.com/media/2faef7_7687b6ff57144dab9cad37b0f54bc451~mv2.jpg", "alt": "Portrait of Ashley Edwards" },
+      "bio": ""
+    },
+    {
+      "slug": "jerome-pappas",
+      "fullName": "Jerome Pappas",
+      "jobTitle": "Broker",
+      "email": "jerome@cwrrealty.com",
+      "phone": "+13369918919",
+      "isVisible": true,
+      "sortOrder": 3,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_fb1585774f5e4e93b0c7481b2511a3bb~mv2.jpg", "alt": "Portrait of Jerome Pappas" },
+      "bio": "CWR is expanding into the Triad's growing commercial real estate market, and our commercial clients need brokers with the experience to help them buy, sell, or manage commercial property.\n\nJerome Pappas is your guy. He has served real estate clients in North Carolina for almost 15 years. He holds a BS from UNC Charlotte and a paralegal certificate from Georgetown University. His business and legal education, together with his time as a commercial broker with Price Commercial in High Point, gives him a strong foundation for strategies that lead to successful transactions.\n\nJerome is a family man who makes time for his wife, son, and daughter. His “me time” involves a fishing rod and the best fish story of the day — plus weightlifting, sports, and cooking.\n\nStart the conversation about your commercial needs. Connect with Jerome today."
+    },
+    {
+      "slug": "ryan-dixon",
+      "fullName": "Ryan Dixon",
+      "jobTitle": "Broker",
+      "email": "ryan@cwrrealty.com",
+      "phone": "+12534143785",
+      "isVisible": true,
+      "sortOrder": 4,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_7173876dff7e497cb9d009465e10336c~mv2.jpg", "alt": "Portrait of Ryan Dixon" },
+      "bio": "Ryan is a North Carolina native committed to the business and art of real estate. He values the trust his clients place in him and is intentional in his preparation and follow-through, going above and beyond to meet or exceed their expectations.\n\nRyan served our nation for 20 years and is retired from the United States Air Force. His love of meeting people from all walks of life helps him connect easily with clients and guide them from the first question to closing day.\n\nRyan is one half of The Dixon Group. He and his wife, Cherri, are ready to help you reach your real estate goals. Connect with Ryan or Cherri today."
+    },
+    {
+      "slug": "cherri-dixon",
+      "fullName": "Cherri Dixon",
+      "jobTitle": "Broker",
+      "email": "cherri@cwrrealty.com",
+      "phone": "+13365004187",
+      "isVisible": true,
+      "sortOrder": 5,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_3471a0dbbd8e477ea02ad6d5513bebe2~mv2.jpg", "alt": "Portrait of Cherri Dixon" },
+      "bio": "“As a mother and military spouse, I believe where you live becomes the center of your universe — your home base, and a place where memories are made.”\n\nCherri Dixon is a real estate professional devoted to working strategically every day toward complete client satisfaction. She believes property ownership is a lovely thing. Her experience as a mother and military spouse taught her to pivot, negotiate, navigate, and appreciate each phase of the real estate journey.\n\nLike her husband, Ryan, she deeply respects the faith and confidence clients place in her. Connect with Cherri today and find the center of your universe."
+    },
+    {
+      "slug": "herita-jones",
+      "fullName": "Herita Jones",
+      "jobTitle": "Design specialist",
+      "email": "herita@charliewardrealty.com",
+      "phone": null,
+      "isVisible": true,
+      "sortOrder": 6,
+      "photo": { "source": "https://static.wixstatic.com/media/2faef7_f5e59a40a8334a288dad14928cf4a902~mv2.png", "alt": "Portrait of Herita Jones" },
+      "bio": "Herita Jones is our design specialist. She and her team help you get higher offers by improving your home's market appeal. Herita has spent more than 20 years as a professional makeup artist. By pairing her eye for color, light, texture, and angles with a passion for interior design and remodeling, she helps CWR offer a service we call CWR TouchUp. Our clients call it a game changer.\n\nWhen Herita isn't on set or working with CWR, she spends her time gardening and developing her own cosmetics line."
+    },
+    {
+      "slug": "princess-garner",
+      "fullName": "Princess Garner",
+      "jobTitle": "Broker",
+      "email": "princess@cwrrealty.com",
+      "phone": "+13362686928",
+      "isVisible": true,
+      "sortOrder": 7,
+      "photo": { "source": "https://static.wixstatic.com/media/2faef7_85f0f09402a3402abf18e4b2f0018c83~mv2.jpg", "alt": "Portrait of Princess Garner" },
+      "bio": "“Real estate is in my blood!” Princess Garner comes from a legacy of home builders. She grew up watching her family, including her grandmother, build homes, which sparked her interest in new construction and land development. One of her favorite pastimes is riding around with her mom, looking at land and exploring what it could become.\n\nWith a healthy respect for the land and strong communication skills from her time as a trainer with the United States Postal Service, Princess listens, coaches, and makes sure clients understand and feel comfortable with each step of buying and selling. She says, “It's important that everyone invest in themselves, and being a homeowner is definitely a good way to start.”\n\nPrincess is married, a mother of four, and a proud grandmother of two. She is a classically trained pianist, and in her spare time you'll find her at her favorite fishing spot."
+    },
+    {
+      "slug": "richard-chitman",
+      "fullName": "Richard Chitman",
+      "jobTitle": "Broker",
+      "email": "richard@charliewardrealty.com",
+      "phone": null,
+      "isVisible": true,
+      "sortOrder": 8,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_03994e32ab9143d4837fa0a059a06fc0~mv2.jpg", "alt": "Portrait of Richard Chitman" },
+      "bio": "Twin City, we have you covered. Richard Chitman specializes in Winston-Salem and Forsyth County. He offers personal service you can see and feel from the first time you connect, and he knows how important it is to find the right real estate professional for an investment as big as a home or commercial property.\n\n“I believe wholeheartedly in the unique personal nature of real estate,” Richard says — and it shows in his follow-through at every step. He sees himself as a neighborhood specialist who knows local home values and price trends, and his training with respected industry programs helps him connect clients with the financing, insurance, and other professionals they need.\n\nWhen he's not helping families reach their goals, Richard enjoys relaxing at home with his wife, Annette. Contact Richard anytime to get started."
+    },
+    {
+      "slug": "jayne-trinette",
+      "fullName": "Jayne Trinette",
+      "jobTitle": "Broker",
+      "email": "jtbutler@charliewardrealty.com",
+      "phone": "+13363123542",
+      "isVisible": true,
+      "sortOrder": 9,
+      "photo": { "source": "https://static.wixstatic.com/media/aba887_3dcc66ae3fc746e5904d563e17a31773~mv2.jpg", "alt": "Portrait of Jayne Trinette" },
+      "bio": "There is nothing plain about Jayne! Jayne Trinette Butler has a dual career: she is a successful stage performer and a broker who helps families and individuals buy and sell homes and investment property.\n\nJayne brings Broadway energy to CWR. After years of traveling the world with productions including Disney's The Lion King, she has a deep appreciation for “home” and a talent for building relationships. “As an actor it is very important to establish relationships and study how people connect,” she says.\n\nAs a new homeowner herself, Jayne wants to show people how owning real estate builds a path to generational wealth, and to smooth out the rough spots that come with buying and selling.\n\nWhen she isn't serving clients, Jayne is training her voice, rehearsing, or spending time with her husband, Bryan, and her four-legged family member, Jazz."
+    },
+    {
+      "slug": "russell-casey",
+      "fullName": "Russell Casey",
+      "jobTitle": "",
+      "email": null,
+      "phone": null,
+      "isVisible": false,
+      "sortOrder": 10,
+      "photo": null,
+      "bio": ""
+    }
+  ]
+}

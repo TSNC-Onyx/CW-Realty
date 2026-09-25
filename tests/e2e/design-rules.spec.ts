@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { PUBLIC_PAGE_PATHS, VIEWPORTS } from "./pages";
+import { CONTENT_PAGE_PATHS, PUBLIC_PAGE_PATHS, VIEWPORTS } from "./pages";
 
 // Automated Style §11.15 checks on the rendered pages: tap targets, gold only on
 // dark surfaces, square corners except circles, no text under 14px, and no sideways
@@ -69,7 +69,7 @@ function getSmallTextViolations(page: Page): Promise<string[]> {
   }, MIN_TEXT_SIZE_PX);
 }
 
-for (const path of PUBLIC_PAGE_PATHS) {
+for (const path of [...PUBLIC_PAGE_PATHS, ...CONTENT_PAGE_PATHS]) {
   for (const [viewportName, viewport] of Object.entries({ phone: VIEWPORTS.phone, desktop: VIEWPORTS.desktop })) {
     test.describe(`${path} on ${viewportName}`, () => {
       test.beforeEach(async ({ page }) => {

@@ -1,14 +1,29 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, House, Phone } from "lucide-react";
 
+import { ListingCard } from "@/components/content/listing-card";
+import { ResponsivePhoto } from "@/components/content/responsive-photo";
+import { TeamCard } from "@/components/content/team-card";
 import { ButtonLink } from "@/components/ui/button-link";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PhotoPlaceholder } from "@/components/ui/photo-placeholder";
 import { Container, Section } from "@/components/ui/section";
 import { TextLink } from "@/components/ui/text-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { fetchListingsPage, type Listing, type ListingPhoto } from "@/lib/content/listings";
+import { fetchTeamMembers, type TeamMember } from "@/lib/content/team";
+import { CONTACT_PAGE_PATH, getContactLinks, type ContactLinks } from "@/lib/site/contact-links";
+import { fetchSiteSettings } from "@/lib/site/site-settings";
 
-// Home (desktop-home / mobile-home reference screens). Featured properties and the
-// team grid join this page in Phase 2, when listings and team members are seeded.
+// Home (desktop-home / mobile-home reference screens).
+
+const FEATURED_LISTING_COUNT = 3;
+const FEATURED_TEAM_COUNT = 4;
+const HERO_PHOTO_SIZES = "(min-width: 1312px) 1184px, 100vw";
+// Smaller originals would look blurry across the full-width hero; the frame shows instead.
+const HERO_MIN_PHOTO_WIDTH = 1200;
+
+type HomeContent = { listings: Listing[]; members: TeamMember[] };
 
 const RESOURCE_CARDS = [
   {
@@ -23,7 +38,25 @@ const RESOURCE_CARDS = [
   },
 ];
 
-function HomeHero() {
+// The sharpest featured photo fills the hero.
+function getHeroPhoto(listings: Listing[]): ListingPhoto | null {
+  const photos = listings.flatMap((listing) => listing.photos).filter((photo) => photo.width >= HERO_MIN_PHOTO_WIDTH);
+  return photos.reduce<ListingPhoto | null>((widest, photo) => (widest && widest.width >= photo.width ? widest : photo), null);
+}
+
+// A database problem must not blank the home page: its sections fall back to their
+// empty states and the error is logged (Infra §3).
+async function fetchHomeContentOrEmpty(): Promise<HomeContent> {
+  try {
+    const [{ listings }, members] = await Promise.all([fetchListingsPage(1, FEATURED_LISTING_COUNT), fetchTeamMembers()]);
+    return { listings, members: members.slice(0, FEATURED_TEAM_COUNT) };
+  } catch (error) {
+    console.error("Home page content unavailable", error);
+    return { listings: [], members: [] };
+  }
+}
+
+function HomeHero({ heroPhoto }: { heroPhoto: ListingPhoto | null }) {
   return (
     <div className="bg-page pt-12 lg:pt-24">
       <Container className="grid gap-6 lg:grid-cols-12 lg:items-end lg:gap-8">
@@ -45,9 +78,67 @@ function HomeHero() {
         </div>
       </Container>
       <div className="mt-10 lg:mx-auto lg:mt-16 lg:max-w-content lg:px-16">
-        <PhotoPlaceholder ratio="hero" />
+        <ResponsivePhoto photo={heroPhoto} ratio="hero" sizes={HERO_PHOTO_SIZES} isPriority />
       </div>
     </div>
+  );
+}
+
+function SectionHeader({ id, eyebrow, title, link }: { id: string; eyebrow: string; title: string; link: { href: string; label: string } }) {
+  return (
+    <div className="mb-6 flex flex-col gap-2 md:mb-10 md:flex-row md:items-end md:justify-between">
+      <div>
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <h2 id={id} className="type-h2">{title}</h2>
+      </div>
+      <TextLink href={link.href} hasArrow>{link.label}</TextLink>
+    </div>
+  );
+}
+
+function FeaturedListings({ listings, contact }: { listings: Listing[]; contact: ContactLinks | null }) {
+  return (
+    <Section labelledBy="featured-heading">
+      <SectionHeader id="featured-heading" eyebrow="Featured properties" title="Homes we’re proud to show" link={{ href: "/listings", label: "See all listings" }} />
+      {listings.length === 0 ? (
+        <EmptyState
+          icon={House}
+          titleId="featured-empty-heading"
+          title="No featured listings right now"
+          description="New homes appear here as soon as they go live. Call or text us to hear about homes before they're listed."
+          action={
+            <ButtonLink href={contact?.callHref ?? CONTACT_PAGE_PATH} size="m" variant="main">
+              <Phone aria-hidden size={ICON_SIZE.button} />
+              {contact ? "Call CWR" : "Contact us"}
+            </ButtonLink>
+          }
+        />
+      ) : (
+        <ul className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {listings.map((listing) => (
+            <li key={listing.slug}>
+              <ListingCard listing={listing} />
+            </li>
+          ))}
+        </ul>
+      )}
+    </Section>
+  );
+}
+
+function TeamPreview({ members }: { members: TeamMember[] }) {
+  if (members.length === 0) return null;
+  return (
+    <Section labelledBy="team-preview-heading">
+      <SectionHeader id="team-preview-heading" eyebrow="CWR team" title="Meet the people behind CWR" link={{ href: "/team", label: "See the full team" }} />
+      <ul className="grid grid-cols-2 gap-4 md:gap-8 lg:grid-cols-4">
+        {members.map((member) => (
+          <li key={member.slug}>
+            <TeamCard member={member} />
+          </li>
+        ))}
+      </ul>
+    </Section>
   );
 }
 
@@ -102,11 +193,14 @@ function ResourceCards() {
   );
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [{ listings, members }, settings] = await Promise.all([fetchHomeContentOrEmpty(), fetchSiteSettings()]);
   return (
     <>
-      <HomeHero />
+      <HomeHero heroPhoto={getHeroPhoto(listings)} />
+      <FeaturedListings listings={listings} contact={getContactLinks(settings)} />
       <TouchUpBand />
+      <TeamPreview members={members} />
       <ResourceCards />
     </>
   );

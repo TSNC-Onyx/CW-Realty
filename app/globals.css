@@ -405,3 +405,35 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
+
+@utility type-price {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 26px;
+  @media (width >= 768px) {
+    font-size: 28px;
+  }
+}
+
+@utility type-team-name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 19px;
+  @media (width >= 768px) {
+    font-size: 24px;
+  }
+}
+
+/* §11.8 status tag: dark fill, white 14px bold uppercase, 6×10px padding */
+@utility type-tag {
+  font-family: var(--font-body);
+  font-weight: 700;
+  line-height: 1;
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

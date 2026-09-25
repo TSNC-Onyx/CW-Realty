@@ -52,6 +52,7 @@ describe("isRedirectCandidate", () => {
     ["/copy-of-russell-casey", true],
     ["/team/charlie-ward", true],
     ["/about", false],
+    ["/listings", false],
     ["/admin/listings", false],
     ["/brand/cwr-logo-120.webp", false],
     ["/Upper-Case", false],
@@ -128,6 +129,28 @@ describe("fetchRedirectDecision", () => {
 
     // Assert
     expect(decision).toBeNull();
+  });
+
+  it("sends an old link to a hidden team member straight to /team in one hop", async () => {
+    // Arrange
+    useStubClient({ redirect: { target_path: "/team/russell-casey", status_code: 301 }, tenant: { id: "tenant-1" }, isHidden: true });
+
+    // Act
+    const decision = await fetchRedirectDecision("/russell-casey");
+
+    // Assert
+    expect(decision).toEqual({ targetPath: "/team", status: 302 });
+  });
+
+  it("keeps an old link to a visible team member as a permanent redirect", async () => {
+    // Arrange
+    useStubClient({ redirect: { target_path: "/team/charlie-ward", status_code: 301 }, tenant: { id: "tenant-1" }, isHidden: false });
+
+    // Act
+    const decision = await fetchRedirectDecision("/charlie-ward");
+
+    // Assert
+    expect(decision).toEqual({ targetPath: "/team/charlie-ward", status: 301 });
   });
 
   it("checks only the redirect table for pages outside /team", async () => {

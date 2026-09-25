@@ -4,6 +4,11 @@ import { STATIC_PAGE_PATHS } from "../../src/lib/site/navigation";
 
 export const PUBLIC_PAGE_PATHS = [...STATIC_PAGE_PATHS];
 
+// Record pages, checked only when a database with imported content is connected.
+export const CONTENT_PAGE_PATHS = process.env.NEXT_PUBLIC_SUPABASE_URL
+  ? ["/listings/5423-pine-level-dr-browns-summit-nc", "/listings/3826-burlington-rd-greensboro-nc", "/team/charlie-ward", "/team/ashley-edwards"]
+  : [];
+
 export const MISSING_PAGE_PATH = "/this-page-does-not-exist";
 
 export const VIEWPORTS = {
