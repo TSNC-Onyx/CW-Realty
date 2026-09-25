@@ -85,7 +85,7 @@
 
 ## 11. Modern Editorial Design System (binding)
 
-> Chosen by the owner on 2026-09-25. Every public page and component uses these exact values; anything not listed here needs owner approval before use. Reference screens: https://claude.ai/artifact/LJhgevhUqm32iyS6pksRnP (Theme C). Where a screen and this section differ, this section wins.
+> Chosen by the owner on 2026-09-25. Every public page and component uses these exact values; anything not listed here needs owner approval before use. Reference screens: `docs/reference/design/modern-editorial/` (frozen copy; start with `index.html`) and the live canvas https://claude.ai/artifact/LJhgevhUqm32iyS6pksRnP (Theme C). Where a screen and this section differ, this section wins.
 
 ### 11.1 Color tokens
 

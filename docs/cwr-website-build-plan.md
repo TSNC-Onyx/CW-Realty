@@ -16,6 +16,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `docs/constitution/04-admin-control-system.md` | Admin editing, listings, team, contact/footer, inbox, chatbot policy, access |
 | `docs/reference/site/navigation-reconciliation.md` | Final page list, menu, redirects, owner decisions |
 | `docs/reference/brand/CWR-Image-Refresh.png` | Logo; brand gold `#E6BD35` |
+| `docs/reference/design/modern-editorial/` | Frozen Theme C reference screens and explanations (Style §11 wins on any difference) |
 
 ## Current state (verified 2026-09-25)
 
@@ -147,6 +148,7 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 - `auth`, `storage` (existing bucket), `vault`, `realtime` internals.
 - `docs/constitution/*` (owner-authored).
 - `docs/reference/site/CWR-sitemap.xml`, `docs/reference/site/CWR-routes.ts`, `docs/reference/brand/*` (reference originals).
+- `docs/reference/design/modern-editorial/*` (frozen design reference; change only with an owner-approved Style §11 change).
 - Google Workspace MX/SPF/DKIM DNS records.
 - `~/.claude/settings.json` (global settings).
 
