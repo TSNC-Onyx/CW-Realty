@@ -1,0 +1,32 @@
+# dependencies
+/node_modules
+
+# testing
+/coverage
+/playwright-report
+/test-results
+/.lighthouseci
+
+# next.js / opennext / wrangler
+/.next/
+/out/
+/build
+/.open-next
+/.wrangler
+next-env.d.ts
+*.tsbuildinfo
+
+# supabase local state
+/supabase/.temp
+/supabase/.branches
+
+# secrets — only the example file is committed
+.env*
+!.env.example
+.dev.vars*
+*.pem
+*.key
+
+# misc
+.DS_Store
+npm-debug.log*
