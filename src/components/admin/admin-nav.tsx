@@ -8,7 +8,11 @@ import { ADMIN_AREAS, isCurrentArea } from "@/lib/admin/navigation";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Area links for the signed-in role: a row on desktop, a disclosure on phones.
-export function AdminNav({ areaKeys }: { areaKeys: string[] }) {
+function getAreaLabel(label: string, key: string, unreadCount: number): string {
+  return key === "inbox" && unreadCount > 0 ? `${label} (${unreadCount} new)` : label;
+}
+
+export function AdminNav({ areaKeys, unreadCount }: { areaKeys: string[]; unreadCount: number }) {
   const pathname = usePathname();
   const areas = ADMIN_AREAS.filter((area) => areaKeys.includes(area.key));
   const links = areas.map((area) => {
@@ -20,7 +24,7 @@ export function AdminNav({ areaKeys }: { areaKeys: string[] }) {
           aria-current={isCurrent ? "page" : undefined}
           className={`flex min-h-11 items-center px-3 text-base font-semibold underline-offset-4 ${isCurrent ? "underline decoration-2" : ""}`}
         >
-          {area.label}
+          {getAreaLabel(area.label, area.key, unreadCount)}
         </Link>
       </li>
     );

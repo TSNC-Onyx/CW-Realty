@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { waitForBotCheck } from "./admin/admin-helpers";
+
 test.describe("contact form", () => {
   test.beforeEach(async ({ page }) => {
     await page.goto("/contact");
@@ -31,18 +33,20 @@ test.describe("contact form", () => {
     await expect(page.locator("#contact-form-email-error")).toHaveText("Enter a full email address, like name@example.com");
   });
 
-  test("a complete message keeps what was typed and says how to reach us for now", async ({ page }) => {
+  test("a complete message reaches the office and thanks the visitor by name", async ({ page }) => {
     // Arrange
+    test.skip(!process.env.SUPABASE_SERVICE_ROLE_KEY, "Needs the local database");
     await page.getByLabel("Full name").fill("Jordan Smith");
     await page.getByLabel("Email").fill("jordan@example.com");
     await page.getByLabel("How can we help?").fill("I'd like a showing.");
+    await waitForBotCheck(page);
 
     // Act
     await page.getByRole("button", { name: "Send message" }).click();
 
     // Assert
-    await expect(page.getByRole("status").filter({ hasText: "Online requests open soon" })).toBeVisible();
-    await expect(page.getByLabel("How can we help?")).toHaveValue("I'd like a showing.");
+    await expect(page.getByRole("heading", { name: "Thanks, Jordan. Your message is in." })).toBeFocused();
+    await expect(page.getByText("We sent a copy to jordan@example.com.")).toBeVisible();
   });
 });
 

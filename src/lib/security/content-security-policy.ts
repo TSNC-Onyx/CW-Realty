@@ -1,5 +1,6 @@
 export const CONTENT_SECURITY_POLICY_HEADER = "Content-Security-Policy";
 export const NONCE_HEADER = "x-nonce";
+const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 
 export type ContentSecurityPolicyOptions = {
   nonce: string;
@@ -34,7 +35,8 @@ export function getContentSecurityPolicy(options: ContentSecurityPolicyOptions):
     "font-src 'self'",
     `connect-src 'self'${supabaseSource}`,
     "worker-src 'self'",
-    "frame-src 'none'",
+    // Cloudflare Turnstile (bot check on forms) runs in a frame from this host.
+    `frame-src ${TURNSTILE_ORIGIN}`,
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

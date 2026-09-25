@@ -1,7 +1,7 @@
 import { EDITOR_ROLES, OWNER_ROLES, ALL_ROLES, type AdminRole } from "@/lib/admin/require-admin-roles";
 
-// Admin areas and who can use them (parent plan, "Role access"). Inbox, notifications,
-// and the chatbot policy join in Phases 4 and 5.
+// Admin areas and who can use them (parent plan, "Role access"). The chatbot policy joins
+// in Phase 5.
 
 export type AdminArea = {
   key: string;
@@ -13,9 +13,11 @@ export type AdminArea = {
 
 export const ADMIN_AREAS: AdminArea[] = [
   { key: "dashboard", label: "Dashboard", href: "/admin", description: "", roles: ALL_ROLES },
+  { key: "inbox", label: "Inbox", href: "/admin/inbox", description: "Answer contact, TouchUp, and chat requests.", roles: ALL_ROLES },
   { key: "listings", label: "Listings", href: "/admin/listings", description: "Add, edit, reorder, and publish featured properties.", roles: EDITOR_ROLES },
   { key: "team", label: "Team", href: "/admin/team", description: "Update profiles, photos, order, and who is shown.", roles: EDITOR_ROLES },
   { key: "contact", label: "Contact & footer", href: "/admin/contact", description: "Phone, email, contact names, office address, and footer text.", roles: EDITOR_ROLES },
+  { key: "notifications", label: "Notifications", href: "/admin/notifications", description: "Choose who gets email alerts, and check they arrive.", roles: EDITOR_ROLES },
   { key: "trash", label: "Trash", href: "/admin/trash", description: "Restore anything deleted in the last 30 days.", roles: EDITOR_ROLES },
   { key: "users", label: "Users & roles", href: "/admin/users", description: "Invite people and choose what they can change.", roles: OWNER_ROLES },
 ];

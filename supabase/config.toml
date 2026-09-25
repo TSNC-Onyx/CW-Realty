@@ -216,11 +216,12 @@ token_verifications = 30
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# Cloudflare Turnstile on admin sign-in and password reset (Phase 4). Locally and in CI
+# this is Cloudflare's always-pass test secret, set by `npm run db:start`.
+[auth.captcha]
+enabled = true
+provider = "turnstile"
+secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
 
 [auth.email]
 # Keeps the email + password provider on. New sign-ups stay off through the global

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getFieldError, getRequestFormState } from "@/lib/forms/form-state";
+import { getFieldError, getFieldErrors, getFieldValues } from "@/lib/forms/form-state";
 import { BOOKING_FORM_FIELDS, CONTACT_FORM_FIELDS, bookingFormSchema, contactFormSchema } from "@/lib/forms/request-forms";
 
 function getFormData(values: Record<string, string>): FormData {
@@ -16,45 +16,42 @@ const VALID_CONTACT = {
   message: "I'd like to see 1514 Woodridge Ave.",
 };
 
+function getErrorsFor(schema: typeof contactFormSchema | typeof bookingFormSchema, fields: typeof CONTACT_FORM_FIELDS, values: Record<string, string>) {
+  return getFieldErrors(schema, getFieldValues(getFormData(values), fields));
+}
+
 describe("contact form checks", () => {
-  it("accepts a complete message and reports that online intake is not open yet", () => {
+  it("accepts a complete message", () => {
     // Arrange
-    const formData = getFormData(VALID_CONTACT);
+    const values = VALID_CONTACT;
 
     // Act
-    const state = getRequestFormState({ schema: contactFormSchema, fields: CONTACT_FORM_FIELDS, formData });
+    const errors = getErrorsFor(contactFormSchema, CONTACT_FORM_FIELDS, values);
 
     // Assert
-    expect(state).toMatchObject({ status: "unavailable", fieldErrors: {} });
+    expect(errors).toEqual({});
   });
 
-  it("names each field to fix and keeps everything the visitor typed", () => {
+  it("names each field to fix", () => {
     // Arrange
-    const formData = getFormData({ ...VALID_CONTACT, email: "jordan@", message: "   " });
+    const values = { ...VALID_CONTACT, email: "jordan@", message: "   " };
 
     // Act
-    const state = getRequestFormState({ schema: contactFormSchema, fields: CONTACT_FORM_FIELDS, formData });
+    const errors = getErrorsFor(contactFormSchema, CONTACT_FORM_FIELDS, values);
 
     // Assert
-    expect(state).toMatchObject({
-      status: "invalid",
-      values: { ...VALID_CONTACT, email: "jordan@", message: "   " },
-      fieldErrors: {
-        email: "Enter a full email address, like name@example.com",
-        message: "Tell us how we can help",
-      },
-    });
+    expect(errors).toEqual({ email: "Enter a full email address, like name@example.com", message: "Tell us how we can help" });
   });
 
   it("treats a missing field as empty instead of failing", () => {
     // Arrange
-    const formData = getFormData({ fullName: "Jordan Smith" });
+    const values = { fullName: "Jordan Smith" };
 
     // Act
-    const state = getRequestFormState({ schema: contactFormSchema, fields: CONTACT_FORM_FIELDS, formData });
+    const errors = getErrorsFor(contactFormSchema, CONTACT_FORM_FIELDS, values);
 
     // Assert
-    expect(Object.keys(state.fieldErrors).sort()).toEqual(["email", "message"]);
+    expect(Object.keys(errors).sort()).toEqual(["email", "message"]);
   });
 
   it("allows the optional phone to be blank but not malformed", () => {
@@ -72,12 +69,12 @@ describe("contact form checks", () => {
 describe("TouchUp request checks", () => {
   it("requires a phone number so staff can confirm the visit", () => {
     // Arrange
-    const formData = getFormData({ fullName: "Jordan Smith", propertyAddress: "1 Main St", preferredTimes: "Mornings" });
+    const values = { fullName: "Jordan Smith", propertyAddress: "1 Main St", preferredTimes: "Mornings" };
 
     // Act
-    const state = getRequestFormState({ schema: bookingFormSchema, fields: BOOKING_FORM_FIELDS, formData });
+    const errors = getErrorsFor(bookingFormSchema, BOOKING_FORM_FIELDS, values);
 
     // Assert
-    expect(state.fieldErrors).toEqual({ phone: "Enter your phone number" });
+    expect(errors).toEqual({ phone: "Enter your phone number" });
   });
 });

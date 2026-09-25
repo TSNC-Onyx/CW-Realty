@@ -8,7 +8,8 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 type PaginationProps = { basePath: string; currentPage: number; totalPages: number };
 
 function getPageHref(basePath: string, page: number): string {
-  return page === 1 ? basePath : `${basePath}?page=${page}`;
+  if (page === 1) return basePath;
+  return `${basePath}${basePath.includes("?") ? "&" : "?"}page=${page}`;
 }
 
 export function Pagination({ basePath, currentPage, totalPages }: PaginationProps) {

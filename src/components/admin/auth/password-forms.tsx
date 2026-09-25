@@ -2,6 +2,7 @@
 
 import { AdminField } from "@/components/admin/admin-field";
 import { AuthForm } from "@/components/admin/auth/auth-form";
+import { TurnstileField } from "@/components/forms/turnstile-field";
 import { useAuthForm } from "@/components/admin/auth/use-auth-form";
 import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import { requestPasswordResetAction, setPasswordAction } from "@/lib/admin/auth-actions";
@@ -12,6 +13,7 @@ export function ForgotPasswordForm() {
   return (
     <AuthForm state={state} isPending={isPending} submitLabel="Send reset link" pendingLabel="Sending…" onSubmit={handleSubmit}>
       <AdminField name="email" label="Email" type="email" autoComplete="username" defaultValue={state.values.email} error={state.fieldErrors.email} />
+      <TurnstileField action="admin-reset" resetKey={state.responseId} />
     </AuthForm>
   );
 }

@@ -29,7 +29,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </div>
       )}
       {areas.length === 0 ? (
-        <p className="max-w-prose">Your inbox will appear here once it is switched on. Nothing else needs your attention right now.</p>
+        <p className="max-w-prose">Nothing needs your attention right now.</p>
       ) : (
         <ul className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {areas.map((area) => (
