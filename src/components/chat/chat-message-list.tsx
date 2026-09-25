@@ -25,7 +25,11 @@ function AssistantBubble({ text, citedSections }: { text: string; citedSections:
 export function ChatMessageList({ entries, pendingQuestion }: { entries: ChatEntry[]; pendingQuestion: string | null }) {
   const endRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: "end" }), [entries.length, pendingQuestion]);
+  // Block body on purpose: newer browsers return a Promise from scrollIntoView, and an effect
+  // may only return a clean-up function.
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "end" });
+  }, [entries.length, pendingQuestion]);
 
   return (
     <div role="log" aria-live="polite" aria-label="Chat messages" className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">

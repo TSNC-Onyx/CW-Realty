@@ -3,6 +3,7 @@
 import { MessageCircle } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { OPEN_CHAT_EVENT, openChat } from "@/components/chat/chat-events";
 import { getButtonClassName } from "@/components/ui/button-link";
@@ -28,19 +29,19 @@ export function ChatLauncher() {
     return () => window.removeEventListener(OPEN_CHAT_EVENT, handleOpen);
   }, []);
 
+  // The launcher must be visible again before it can take focus back.
   const handleClose = () => {
-    setIsOpen(false);
+    flushSync(() => setIsOpen(false));
     returnFocusRef.current?.focus();
   };
 
   return (
     <>
-      {!isOpen && (
-        <button type="button" onClick={openChat} className={`${getButtonClassName({ size: "m", variant: "main", tone: "dark" })} fixed right-8 bottom-8 z-40 hidden lg:inline-flex`}>
-          <MessageCircle aria-hidden size={ICON_SIZE.button} />
-          Chat with us
-        </button>
-      )}
+      {/* Hidden, not removed, while the chat is open, so closing can return focus to it. */}
+      <button type="button" onClick={openChat} hidden={isOpen} className={`${getButtonClassName({ size: "m", variant: "main", tone: "dark" })} fixed right-8 bottom-8 z-40 hidden lg:inline-flex`}>
+        <MessageCircle aria-hidden size={ICON_SIZE.button} />
+        Chat with us
+      </button>
       {hasOpened && <ChatPanel isOpen={isOpen} onClose={handleClose} />}
     </>
   );

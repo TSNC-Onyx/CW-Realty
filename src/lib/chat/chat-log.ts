@@ -73,11 +73,12 @@ export async function fetchOpenChatSession(sessionId: string): Promise<ChatSessi
   return { id: data.id, tenantId: data.tenant_id, visitorMessageCount: turns.filter((turn) => turn.role === "visitor").length, turns: turns.slice(-HISTORY_TURN_LIMIT) };
 }
 
-/** Saves the visitor's question (numbers removed) and the reply in one statement. */
+/** Saves the visitor's question (numbers removed) and the reply in one statement. Both rows
+ * list every column: a multi-row insert fills a missing column with null, not its default. */
 export async function recordChatExchange({ session, question, reply }: { session: ChatSession; question: string; reply: AssistantReply }): Promise<void> {
   const client = createServiceClient();
   const rows = [
-    { tenant_id: session.tenantId, session_id: session.id, role: "visitor", body: getRedactedText(question) },
+    { tenant_id: session.tenantId, session_id: session.id, role: "visitor", body: getRedactedText(question), cited_sections: [], outcome: null },
     { tenant_id: session.tenantId, session_id: session.id, role: "assistant", body: reply.text, cited_sections: reply.citedSections, outcome: reply.outcome },
   ];
   const { error } = await client.from("chat_messages").insert(rows);

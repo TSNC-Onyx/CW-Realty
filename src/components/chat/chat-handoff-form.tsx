@@ -27,7 +27,9 @@ const NOTICE_TITLES: Record<string, string> = {
 
 function HandoffSent({ sentTo }: { sentTo: NonNullable<RequestFormState["sentTo"]> }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => headingRef.current?.focus(), []);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
   const firstName = sentTo.name.split(/\s+/)[0] ?? sentTo.name;
   return (
     <div className="grid justify-items-start gap-4 p-4">

@@ -54,7 +54,9 @@ export function useChatConversation() {
   // A new key re-runs the bot check: its tokens work once.
   const [botCheckKey, setBotCheckKey] = useState(() => crypto.randomUUID());
 
-  useEffect(() => writeStoredChat(chat), [chat]);
+  useEffect(() => {
+    writeStoredChat(chat);
+  }, [chat]);
 
   /** Resolves true when the question was answered, so the composer can clear its text. */
   const submitQuestion = async ({ question, turnstileToken }: { question: string; turnstileToken: string }): Promise<boolean> => {
@@ -69,7 +71,7 @@ export function useChatConversation() {
     return result.status === "replied";
   };
 
-  const latestQuestion = chat.entries.findLast((entry) => entry.role === "visitor")?.text ?? "";
+  const latestQuestion = pendingQuestion ?? chat.entries.findLast((entry) => entry.role === "visitor")?.text ?? "";
 
   return { sessionId: chat.sessionId, entries: chat.entries, pendingQuestion, notice, botCheckKey, latestQuestion, submitQuestion, dismissNotice: () => setNotice(null) };
 }
