@@ -1,0 +1,55 @@
+# Standing preview site for the build1 branch: deploys the preview Worker
+# (cw-realty-preview, wrangler.jsonc env.preview) on every push to build1. It has its own
+# queues and rate-limit counters, so production is never touched.
+# Push trigger, not workflow_run: workflow_run only fires from workflows on the default
+# branch, and main stays untouched until go-live. Changes reach build1 through reviewed PRs
+# whose CI already passed.
+# Does not migrate the database: the hosted project is shared with production (see README).
+# Needs secrets CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID. Missing secrets skip the deploy.
+name: Preview (build1)
+
+on:
+  push:
+    branches: [build1]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-build1
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy preview Worker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HAS_CLOUDFLARE_SECRETS: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Skip when Cloudflare secrets are missing
+        if: env.HAS_CLOUDFLARE_SECRETS != 'true'
+        run: echo "::notice::Preview deploy skipped — add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.HAS_CLOUDFLARE_SECRETS == 'true'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: env.HAS_CLOUDFLARE_SECRETS == 'true'
+        with:
+          node-version: "24"
+          cache: npm
+      - if: env.HAS_CLOUDFLARE_SECRETS == 'true'
+        run: npm ci
+      - name: Build and deploy
+        if: env.HAS_CLOUDFLARE_SECRETS == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
+        run: |
+          npx opennextjs-cloudflare build
+          npx opennextjs-cloudflare deploy --env preview | tee deploy.log
+          url=$(grep -oE 'https://[^ ]*workers\.dev' deploy.log | head -n1)
+          echo "::notice::Preview site: ${url:-see Cloudflare dashboard}"

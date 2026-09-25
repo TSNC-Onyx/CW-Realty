@@ -6,7 +6,7 @@
 // @ts-ignore `.open-next/worker.js` is generated at build time
 import { default as nextHandler } from "./.open-next/worker.js";
 import { getEmailSender } from "./src/lib/email/send-email";
-import { ALERT_DEAD_LETTER_QUEUE, JobDataError, createJobDatabase, type AlertJob, type JobDependencies } from "./src/lib/jobs/alert-jobs";
+import { JobDataError, isDeadLetterQueue, createJobDatabase, type AlertJob, type JobDependencies } from "./src/lib/jobs/alert-jobs";
 import { getRetryDelaySeconds, recordDeadLetter } from "./src/lib/jobs/dead-letters";
 import { processAlertJob } from "./src/lib/jobs/process-alert-job";
 import { SITE_URL } from "./src/lib/site/navigation";
@@ -43,7 +43,7 @@ const worker = {
   fetch: nextHandler.fetch,
   async queue(batch: QueueBatch, env: WorkerEnv): Promise<void> {
     const deps = getJobDependencies(env);
-    const handle = batch.queue === ALERT_DEAD_LETTER_QUEUE ? handleDeadLetter : handleAlert;
+    const handle = isDeadLetterQueue(batch.queue) ? handleDeadLetter : handleAlert;
     for (const message of batch.messages) await handle(message, deps);
   },
 };
