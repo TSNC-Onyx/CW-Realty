@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { REQUEST_ID_HEADER, getRequestId } from "@/lib/observability/request-id";
+import { fetchRedirectDecision, type RedirectDecision } from "@/lib/redirects/lookup";
+import { getNormalizedUrl } from "@/lib/redirects/normalize";
 import {
   CONTENT_SECURITY_POLICY_HEADER,
   NONCE_HEADER,
@@ -8,11 +10,65 @@ import {
   getContentSecurityPolicy,
 } from "@/lib/security/content-security-policy";
 
-// Next.js 16 prefers proxy.ts, but OpenNext for Cloudflare only supports the
-// edge-runtime middleware.ts; proxy.ts (Node runtime) is experimental there.
-export function middleware(request: NextRequest) {
+const NORMALIZATION_STATUS = 301;
+const REDIRECT_LOOKUP_DEADLINE_MS = 1500;
+
+class RedirectLookupTimeoutError extends Error {
+  constructor(readonly context: { path: string; deadlineMs: number }) {
+    super(`Redirect lookup took longer than ${context.deadlineMs} ms`);
+    this.name = "RedirectLookupTimeoutError";
+  }
+}
+
+async function fetchRedirectDecisionWithinDeadline(path: string): Promise<RedirectDecision | null> {
+  let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_resolve, reject) => {
+    deadlineTimer = setTimeout(
+      () => reject(new RedirectLookupTimeoutError({ path, deadlineMs: REDIRECT_LOOKUP_DEADLINE_MS })),
+      REDIRECT_LOOKUP_DEADLINE_MS,
+    );
+  });
+  try {
+    return await Promise.race([fetchRedirectDecision(path), deadline]);
+  } finally {
+    clearTimeout(deadlineTimer);
+  }
+}
+
+// A slow or failing database must never block a page: one shared deadline covers
+// every lookup call; on failure the error is logged and the request served (Infra §3).
+async function fetchRedirectDecisionOrNull(path: string, requestId: string): Promise<RedirectDecision | null> {
+  try {
+    return await fetchRedirectDecisionWithinDeadline(path);
+  } catch (error) {
+    console.error(JSON.stringify({ message: "Redirect lookup failed", requestId, path, error: String(error) }));
+    return null;
+  }
+}
+
+function getRedirectResponse(targetUrl: URL, status: number, requestId: string): NextResponse {
+  const response = NextResponse.redirect(targetUrl, status);
+  response.headers.set(REQUEST_ID_HEADER, requestId);
+  return response;
+}
+
+// Every redirect is a single hop: normalization and the stored redirect are
+// combined before one response is sent, and the query string is always kept.
+async function getSingleHopRedirect(request: NextRequest, requestId: string): Promise<NextResponse | null> {
+  const requestUrl = new URL(request.url);
+  const normalizedUrl = getNormalizedUrl(requestUrl);
+  const decision = await fetchRedirectDecisionOrNull(normalizedUrl.pathname, requestId);
+  if (decision) {
+    const targetUrl = new URL(normalizedUrl.href);
+    targetUrl.pathname = decision.targetPath;
+    return getRedirectResponse(targetUrl, decision.status, requestId);
+  }
+  if (normalizedUrl.href === requestUrl.href) return null;
+  return getRedirectResponse(normalizedUrl, NORMALIZATION_STATUS, requestId);
+}
+
+function getPageResponse(request: NextRequest, requestId: string): NextResponse {
   const nonce = createNonce();
-  const requestId = getRequestId(request.headers.get(REQUEST_ID_HEADER));
   const contentSecurityPolicy = getContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV === "development",
@@ -28,6 +84,14 @@ export function middleware(request: NextRequest) {
   response.headers.set(CONTENT_SECURITY_POLICY_HEADER, contentSecurityPolicy);
   response.headers.set(REQUEST_ID_HEADER, requestId);
   return response;
+}
+
+// Next.js 16 prefers proxy.ts, but OpenNext for Cloudflare only supports the
+// edge-runtime middleware.ts; proxy.ts (Node runtime) is experimental there.
+export async function middleware(request: NextRequest) {
+  const requestId = getRequestId(request.headers.get(REQUEST_ID_HEADER));
+  const redirectResponse = await getSingleHopRedirect(request, requestId);
+  return redirectResponse ?? getPageResponse(request, requestId);
 }
 
 export const config = {
