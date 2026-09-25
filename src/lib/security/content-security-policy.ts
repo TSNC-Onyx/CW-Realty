@@ -5,11 +5,14 @@ export type ContentSecurityPolicyOptions = {
   nonce: string;
   isDevelopment: boolean;
   supabaseOrigin?: string;
+  // Admin pages only: the photo encoder runs WebAssembly (Phase 3 plan, decision 5).
+  allowWebAssembly?: boolean;
 };
 
-function getScriptSources({ nonce, isDevelopment }: ContentSecurityPolicyOptions): string {
+function getScriptSources({ nonce, isDevelopment, allowWebAssembly }: ContentSecurityPolicyOptions): string {
   const developmentSources = isDevelopment ? " 'unsafe-eval'" : "";
-  return `'self' 'nonce-${nonce}' 'strict-dynamic'${developmentSources}`;
+  const webAssemblySources = allowWebAssembly ? " 'wasm-unsafe-eval'" : "";
+  return `'self' 'nonce-${nonce}' 'strict-dynamic'${developmentSources}${webAssemblySources}`;
 }
 
 function getStyleSources({ nonce, isDevelopment }: ContentSecurityPolicyOptions): string {
@@ -30,6 +33,7 @@ export function getContentSecurityPolicy(options: ContentSecurityPolicyOptions):
     `img-src 'self' blob: data:${supabaseSource}`,
     "font-src 'self'",
     `connect-src 'self'${supabaseSource}`,
+    "worker-src 'self'",
     "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'",

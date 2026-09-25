@@ -1,4 +1,4 @@
-import { Mail, MapPin, MessageSquare, Phone, type LucideIcon } from "lucide-react";
+import { Mail, MapPin, MessageSquare, Phone, User, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -31,8 +31,14 @@ function ContactDetails({ settings }: { settings: SiteSettings | null }) {
   const address = settings?.officeAddress;
   if (!contact) return <p>Our phone number and email are not loading right now. Please try again in a few minutes.</p>;
   const linkClass = "flex min-h-11 items-center font-semibold underline underline-offset-4";
+  const contactNames = settings?.contactNames ?? [];
   return (
     <ul className="grid gap-4">
+      {contactNames.length > 0 && (
+        <ContactDetail icon={User} label="Ask for">
+          <p className="py-2.5 font-semibold">{contactNames.join(", ")}</p>
+        </ContactDetail>
+      )}
       <ContactDetail icon={Phone} label="Call">
         <a href={contact.callHref} className={linkClass}>{contact.displayPhone}</a>
       </ContactDetail>

@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 
+import { ADMIN_LOGIN_PATH, isAdminPath, isPublicAdminPath } from "@/lib/admin/paths";
+import { checkAdminSession } from "@/lib/admin/session-middleware";
 import { REQUEST_ID_HEADER, getRequestId } from "@/lib/observability/request-id";
 import { fetchRedirectDecision, type RedirectDecision } from "@/lib/redirects/lookup";
 import { getNormalizedUrl } from "@/lib/redirects/normalize";
@@ -67,12 +69,13 @@ async function getSingleHopRedirect(request: NextRequest, requestId: string): Pr
   return getRedirectResponse(normalizedUrl, NORMALIZATION_STATUS, requestId);
 }
 
-function getPageResponse(request: NextRequest, requestId: string): NextResponse {
+function getPageResponse(request: NextRequest, { requestId, isAdmin }: { requestId: string; isAdmin: boolean }): NextResponse {
   const nonce = createNonce();
   const contentSecurityPolicy = getContentSecurityPolicy({
     nonce,
     isDevelopment: process.env.NODE_ENV === "development",
     supabaseOrigin: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    allowWebAssembly: isAdmin,
   });
 
   const requestHeaders = new Headers(request.headers);
@@ -86,18 +89,50 @@ function getPageResponse(request: NextRequest, requestId: string): NextResponse 
   return response;
 }
 
+function getAdminRedirect(request: NextRequest, path: string): NextResponse {
+  const targetUrl = new URL(path, request.url);
+  return NextResponse.redirect(targetUrl, 303);
+}
+
+// Admin pages: refresh the session, send signed-out visitors to sign-in, end sessions
+// past the idle or maximum limit, and never let a browser or proxy cache the page.
+async function getAdminResponse(request: NextRequest, requestId: string): Promise<NextResponse> {
+  const { pathname, search } = request.nextUrl;
+  const session = await checkAdminSession(request, Date.now());
+  const response = getAdminRoute({ request, session, pathname, search, requestId });
+  session.applyCookies(response);
+  response.headers.set("Cache-Control", "no-store");
+  return response;
+}
+
+function getAdminRoute({ request, session, pathname, search, requestId }: {
+  request: NextRequest;
+  session: Awaited<ReturnType<typeof checkAdminSession>>;
+  pathname: string;
+  search: string;
+  requestId: string;
+}): NextResponse {
+  if (session.isExpired && !isPublicAdminPath(pathname)) return getAdminRedirect(request, `${ADMIN_LOGIN_PATH}?reason=timeout`);
+  if (!session.isSignedIn && !isPublicAdminPath(pathname)) {
+    return getAdminRedirect(request, `${ADMIN_LOGIN_PATH}?next=${encodeURIComponent(pathname + search)}`);
+  }
+  return getPageResponse(request, { requestId, isAdmin: true });
+}
+
 // Next.js 16 prefers proxy.ts, but OpenNext for Cloudflare only supports the
 // edge-runtime middleware.ts; proxy.ts (Node runtime) is experimental there.
 export async function middleware(request: NextRequest) {
   const requestId = getRequestId(request.headers.get(REQUEST_ID_HEADER));
   const redirectResponse = await getSingleHopRedirect(request, requestId);
-  return redirectResponse ?? getPageResponse(request, requestId);
+  if (redirectResponse) return redirectResponse;
+  if (isAdminPath(request.nextUrl.pathname)) return getAdminResponse(request, requestId);
+  return getPageResponse(request, { requestId, isAdmin: false });
 }
 
 export const config = {
   matcher: [
     {
-      source: "/((?!_next/static|_next/image|favicon.ico|robots.txt|sitemap.xml).*)",
+      source: "/((?!_next/static|_next/image|photo-encoder|favicon.ico|robots.txt|sitemap.xml).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

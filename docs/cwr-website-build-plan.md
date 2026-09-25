@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phases 3–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phases 4–7 not started.
 
 ## Goal
 

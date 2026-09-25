@@ -1,6 +1,4 @@
 import { MessageSquare, Phone } from "lucide-react";
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { ListingFacts } from "@/components/content/listing-facts";
 import { ResponsivePhoto } from "@/components/content/responsive-photo";
@@ -12,30 +10,13 @@ import { Container, Section } from "@/components/ui/section";
 import { TextLink } from "@/components/ui/text-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getDisplayPrice, getParagraphs } from "@/lib/content/format";
-import { fetchListingBySlug, type Listing } from "@/lib/content/listings";
-import { getPhotoSources } from "@/lib/content/media";
-import { CONTACT_PAGE_PATH, getContactLinks, type ContactLinks } from "@/lib/site/contact-links";
-import { fetchSiteSettings } from "@/lib/site/site-settings";
+import type { Listing } from "@/lib/content/listings";
+import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
+
+// The listing page layout, shared by the public page and the admin preview (Admin §1).
 
 const MAIN_PHOTO_SIZES = "(min-width: 1312px) 860px, (min-width: 1024px) 66vw, 100vw";
 const EXTRA_PHOTO_SIZES = "(min-width: 1024px) 420px, 50vw";
-const META_DESCRIPTION_LENGTH = 155;
-
-type ListingPageProps = { params: Promise<{ slug: string }> };
-
-export async function generateMetadata({ params }: ListingPageProps): Promise<Metadata> {
-  const { slug } = await params;
-  const listing = await fetchListingBySlug(slug);
-  if (!listing) return { title: "Listing not found" };
-  const firstPhoto = listing.photos[0];
-  const imageUrl = firstPhoto ? getPhotoSources({ folder: firstPhoto.folder, originalWidth: firstPhoto.width })?.fallbackSrc : undefined;
-  return {
-    title: `${listing.streetAddress}, ${listing.cityLine}`,
-    description: listing.description.slice(0, META_DESCRIPTION_LENGTH),
-    alternates: { canonical: `/listings/${listing.slug}` },
-    openGraph: imageUrl ? { images: [{ url: imageUrl, alt: firstPhoto?.alt }] } : undefined,
-  };
-}
 
 function ListingGallery({ listing }: { listing: Listing }) {
   const [mainPhoto, ...extraPhotos] = listing.photos;
@@ -84,11 +65,7 @@ function ListingContactPanel({ listing, contact }: { listing: Listing; contact: 
   );
 }
 
-export default async function ListingPage({ params }: ListingPageProps) {
-  const { slug } = await params;
-  const listing = await fetchListingBySlug(slug);
-  if (!listing) notFound();
-  const contact = getContactLinks(await fetchSiteSettings());
+export function ListingDetail({ listing, contact }: { listing: Listing; contact: ContactLinks | null }) {
   return (
     <>
       <div className="bg-page pt-12 lg:pt-24">

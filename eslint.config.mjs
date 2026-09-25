@@ -15,6 +15,7 @@ const eslintConfig = defineConfig([
     "supabase/**",
     "playwright-report/**",
     "test-results/**",
+    "public/photo-encoder/**",
     "next-env.d.ts",
   ]),
 ]);

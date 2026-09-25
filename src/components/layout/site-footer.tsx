@@ -73,14 +73,17 @@ function FooterColumns() {
   );
 }
 
-function FooterLegal({ licenseNumber }: { licenseNumber: string | null }) {
+function FooterLegal({ licenseNumber, footerText }: { licenseNumber: string | null; footerText: string }) {
   const year = new Date().getFullYear();
   const licenseText = licenseNumber ? ` · NC firm license ${licenseNumber}` : "";
   return (
     <div className="mt-10 flex flex-col gap-4 border-t border-divider-dark pt-6 lg:flex-row lg:items-center lg:justify-between">
       <p className="type-small flex items-start gap-2 text-on-dark-muted">
         <House aria-hidden size={ICON_SIZE.inline} className="mt-0.5 shrink-0 text-gold" />
-        {`Equal Housing Opportunity · © ${year} ${FIRM_NAME}${licenseText}`}
+        <span>
+          {`Equal Housing Opportunity · © ${year} ${FIRM_NAME}${licenseText}`}
+          {footerText && <span className="block">{footerText}</span>}
+        </span>
       </p>
       <ul className="flex flex-col lg:flex-row lg:gap-6">
         {LEGAL_LINKS.map((link) => (
@@ -106,7 +109,7 @@ export function SiteFooter({ settings }: { settings: SiteSettings | null }) {
           </div>
           <FooterColumns />
         </div>
-        <FooterLegal licenseNumber={settings?.licenseNumber ?? null} />
+        <FooterLegal licenseNumber={settings?.licenseNumber ?? null} footerText={settings?.footerText ?? ""} />
       </Container>
     </footer>
   );

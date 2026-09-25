@@ -5,14 +5,17 @@
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-live-site-content.mjs
 // Local:  npm run content:import:local   (reads the local stack's URL and key)
 
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 
 import { createClient } from "@supabase/supabase-js";
 import sharp from "sharp";
 
 import photoLayout from "../src/lib/content/photo-layout.json" with { type: "json" };
 
-const CONTENT_FILE = new URL("./content/live-site-content.json", import.meta.url);
+// CONTENT_FILE lets CI import small test content (tests/fixtures/test-content.json) instead.
+const CONTENT_FILE = process.env.CONTENT_FILE ? new URL(process.env.CONTENT_FILE, `file://${process.cwd()}/`) : new URL("./content/live-site-content.json", import.meta.url);
 const TENANT_SLUG = "cwr";
 const QUALITY = { avif: 50, webp: 75 };
 // Removes solid frames that Wix graphics drew around some photos.
@@ -47,7 +50,9 @@ function getCheckedResult({ data, error }, operation) {
 
 // ------------------------------------------------------------------ photos
 
+// Web addresses are downloaded; anything else is a file next to the content file.
 async function fetchSourceImage(sourceUrl) {
+  if (!/^https?:\/\//.test(sourceUrl)) return readFile(new URL(sourceUrl, CONTENT_FILE));
   const response = await fetch(sourceUrl);
   if (!response.ok) throw new ImportError(`Download failed (${response.status})`, { sourceUrl });
   return Buffer.from(await response.arrayBuffer());
@@ -106,10 +111,14 @@ async function fetchExistingSlugs(db, table) {
   return new Set(rows.map((row) => row.slug));
 }
 
+// Folders follow the same layout as admin uploads — team/<member id>/<photo id> and
+// listings/<listing id>/<photo id> — so the portal can edit, undo, and clean them up.
 async function importTeamMember(client, { tenantId, member }) {
-  const folder = `team/${member.slug}`;
+  const memberId = randomUUID();
+  const folder = `team/${memberId}/${randomUUID()}`;
   const size = member.photo ? await importPhoto(client.storage, { source: member.photo.source, folder }) : null;
   const row = {
+    id: memberId,
     tenant_id: tenantId,
     slug: member.slug,
     full_name: member.fullName,
@@ -127,16 +136,12 @@ async function importTeamMember(client, { tenantId, member }) {
   getCheckedResult(await client.from("team_members").insert(row), `insert team member ${member.slug}`);
 }
 
-function getPhotoFolder(listing, index) {
-  return `listings/${listing.slug}/${String(index + 1).padStart(2, "0")}`;
-}
-
 // All downloads and uploads happen before any listing row exists, so an interrupted
 // run never leaves a half-made listing behind.
-async function importListingPhotoFiles(storage, listing) {
+async function importListingPhotoFiles(storage, { listing, listingId }) {
   const photoRows = [];
   for (const [index, photo] of listing.photos.entries()) {
-    const folder = getPhotoFolder(listing, index);
+    const folder = `listings/${listingId}/${randomUUID()}`;
     const size = await importPhoto(storage, { source: photo.source, crop: photo.crop, folder });
     photoRows.push({ storage_path: folder, alt_text: photo.alt, ...size, sort_order: index + 1 });
   }
@@ -156,8 +161,9 @@ async function publishListing(client, { listing, listingId }) {
   );
 }
 
-function getListingRow(tenantId, listing) {
+function getListingRow({ tenantId, listing, listingId }) {
   return {
+    id: listingId,
     tenant_id: tenantId,
     slug: listing.slug,
     street_address: listing.streetAddress,
@@ -186,9 +192,10 @@ async function saveListingRows(client, { tenantId, listing, photoRows, listingId
 // Files first, then the listing, its photos, and its status in quick succession.
 // If a database step fails, the listing is removed again so a re-run starts clean.
 async function importListing(client, { tenantId, listing }) {
-  const photoRows = await importListingPhotoFiles(client.storage, listing);
+  const listingId = randomUUID();
+  const photoRows = await importListingPhotoFiles(client.storage, { listing, listingId });
   const inserted = getCheckedResult(
-    await client.from("listings").insert(getListingRow(tenantId, listing)).select("id").single(),
+    await client.from("listings").insert(getListingRow({ tenantId, listing, listingId })).select("id").single(),
     `insert listing ${listing.slug}`,
   );
   try {
