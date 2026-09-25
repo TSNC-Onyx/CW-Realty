@@ -37,11 +37,15 @@ export function ChatLauncher() {
 
   return (
     <>
-      {/* Hidden, not removed, while the chat is open, so closing can return focus to it. */}
-      <button type="button" onClick={openChat} hidden={isOpen} className={`${getButtonClassName({ size: "m", variant: "main", tone: "dark" })} fixed right-8 bottom-8 z-40 hidden lg:inline-flex`}>
-        <MessageCircle aria-hidden size={ICON_SIZE.button} />
-        Chat with us
-      </button>
+      {/* Style §11.13 gold launcher, framed in dark so gold never sits on a light surface
+          (§11.1, §11.15). Hidden, not removed, while the chat is open, so closing can
+          return focus to it. */}
+      <div hidden={isOpen} className="tone-dark fixed right-8 bottom-8 z-40 hidden p-1 lg:block">
+        <button type="button" onClick={openChat} className={getButtonClassName({ size: "m", variant: "main", tone: "dark" })}>
+          <MessageCircle aria-hidden size={ICON_SIZE.button} />
+          Chat with us
+        </button>
+      </div>
       {hasOpened && <ChatPanel isOpen={isOpen} onClose={handleClose} />}
     </>
   );
