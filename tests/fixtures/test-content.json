@@ -1,0 +1,55 @@
+{
+  "$comment": "Small stand-in for scripts/content/live-site-content.json so CI can test listing and team pages without downloading from the Wix site. Same slugs, one local test photo.",
+  "listings": [
+    {
+      "slug": "5423-pine-level-dr-browns-summit-nc",
+      "streetAddress": "5423 Pine Level Dr",
+      "city": "Browns Summit",
+      "postalCode": "27214",
+      "priceDollars": 225000,
+      "status": "active",
+      "bedrooms": 3,
+      "bathrooms": 1.5,
+      "squareFeet": 1050,
+      "sortOrder": 1,
+      "description": "Test description.\n\nSecond paragraph.",
+      "photos": [
+        { "source": "test-house.jpg", "alt": "Front of the test home" },
+        { "source": "test-house.jpg", "alt": "Second view of the test home" }
+      ]
+    },
+    {
+      "slug": "3826-burlington-rd-greensboro-nc",
+      "streetAddress": "3826 Burlington Rd",
+      "city": "Greensboro",
+      "postalCode": "27405",
+      "priceDollars": 850000,
+      "status": "active",
+      "bedrooms": null,
+      "bathrooms": null,
+      "squareFeet": 4986,
+      "sortOrder": 2,
+      "description": "Test commercial property.",
+      "photos": [{ "source": "test-house.jpg", "alt": "Front of the test building" }]
+    },
+    {
+      "slug": "912-rocky-meadows-ln",
+      "streetAddress": "912 Rocky Meadows Ln",
+      "city": "Concord",
+      "postalCode": "28025",
+      "priceDollars": 295000,
+      "status": "sold",
+      "bedrooms": 3,
+      "bathrooms": 2.5,
+      "squareFeet": null,
+      "sortOrder": 3,
+      "description": "Test sold home.",
+      "photos": [{ "source": "test-house.jpg", "alt": "Front of the sold test home" }]
+    }
+  ],
+  "team": [
+    { "slug": "charlie-ward", "fullName": "Charlie Ward Sr.", "jobTitle": "Broker in charge", "email": "charlie@example.com", "phone": "+13365550100", "isVisible": true, "sortOrder": 1, "photo": { "source": "test-house.jpg", "alt": "Test portrait" }, "bio": "Test bio." },
+    { "slug": "ashley-edwards", "fullName": "Ashley Edwards", "jobTitle": "Broker", "email": null, "phone": null, "isVisible": true, "sortOrder": 2, "photo": null, "bio": "" },
+    { "slug": "russell-casey", "fullName": "Russell Casey", "jobTitle": "", "email": null, "phone": null, "isVisible": false, "sortOrder": 3, "photo": null, "bio": "" }
+  ]
+}

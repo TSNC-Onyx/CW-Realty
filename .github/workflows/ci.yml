@@ -64,7 +64,7 @@ jobs:
   browser:
     name: Build, browser tests, accessibility, performance budgets
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -72,6 +72,23 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      # A throwaway local database with small test content, so the listing, team, and
+      # admin tests run on every pull request (the keys below are local-only defaults).
+      - name: Start local database
+        run: npx supabase start -x studio,imgproxy,vector,logflare,edge-runtime,supavisor
+      - name: Export local database settings
+        run: |
+          npx supabase status -o env \
+            --override-name api.url=NEXT_PUBLIC_SUPABASE_URL \
+            --override-name auth.publishable_key=NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY \
+            --override-name auth.service_role_key=SUPABASE_SERVICE_ROLE_KEY \
+            | grep -E '^(NEXT_PUBLIC_SUPABASE_URL|NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY)=' \
+            | sed 's/"//g' >> "$GITHUB_ENV"
+      - name: Import test content
+        run: npm run content:import
+        env:
+          CONTENT_FILE: tests/fixtures/test-content.json
+          SUPABASE_URL: ${{ env.NEXT_PUBLIC_SUPABASE_URL }}
       - name: Build for Cloudflare Workers
         run: npx opennextjs-cloudflare build
       - run: npx playwright install --with-deps chromium

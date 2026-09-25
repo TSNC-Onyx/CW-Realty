@@ -437,3 +437,15 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* §11.14 messages fade and slide 8px in 200ms */
+@keyframes toast-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@utility toast-enter {
+  animation: toast-enter 200ms var(--ease-out);
+}

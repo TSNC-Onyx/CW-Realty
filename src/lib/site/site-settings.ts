@@ -5,7 +5,7 @@ import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supa
 import type { E164Phone } from "@/lib/site/phone";
 
 const SITE_SETTINGS_COLUMNS =
-  "phone, text_phone, email, license_number, office_address_line1, office_address_line2, office_city, office_state, office_postal_code, tenants!inner(slug)";
+  "phone, text_phone, email, contact_names, footer_text, license_number, office_address_line1, office_address_line2, office_city, office_state, office_postal_code, tenants!inner(slug)";
 
 const e164PhoneSchema = z
   .string()
@@ -16,6 +16,8 @@ const siteSettingsRowSchema = z.object({
   phone: e164PhoneSchema,
   text_phone: e164PhoneSchema.nullable(),
   email: z.string(),
+  contact_names: z.array(z.string()),
+  footer_text: z.string(),
   license_number: z.string().nullable(),
   office_address_line1: z.string().nullable(),
   office_address_line2: z.string().nullable(),
@@ -32,6 +34,8 @@ export type SiteSettings = {
   callPhone: E164Phone;
   textPhone: E164Phone;
   email: string;
+  contactNames: string[];
+  footerText: string;
   licenseNumber: string | null;
   officeAddress: OfficeAddress | null;
 };
@@ -48,6 +52,8 @@ function getSiteSettingsFromRow(row: SiteSettingsRow): SiteSettings {
     callPhone: row.phone,
     textPhone: row.text_phone ?? row.phone,
     email: row.email,
+    contactNames: row.contact_names,
+    footerText: row.footer_text,
     licenseNumber: row.license_number,
     officeAddress: getOfficeAddress(row),
   };

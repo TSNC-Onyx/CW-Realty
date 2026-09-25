@@ -42,7 +42,7 @@ Featured properties and team members are database records shown on index and det
 
 ## Photo file layout (contract for Phase 3)
 
-`listing_photos.storage_path` / `team_members.photo_path` = a folder, e.g. `listings/5423-pine-level-dr-browns-summit-nc/01`. Inside it: `640.avif`, `640.webp`, `1280.*`, `1920.*`; a width larger than the original is saved at the original's size (never upscaled).
+`listing_photos.storage_path` / `team_members.photo_path` = a folder `listings/<listing id>/<photo id>` or `team/<member id>/<photo id>` (the same for imported and admin-uploaded photos). Inside it: `640.avif`, `640.webp`, `1280.*`, `1920.*`; a width larger than the original is saved at the original's size (never upscaled).
 
 ## Task breakdown
 

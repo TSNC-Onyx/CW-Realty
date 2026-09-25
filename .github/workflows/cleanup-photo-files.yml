@@ -1,0 +1,43 @@
+# Nightly removal of photo files no listing or team member uses (Admin §7).
+# Needs repository secret SUPABASE_SERVICE_ROLE_KEY and variable NEXT_PUBLIC_SUPABASE_URL;
+# until they exist the job skips with a notice. Scheduled runs use the default branch.
+name: Clean up unused photo files
+
+on:
+  schedule:
+    - cron: "15 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cleanup-photo-files
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    name: Remove unused photo files
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HAS_SECRETS: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' && vars.NEXT_PUBLIC_SUPABASE_URL != '' }}
+    steps:
+      - name: Skip when secrets are missing
+        if: env.HAS_SECRETS != 'true'
+        run: echo "::notice::Photo cleanup skipped — add SUPABASE_SERVICE_ROLE_KEY and NEXT_PUBLIC_SUPABASE_URL."
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: env.HAS_SECRETS == 'true'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: env.HAS_SECRETS == 'true'
+        with:
+          node-version: "24"
+          cache: npm
+      - if: env.HAS_SECRETS == 'true'
+        run: npm ci
+      - name: Remove unused photo files
+        if: env.HAS_SECRETS == 'true'
+        env:
+          SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/cleanup-photo-files.mjs
