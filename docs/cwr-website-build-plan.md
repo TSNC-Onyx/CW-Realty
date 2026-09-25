@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **awaiting owner approval** (architecture, security, external services). No application code exists yet.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. No application code exists yet.
 
 ## Goal
 
@@ -38,10 +38,10 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Images | Supabase Storage; resized to AVIF/WebP on upload with width/height stored | Style §3, §8 |
 | Chatbot | Claude API (`@anthropic-ai/sdk`), server-side only; first-party widget (no third-party script) | Features §2, CSP |
 | Background work | Cloudflare Queues with retry + dead-letter queue | Infra §3, §6 |
-| Email (alerts, inbox replies) | Transactional provider (Resend) sending from the CWR domain | Admin §5 |
+| Email (alerts, inbox replies) | MailerSend (owner choice) sending from the CWR domain | Admin §5 |
 | Bot/abuse protection | Cloudflare Turnstile + rate-limit rules on every public endpoint | Infra §2 |
 | Analytics | GTM (web + server-side container), GA4, Meta Pixel + Conversions API, Google Enhanced Conversions; Consent Mode v2 banner honoring GPC | Features §3, §4 |
-| Observability | Sentry (errors + OpenTelemetry traces with request ID), Cloudflare Web Analytics (real-user Core Web Vitals), hosted status page | Infra §7 |
+| Observability | Cloudflare Workers Observability (errors, logs, OpenTelemetry traces with request ID), Cloudflare Web Analytics (real-user Core Web Vitals), hosted status page — no Sentry (owner decision) | Infra §7 |
 | CI | GitHub Actions: lint, type check, unit tests, migration check, Playwright + axe accessibility, Lighthouse budgets, dependency scan, secret scan | Infra §1, §6 |
 | Property Search | Placeholder page; MLS embed added later in a sandboxed, lazy-loaded frame | Owner decision |
 
@@ -87,7 +87,7 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 3. Migrations: schema `cwr`, tables above, RLS policies, audit triggers, workflow engine, retention jobs.
 4. RLS tests per role (`supabase/tests/`, pgTAP) run in CI.
 5. GitHub Actions workflows in `.github/workflows/`.
-6. Security headers + strict CSP in `middleware.ts`; request ID propagation; Sentry.
+6. Security headers + strict CSP in `middleware.ts`; request ID propagation; Workers Observability.
 
 **Phase 1 — Public shell**
 7. Design tokens, fonts, layout, header (≤64px, sticky), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
@@ -119,12 +119,12 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 **Phase 7 — Launch**
 22. Performance budgets, load test, keyboard + screen-reader pass, device matrix (320/375/768/1440).
 23. SLOs, alerts, runbooks (`docs/runbooks/`), status page, restore test.
-24. DNS cut-over from Wix to Cloudflare with Google Workspace mail records copied first.
+24. Connect the domain (method undetermined — see Owner approvals item 4); Google Workspace mail records must be preserved either way.
 
 ## Assumptions
 
 - Single business (one tenant); `tenant_id` kept for isolation and future growth.
-- The legacy `public` schema is not used by the new site and is never modified by this build (except the approved RLS lockdown below).
+- The legacy `public` schema is not used by the new site and is never modified by this build.
 - Legacy demo property data is not imported.
 - Content (listing details, bios, photos) is pulled from the current live Wix site as a starting point and corrected by the manager in the admin portal.
 - Replies from the inbox go out by email; Call/Text buttons use the phone's own dialer and messaging app.
@@ -132,16 +132,18 @@ Each phase is one or more small PRs to `main`, each with a preview URL.
 - Every admin account (all three roles) must use MFA.
 - The chatbot policy file lives in the database, never in this public repo.
 
-## Requires owner approval (Human Approval Gate)
+## Owner approvals (2026-09-25)
 
-1. **Architecture** as described above (Next.js on Cloudflare, schema `cwr`).
-2. **External services**: Cloudflare, Anthropic (Claude), Resend, Google (GA4/GTM/Ads), Meta, Sentry, status-page provider. Each needs an account owned by CWR.
-3. **Security fix on legacy tables**: enable RLS on `public.app_settings`, `public.chat_leads`, `public.chat_rate_limits`, `public.ref_counters` with no public policies — this blocks public access; anything still relying on them would stop working.
-4. **DNS move** from Wix to Cloudflare at launch (Phase 7).
+| # | Item | Decision |
+|---|---|---|
+| 1 | Architecture (Next.js on Cloudflare, schema `cwr`) | Approved |
+| 2 | External services | Approved: Cloudflare, Anthropic (Claude), MailerSend. Declined: Resend, Sentry. Not yet confirmed: Google (GA4/GTM/Ads), Meta, status-page provider — required by the constitutions; confirm before Phase 6/7 |
+| 3 | RLS lockdown of legacy tables `app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters` | Declined — left as-is; open security risk owned by the owner (anyone with the public key can read/write them) |
+| 4 | Domain connection at launch | Undetermined. Options: (a) move DNS from Wix to Cloudflare; (b) keep DNS at Wix and point `www` to Cloudflare via a custom hostname (canonical host is `www`). Decide before Phase 7 |
 
 ## DO NOT TOUCH
 
-- `public` schema tables, data, functions, and the existing cron job in Supabase `egadvqpatnlkvgiiszzx` (except approval item 3).
+- `public` schema tables, data, functions, and the existing cron job in Supabase `egadvqpatnlkvgiiszzx`.
 - `auth`, `storage` (existing bucket), `vault`, `realtime` internals.
 - `docs/constitution/*` (owner-authored).
 - `docs/reference/site/CWR-sitemap.xml`, `docs/reference/site/CWR-routes.ts`, `docs/reference/brand/*` (reference originals).
@@ -155,12 +157,12 @@ Files: new app source, `supabase/migrations/*`, `.github/workflows/*`, `wrangler
 Contracts: new schema `cwr`; new auth users; new storage bucket `cwr-media`.
 
 ### Level 2 — Dependent
-Files/services: Supabase API exposed schemas (adds `cwr`); Supabase Auth settings (MFA, session timeout); legacy tables if approval item 3 is applied.
-Risk: **requires human approval** — exposing a schema and locking legacy tables change what the public API key can reach.
+Files/services: Supabase API exposed schemas (adds `cwr`); Supabase Auth settings (MFA, session timeout).
+Risk: approved (item 1) — exposing `cwr` is safe only because every `cwr` table ships with RLS and per-role tests.
 
 ### Level 3 — Cascading
 Services: DNS (web + email delivery), Google Search rankings (redirects), ad platform conversion tracking, Google Workspace mail.
-Risk: **requires human approval** — a DNS mistake can stop company email; redirect gaps can drop search rankings. Mitigated by copying all DNS records before the switch and a 404 review in Google Search Console after launch.
+Risk: **requires human approval before Phase 7** (item 4) — a DNS mistake can stop company email; redirect gaps can drop search rankings. Mitigated by preserving all mail records and a 404 review in Google Search Console after launch.
 
 ## Gate 3 — confirmed stack versions (npm, 2026-09-25)
 
