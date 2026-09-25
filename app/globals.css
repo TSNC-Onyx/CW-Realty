@@ -1,0 +1,407 @@
+/*
+ * Modern Editorial design tokens — the single token file (Style §11.15).
+ * Every value here comes from docs/constitution/02-style-ui-ux.md §11.
+ * The default Tailwind theme is cleared, so only these tokens can be used:
+ * off-palette colors, rounded corners, shadows, and text under 14px cannot be written.
+ */
+@import "tailwindcss";
+
+@theme {
+  --*: initial;
+
+  /* §11.4 spacing (8px grid; 4px steps allowed inside components) and breakpoints */
+  --spacing: 4px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --container-content: 1312px;
+  --container-prose: 680px;
+  --container-form: 520px;
+  --container-toast: 400px;
+  --container-empty: 420px;
+
+  /* §11.1 colors */
+  --color-page: #faf8f3;
+  --color-surface-soft: #f0ece3;
+  --color-surface: #ffffff;
+  --color-ink: #141414;
+  --color-muted: #4d4a44;
+  --color-line: #d9d3c7;
+  --color-field-border: #6e6a62;
+  --color-dark: #121212;
+  --color-dark-alt: #1e1e1e;
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: #cfcfcf;
+  --color-gold: #e6bd35;
+  --color-gold-hover: #f0cd55;
+  --color-gold-active: #c9a227;
+  --color-ink-hover: #3a3a3a;
+  --color-ink-active: #000000;
+  --color-photo-placeholder: #dcd5c7;
+  --color-photo-placeholder-dark: #2b2b2b;
+  --color-divider-dark: #333333;
+  --color-divider-menu: #2a2a2a;
+  --color-success: #1e6b34;
+  --color-success-tint: #e7f2e7;
+  --color-error: #a8261c;
+  --color-error-tint: #f9e9e6;
+  --color-warning: #6e4600;
+  --color-warning-tint: #fbf0d6;
+  --color-info: #1f4e8c;
+  --color-info-tint: #e6eef8;
+
+  /* §11.2 type: sizes (never under 14px), line heights, tracking, weights */
+  --text-tag: 14px;
+  --text-sm: 15px;
+  --text-base: 16px;
+  --text-md: 17px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-menu: 24px;
+  --leading-none: 1;
+  --leading-heading: 1.15;
+  --leading-snug: 1.2;
+  --leading-label: 1.4;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.6;
+  --tracking-heading: -0.02em;
+  --tracking-button: 0.01em;
+  --tracking-tag: 0.06em;
+  --tracking-eyebrow: 0.12em;
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* §11.8 image ratios */
+  --aspect-hero: 21 / 9;
+  --aspect-hero-mobile: 4 / 3;
+  --aspect-photo: 3 / 2;
+  --aspect-portrait: 4 / 5;
+
+  /* §11.14 motion */
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --animate-spin: spin 1s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+@theme inline {
+  --font-display: var(--font-fraunces), Georgia, serif;
+  --font-body: var(--font-manrope), system-ui, sans-serif;
+}
+
+/* ------------------------------------------------------------------ base */
+
+@layer base {
+  :root {
+    --focus-ring-color: var(--color-info);
+    --header-height: 60px;
+    --action-bar-space: 80px;
+    scroll-padding-top: var(--header-height);
+    scroll-padding-bottom: var(--action-bar-space);
+  }
+
+  @media (width >= 1024px) {
+    :root {
+      --header-height: 88px;
+      --action-bar-space: 0px;
+    }
+  }
+
+  html:has(dialog[open]) {
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--color-page);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (width >= 768px) {
+    body {
+      font-size: 18px;
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0s !important;
+      animation-duration: 0s !important;
+    }
+  }
+}
+
+/* ------------------------------------------------------------ components */
+
+@layer components {
+  /* Dark bands switch the focus ring to white (§11.5). */
+  .tone-dark {
+    --focus-ring-color: var(--color-on-dark);
+    background: var(--color-dark);
+    color: var(--color-on-dark);
+  }
+
+  /* §11.5 buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 2px solid transparent;
+    font-family: var(--font-body);
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color 200ms var(--ease-out),
+      color 200ms var(--ease-out),
+      transform 200ms var(--ease-out);
+  }
+  .btn:active:not(:disabled, [aria-busy="true"]) {
+    transform: translateY(1px);
+  }
+  .btn[aria-busy="true"] {
+    cursor: progress;
+  }
+  .btn-l {
+    min-height: 56px;
+    padding-inline: 28px;
+    font-size: 17px;
+  }
+  .btn-m {
+    min-height: 48px;
+    padding-inline: 22px;
+    font-size: 16px;
+  }
+  .btn-s {
+    min-height: 44px;
+    padding-inline: 22px;
+    font-size: 15px;
+  }
+  .btn-main {
+    background: var(--color-ink);
+    border-color: var(--color-ink);
+    color: var(--color-on-dark);
+  }
+  .btn-main:hover {
+    background: var(--color-ink-hover);
+    border-color: var(--color-ink-hover);
+  }
+  .btn-main:active {
+    background: var(--color-ink-active);
+    border-color: var(--color-ink-active);
+  }
+  .btn-main-gold {
+    background: var(--color-gold);
+    border-color: var(--color-gold);
+    color: var(--color-dark);
+  }
+  .btn-main-gold:hover {
+    background: var(--color-gold-hover);
+    border-color: var(--color-gold-hover);
+  }
+  .btn-main-gold:active {
+    background: var(--color-gold-active);
+    border-color: var(--color-gold-active);
+  }
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--color-ink);
+    color: var(--color-ink);
+  }
+  .btn-secondary:hover {
+    background: rgb(0 0 0 / 0.06);
+  }
+  .btn-secondary:active {
+    background: rgb(0 0 0 / 0.12);
+  }
+  .btn-secondary-dark {
+    background: transparent;
+    border-color: var(--color-on-dark);
+    color: var(--color-on-dark);
+  }
+  .btn-secondary-dark:hover {
+    background: rgb(255 255 255 / 0.1);
+  }
+  .btn-secondary-dark:active {
+    background: rgb(255 255 255 / 0.18);
+  }
+  .btn:disabled {
+    background: #d6d6d6;
+    border-color: #d6d6d6;
+    color: #5e5e5e;
+    cursor: not-allowed;
+  }
+  .tone-dark .btn:disabled {
+    background: #3a3a3a;
+    border-color: #3a3a3a;
+    color: #9a9a9a;
+  }
+
+  /* §11.5 text link */
+  .text-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  /* §11.11 fields */
+  .field-input {
+    display: block;
+    width: 100%;
+    min-height: 52px;
+    padding: 12px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-field-border);
+    color: var(--color-ink);
+    font-size: 17px;
+    line-height: 1.5;
+  }
+  .field-input[aria-invalid="true"] {
+    padding: 11px 13px;
+    border: 2px solid var(--color-error);
+  }
+  .field-input[data-valid="true"] {
+    padding: 11px 13px;
+    border: 2px solid var(--color-success);
+  }
+  textarea.field-input {
+    min-height: 104px;
+    resize: vertical;
+  }
+
+  /* §11.9 action bar: 14px bottom padding plus the phone's home-bar area */
+  .action-bar-safe-area {
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+  }
+
+  /* §11.14 mobile menu opening */
+  .menu-dialog[open] {
+    animation: menu-open 250ms var(--ease-out);
+  }
+  .menu-dialog::backdrop {
+    background: var(--color-dark);
+  }
+}
+
+@keyframes menu-open {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ------------------------------------------------------ type styles §11.2 */
+
+@utility type-display {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  font-size: 40px;
+  @media (width >= 768px) {
+    font-size: 80px;
+  }
+}
+
+@utility type-h1 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-size: 38px;
+  @media (width >= 768px) {
+    font-size: 56px;
+  }
+}
+
+@utility type-h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  font-size: 30px;
+  @media (width >= 768px) {
+    font-size: 44px;
+  }
+}
+
+@utility type-h2-article {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 26px;
+  @media (width >= 768px) {
+    font-size: 32px;
+  }
+}
+
+@utility type-h3 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 22px;
+  @media (width >= 768px) {
+    font-size: 28px;
+  }
+}
+
+@utility type-h3-card {
+  font-family: var(--font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 24px;
+  @media (width >= 768px) {
+    font-size: 32px;
+  }
+}
+
+@utility type-lead {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.6;
+  font-size: 18px;
+  @media (width >= 768px) {
+    font-size: 20px;
+  }
+}
+
+@utility type-small {
+  font-family: var(--font-body);
+  font-weight: 400;
+  line-height: 1.5;
+  font-size: 15px;
+}
+
+@utility type-eyebrow {
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.4;
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
