@@ -80,7 +80,7 @@ Audit log 3 years (matches NC Real Estate Commission record rule); chat transcri
 
 ## Task breakdown
 
-Each phase is one or more small PRs to `main`, each with a preview URL.
+Each phase is one or more small PRs to `build1`, each with a preview URL. `main` is not merged into until go-live day (merging deploys to production).
 
 **Phase 0 — Foundation**
 1. Scaffold Next.js app at repo root (`package.json`, `app/`, `src/`, `wrangler.jsonc`, `open-next.config.ts`); `.env.example` only — no secrets in git.
