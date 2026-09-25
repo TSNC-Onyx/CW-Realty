@@ -1,5 +1,6 @@
-# Preview URL for every pull request (Infra §1). Uploads a Worker version with a
-# per-PR alias; production traffic is not affected.
+# Preview URL for every pull request (Infra §1). Uploads a version of the preview Worker
+# (cw-realty-preview, see wrangler.jsonc env.preview) with a per-PR alias; production is
+# never touched. The preview Worker must exist first: preview-build1.yml creates it.
 # Needs repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
 # Until they are added, this job skips with a notice instead of failing.
 name: Preview
@@ -46,9 +47,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${{ vars.NEXT_PUBLIC_TURNSTILE_SITE_KEY }}
         run: |
           npx opennextjs-cloudflare build
-          npx opennextjs-cloudflare upload --preview-alias "$PREVIEW_ALIAS" | tee upload.log
+          npx opennextjs-cloudflare upload --env preview --preview-alias "$PREVIEW_ALIAS" | tee upload.log
           url=$(grep -oE 'https://[^ ]*workers\.dev' upload.log | grep "$PREVIEW_ALIAS" | head -n1)
           echo "url=${url}" >> "$GITHUB_OUTPUT"
       - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5

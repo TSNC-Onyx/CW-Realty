@@ -6,7 +6,12 @@ import type { EmailSender } from "@/lib/email/send-email";
 // consumer Worker (worker.ts) can run them too.
 
 export const ALERT_QUEUE_BINDING = "CWR_ALERTS";
-export const ALERT_DEAD_LETTER_QUEUE = "cwr-alerts-dlq";
+// Dead-letter queues are named "<queue>-dlq" in every environment (wrangler.jsonc).
+const DEAD_LETTER_SUFFIX = "-dlq";
+
+export function isDeadLetterQueue(queueName: string): boolean {
+  return queueName.endsWith(DEAD_LETTER_SUFFIX);
+}
 
 export type AlertJob =
   | { kind: "new_request"; threadId: string }
