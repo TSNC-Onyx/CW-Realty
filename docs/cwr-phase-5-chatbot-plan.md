@@ -1,6 +1,6 @@
 # Phase 5 — Chat Assistant — Plan
 
-Status: **in progress** (2026-09-25) on branch `phase-5-chatbot` (from `build1`).
+Status: **built** (2026-09-25) on branch `phase-5-chatbot` (from `build1`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 5, tasks 17–19).
 
 ## Goal
@@ -29,12 +29,12 @@ Visitors can ask the "CWR Assistant" questions and get answers drawn only from t
 | 3 | Reply shape | `{ outcome: "answer" \| "handoff", reply, citedSections[] }`. The server keeps an answer only if every cited section is a real heading in the published policy and at least one is cited; otherwise it becomes a handoff | Features §2 "each answer cites" |
 | 4 | Policy sections | Every Markdown heading line (`#` … `######`) in the policy is a section. A policy needs at least one heading to be saved | Features §2 |
 | 5 | Conversation history | Kept on the server (`chat_messages`), never taken from the browser, so visitors cannot plant fake assistant turns. The browser keeps only the session id and what it shows (sessionStorage, so it survives page loads in one tab) | OWASP LLM01 |
-| 6 | Restricted data | SSN-like and card/bank-like numbers are caught before the model: the model never sees them, the log stores "[number removed]", and the visitor is asked not to share them | Features §2 |
-| 7 | Leak guard | The system prompt carries a marker line; a reply containing it, or copying 200+ characters of policy text word for word, is replaced by a handoff | Features §2 "never expose the policy file or system prompt" |
+| 6 | Restricted data | SSN-shaped numbers (3-2-4 or 9 digits), any 12–19 digit number, and 6–17 digit numbers right after words like account, routing, card, license, passport, or "ID number" are caught before the model: the model never sees them, the log, inbox, and widget show "[number removed]", and the visitor is asked not to share them. Phone numbers, ZIP+4 codes, prices, and listing/MLS ids pass | Features §2 |
+| 7 | Leak guard | The system prompt carries a marker line; a reply containing it, or repeating 20+ words of the policy in a row (ignoring case, punctuation, and formatting), is replaced by a handoff. Paraphrase cannot be detected in code; the built-in injection test and the prompt rules cover it | Features §2 "never expose the policy file or system prompt" |
 | 8 | Abuse and cost | Turnstile to start a chat and to hand off; `CHAT_RATE_LIMITER` 10 messages per visitor per minute; 20 visitor messages per chat; 1,000 characters per message; at most 200 new chats per hour site-wide, after which chat offers "Talk to a person" only | Infra §2 |
 | 9 | Not ready states | No published policy, no API key, the hourly cap reached, or the model failing → a friendly "a person will help" reply with the handoff form. Nothing breaks the page | Infra §3 fail gracefully |
 | 10 | Handoff | Name + email or phone + question (+ Turnstile). Goes through `submitNewRequest({ source: "chat_handoff" })`; the inbox message holds the question and the chat so far (from the server log). The chat is linked to the thread. Visitor sees "Someone from our team will reply within one business day" | Features §2, Phase 4 |
-| 11 | Test run | Runs the owner's active test questions plus 4 built-in safety checks (prompt injection, ID numbers, Fair Housing steering, lending advice) through exactly the visitor pipeline, 4 at a time. Needs at least one owner question. Saved by a new service-only `cwr.record_chat_policy_test_run()` that refuses the result if the draft or the questions changed during the run | Admin §6 |
+| 11 | Test run | Runs the owner's active test questions plus 4 built-in safety checks (prompt injection, ID numbers, Fair Housing steering, lending advice) through exactly the visitor pipeline, 4 at a time. Needs at least one owner question. Saved by a new service-only `cwr.record_chat_policy_test_run()` that refuses the result if the draft or the questions changed during the run, and stamps the run with the exact draft save and question-list time it checked; publishing requires those stamps to match exactly | Admin §6 |
 | 12 | Restore | Copies the old version's text into a new draft (history is never rewritten); publish still needs a passing run | Admin §6, migration 0400 |
 | 13 | Editing | The editor always works on the newest draft; saving when no draft exists starts a new version. "Upload" reads a .txt or .md file into the editor in the browser (no file is stored) | Admin §6 |
 | 14 | Chat history access | Owners and managers (matches existing RLS "Editors read chat sessions"); staff see handoffs in the inbox only | Parent plan role table, RLS |
@@ -103,3 +103,16 @@ New migration, `src/lib/chat/*`, chat components, admin chat-policy and chat-his
 
 - Worker secret `ANTHROPIC_API_KEY`; Cloudflare rate-limit namespace `1002` (`CHAT_RATE_LIMITER`).
 - Owner writes the first policy, adds test questions, runs the tests, and publishes before the site goes live.
+
+## Verification (2026-09-25)
+
+| Check | Result |
+|---|---|
+| Unit tests | 223 passed (incl. answer checks, number filter, hand-off, test grading, send-message paths with a fake model) |
+| Database tests (fresh database) | 123 passed (12 files, incl. new `110-chat-assistant`) |
+| Playwright, CI setup | 236 passed — incl. launcher and AI label, Escape/focus return, phone full screen and focus trap, axe on the open chat, panel code not loaded until opened, not-ready reply, chat kept across page loads, hand-off → inbox with transcript → chat history, owner-only policy page, save/test/publish/restore |
+| lint, typecheck, db:check, db:lint, design:check, dependency scan, Workers build + `wrangler deploy --dry-run` (CHAT_RATE_LIMITER listed) | pass |
+| Lighthouse (home, desktop) | performance 100, accessibility 100; page scripts 152 KB (budget 200 KB) |
+| Independent review | 0 high; 2 medium (bank-number gaps, copy guard easy to reformat around), 8 low (publish race, test-list read split, page/database ready-check mismatch, shortened hand-off transcript, unredacted widget text, no phone focus trap, hand-off re-linking, hourly-cap overshoot) — all fixed except the hourly-cap overshoot (bounded by the bot check); re-review found 2 more low (ZIP+4 and listing ids blocked; copy check cost) — fixed |
+
+Found and fixed while testing in a real browser: newer Chrome returns a Promise from `scrollIntoView`, which crashed the page when used as an effect's return value; multi-row inserts fill missing columns with null (not their default).
