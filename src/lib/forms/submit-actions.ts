@@ -1,12 +1,11 @@
 "use server";
 
-import { headers } from "next/headers";
-
 import { getFieldErrors, getFieldValues, getResultState, type RequestFormSchema, type RequestFormState } from "@/lib/forms/form-state";
 import { submitNewRequest, type NewRequest } from "@/lib/forms/intake";
 import { BOOKING_FORM_FIELDS, CONTACT_FORM_FIELDS, bookingFormSchema, contactFormSchema, type FormFieldConfig } from "@/lib/forms/request-forms";
 import { isOverFormLimit } from "@/lib/security/rate-limit";
 import { TURNSTILE_FIELD, verifyTurnstileToken } from "@/lib/security/turnstile";
+import { fetchVisitor } from "@/lib/security/visitor";
 import { getE164Phone } from "@/lib/site/phone";
 
 // Server entry points for the public forms: every field is checked again with the same
@@ -48,18 +47,11 @@ function getBookingRequest(values: Record<string, string>): Omit<NewRequest, "id
 const CONTACT_FORM: FormDefinition = { turnstileAction: "contact-form", schema: contactFormSchema, fields: CONTACT_FORM_FIELDS, getRequest: getContactRequest };
 const BOOKING_FORM: FormDefinition = { turnstileAction: "touchup-request-form", schema: bookingFormSchema, fields: BOOKING_FORM_FIELDS, getRequest: getBookingRequest };
 
-async function getVisitor(): Promise<{ ip: string | null; hostname: string | null }> {
-  const headerStore = await headers();
-  const ip = headerStore.get("cf-connecting-ip") ?? headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
-  const hostname = (headerStore.get("host") ?? "").split(":")[0] || null;
-  return { ip, hostname };
-}
-
 async function submitRequestForm(form: FormDefinition, formData: FormData): Promise<RequestFormState> {
   const values = getFieldValues(formData, form.fields);
   const fieldErrors = getFieldErrors(form.schema, values);
   if (Object.keys(fieldErrors).length > 0) return getResultState({ status: "invalid", values, fieldErrors });
-  const visitor = await getVisitor();
+  const visitor = await fetchVisitor();
   if (await isOverFormLimit(visitor.ip)) return getResultState({ status: "limited", values });
   const token = String(formData.get(TURNSTILE_FIELD) ?? "");
   const isHuman = await verifyTurnstileToken({ token, remoteIp: visitor.ip, expectedAction: form.turnstileAction, expectedHostname: visitor.hostname });
