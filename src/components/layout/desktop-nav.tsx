@@ -3,15 +3,18 @@
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState, type FocusEvent, type KeyboardEvent } from "react";
+import { useId, useRef, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 
+import { useNavMenus, type NavMenus } from "@/components/layout/use-nav-menus";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { MENU_SECTIONS, isCurrentPath, isCurrentSection, type NavLink } from "@/lib/site/navigation";
 
 // Style §11.9 desktop menu on the dark header. Items with sub-pages use the WAI-ARIA APG disclosure
-// pattern: a button toggles a list; Escape, clicking a link, or leaving closes it.
+// pattern. Style §5 (owner choice 2026-09-26): a mouse opens a list by hovering; touch, Enter,
+// Space, and the down arrow open it too. Escape, clicking a link, or leaving closes it.
 
 const ITEM_CLASS = "nav-link-dark flex h-11 items-center gap-1 px-3 text-base font-semibold";
+const MOUSE_POINTER = "mouse";
 const CURRENT_BAR_CLASS = "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-gold";
 
 function getItemClassName(isCurrent: boolean): string {
@@ -35,14 +38,42 @@ function DisclosureLink({ link, isCurrent, onNavigate }: DisclosureLinkProps) {
   );
 }
 
-type NavDisclosureProps = { label: string; links: NavLink[]; pathname: string; isCurrent: boolean };
+type SubMenuEventsProps = { label: string; menus: NavMenus };
 
-function NavDisclosure({ label, links, pathname, isCurrent }: NavDisclosureProps) {
-  const [isOpen, setIsOpen] = useState(false);
+// A mouse click only ever opens (the pointer is already hovering); a tap, a keyboard press
+// (detail 0), or an assistive click toggles.
+function useSubMenuEvents({ label, menus }: SubMenuEventsProps) {
+  const pointerTypeRef = useRef("");
+  return {
+    handlePointerEnter: (event: PointerEvent<HTMLLIElement>) => {
+      if (event.pointerType === MOUSE_POINTER) menus.handleHoverStart(label);
+    },
+    handlePointerLeave: (event: PointerEvent<HTMLLIElement>) => {
+      if (event.pointerType === MOUSE_POINTER) menus.handleHoverEnd(label);
+    },
+    handlePointerDown: (event: PointerEvent<HTMLButtonElement>) => {
+      pointerTypeRef.current = event.pointerType;
+    },
+    handleClick: (event: MouseEvent<HTMLButtonElement>) => {
+      const isMouseClick = event.detail > 0 && pointerTypeRef.current === MOUSE_POINTER;
+      pointerTypeRef.current = "";
+      if (isMouseClick) menus.open(label);
+      else menus.toggle(label);
+    },
+    handleButtonKeyDown: (event: KeyboardEvent<HTMLButtonElement>) => {
+      if (event.key === "ArrowDown") menus.open(label);
+    },
+  };
+}
+
+type NavDisclosureProps = { label: string; links: NavLink[]; pathname: string; isCurrent: boolean; menus: NavMenus };
+
+function NavDisclosure({ label, links, pathname, isCurrent, menus }: NavDisclosureProps) {
   const listId = useId();
+  const events = useSubMenuEvents({ label, menus });
+  const isOpen = menus.openLabel === label;
 
-  const handleToggle = () => setIsOpen((wasOpen) => !wasOpen);
-  const handleClose = () => setIsOpen(false);
+  const handleClose = () => menus.close(label);
   const handleKeyDown = (event: KeyboardEvent<HTMLLIElement>) => {
     if (event.key === "Escape") handleClose();
   };
@@ -51,12 +82,14 @@ function NavDisclosure({ label, links, pathname, isCurrent }: NavDisclosureProps
   };
 
   return (
-    <li className="relative" onKeyDown={handleKeyDown} onBlur={handleBlur}>
+    <li className="relative" onKeyDown={handleKeyDown} onBlur={handleBlur} onPointerEnter={events.handlePointerEnter} onPointerLeave={events.handlePointerLeave}>
       <button
         type="button"
         aria-expanded={isOpen}
         aria-controls={listId}
-        onClick={handleToggle}
+        onPointerDown={events.handlePointerDown}
+        onClick={events.handleClick}
+        onKeyDown={events.handleButtonKeyDown}
         className={getItemClassName(isCurrent)}
       >
         {label}
@@ -74,6 +107,7 @@ function NavDisclosure({ label, links, pathname, isCurrent }: NavDisclosureProps
 
 export function DesktopNav() {
   const pathname = usePathname();
+  const menus = useNavMenus();
   return (
     <nav aria-label="Main" className="hidden lg:block">
       <ul className="flex items-center gap-1">
@@ -81,7 +115,7 @@ export function DesktopNav() {
           const isCurrent = isCurrentSection(pathname, section);
           if (section.kind === "group") {
             return (
-              <NavDisclosure key={section.label} label={section.label} links={section.links} pathname={pathname} isCurrent={isCurrent} />
+              <NavDisclosure key={section.label} label={section.label} links={section.links} pathname={pathname} isCurrent={isCurrent} menus={menus} />
             );
           }
           return (

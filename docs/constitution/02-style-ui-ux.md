@@ -45,7 +45,7 @@
 - Call and text buttons stay reachable on mobile
 - Every control shows hover, focus, active, disabled, and loading states
 - Visible focus ring on all controls, never hidden by sticky elements
-- No actions that only work on hover or by dragging
+- No actions that only work on hover or by dragging. Exception (owner choice 2026-09-26): desktop header sub-menus open on mouse hover, not mouse click (a click on a hovered menu name keeps it open); touch taps, the keyboard (Enter, Space, down arrow), and assistive tools still open them
 - Provide feedback within 100ms of every tap or click
 
 ## 6. Forms
@@ -216,6 +216,7 @@ Status colors (always with an icon and words, never color alone):
 
 - Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
 - Current page: 2px `gold` bar under the menu label plus `aria-current="page"`
+- Sub-menus (owner choice 2026-09-26, see §5): a mouse opens them by hovering after 150ms and they close 300ms after it leaves; moving straight to another menu name switches at once; one open at a time; a tap toggles on touch screens at any width; Escape, a link click, or focus leaving closes them
 - Menu hover (owner choice 2026-09-26): every link on `dark` — header menu, sub-page lists, header phone link, mobile menu, footer, admin sidebar and admin mobile menu — fades in an `on-dark-hover` tint over 200ms; mouse only (never sticks after a tap), same tint on keyboard focus, never on the current page, outline in high-contrast mode
 - Mobile header: 62px tall (meets Style §4 56–64px and Features §1 under 64px), `dark`, 16px side padding, sticky; 55px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px white border)
 - Mobile menu: full-screen `dark` panel; 62px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call" and L secondary "Text us" buttons pinned at the bottom

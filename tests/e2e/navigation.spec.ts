@@ -90,6 +90,83 @@ test.describe("keyboard and menus", () => {
   });
 });
 
+test.describe("desktop sub-menus with a mouse", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize(VIEWPORTS.desktop);
+    await page.goto("/");
+  });
+
+  test("hovering opens a sub-menu and moving away closes it", async ({ page }) => {
+    // Arrange
+    const listingsButton = page.getByRole("button", { name: "Listings" });
+    await listingsButton.hover();
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "true");
+
+    // Act
+    await page.mouse.move(10, VIEWPORTS.desktop.height - 10);
+
+    // Assert
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("clicking a hovered menu name keeps its sub-menu open", async ({ page }) => {
+    // Arrange
+    const listingsButton = page.getByRole("button", { name: "Listings" });
+    await listingsButton.hover();
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "true");
+
+    // Act
+    await listingsButton.click();
+
+    // Assert
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test("only one sub-menu is open at a time", async ({ page }) => {
+    // Arrange
+    const listingsButton = page.getByRole("button", { name: "Listings" });
+    await listingsButton.hover();
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "true");
+
+    // Act
+    await page.getByRole("button", { name: "Resources" }).hover();
+
+    // Assert
+    await expect(listingsButton).toHaveAttribute("aria-expanded", "false");
+  });
+
+  test("the down arrow opens a sub-menu from the keyboard", async ({ page }) => {
+    // Arrange
+    const aboutButton = page.getByRole("button", { name: "About" });
+    await aboutButton.focus();
+
+    // Act
+    await page.keyboard.press("ArrowDown");
+
+    // Assert
+    await expect(aboutButton).toHaveAttribute("aria-expanded", "true");
+  });
+});
+
+test.describe("desktop sub-menus on a touch screen", () => {
+  test.use({ hasTouch: true });
+
+  test("a second tap closes the sub-menu the first tap opened", async ({ page }) => {
+    // Arrange
+    await page.setViewportSize(VIEWPORTS.desktop);
+    await page.goto("/");
+    const servicesButton = page.getByRole("button", { name: "Services" });
+    await servicesButton.tap();
+    await expect(servicesButton).toHaveAttribute("aria-expanded", "true");
+
+    // Act
+    await servicesButton.tap();
+
+    // Assert
+    await expect(servicesButton).toHaveAttribute("aria-expanded", "false");
+  });
+});
+
 test.describe("redirects and missing pages", () => {
   test("uppercase and trailing-slash URLs move to the clean URL in one permanent hop", async ({ request }) => {
     // Arrange
