@@ -145,6 +145,16 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 3 | RLS lockdown of legacy tables `app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters` | Declined — left as-is; open security risk owned by the owner (anyone with the public key can read/write them) |
 | 4 | Domain connection at launch | Undetermined. Options: (a) move DNS from Wix to Cloudflare; (b) keep DNS at Wix and point `www` to Cloudflare via a custom hostname (canonical host is `www`). Decide before Phase 7 |
 
+## Open items (owner, before launch)
+
+| # | Item | Where |
+|---|---|---|
+| 1 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
+| 2 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
+| 3 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
+| 4 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
+| 5 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
+
 ## DO NOT TOUCH
 
 - `public` schema tables, data, functions, and the existing cron job in Supabase `egadvqpatnlkvgiiszzx`.
