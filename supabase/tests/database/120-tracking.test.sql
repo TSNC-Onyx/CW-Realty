@@ -33,7 +33,7 @@ select cwr_test.sign_in('manager');
 set local role authenticated;
 update cwr.tracking_settings set gtm_container_id = 'GTM-EVIL999' where tenant_id = cwr_test.id('tenant_a');
 select throws_ok(
-  $$ insert into cwr.tracking_settings (tenant_id, gtm_container_id) values (cwr_test.id('tenant_b'), 'GTM-EVIL999') $$,
+  $$ insert into cwr.tracking_settings (tenant_id, gtm_container_id) values (cwr_test.id('tenant_a'), 'GTM-EVIL999') $$,
   '42501',
   null,
   'Managers cannot add tracking settings'

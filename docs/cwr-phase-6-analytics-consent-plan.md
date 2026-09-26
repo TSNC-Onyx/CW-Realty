@@ -1,6 +1,6 @@
 # Phase 6 — Analytics & Consent — Plan
 
-Status: **in progress** (2026-09-25) on branch `phase-6-analytics-consent` (from `build1`).
+Status: **built** (2026-09-25) on branch `phase-6-analytics-consent` (from `build1`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 6, tasks 20–21).
 
 ## Goal
@@ -35,10 +35,10 @@ Visitors choose, in a cookie banner, whether the site may use analytics and adve
 | 8 | Key events | Pushed to the Tag Manager data layer only after consent, each with an `event_id`: `cwr_call` and `cwr_text` (any phone/text link), `cwr_contact_form`, `cwr_booking_request`, `cwr_chat_question` (question answered), `cwr_chat_handoff` ("Talk to a person" sent) | Features §3; Phase 5 handoff |
 | 9 | Meta server events | For the three server-confirmed leads (contact → `Lead`, chat hand-off → `Lead`, TouchUp request → `Schedule`), the server sends a Conversions API event (Graph API v26.0) after replying to the visitor, only when Pixel ID + token exist, the visitor allowed Advertising, and GPC is off. `event_id` = the form's one-time key, so a double submit is one event and the Pixel event from Tag Manager dedupes against it. One try, 5-second limit, failures logged by error name only | Features §3; Meta CAPI docs |
 | 10 | Google Enhanced Conversions | After a lead is sent (Advertising allowed), the server returns SHA-256 hashes of the email and phone (Google's normalization) and the browser adds them as `user_data.sha256_email_address` / `sha256_phone_number` on the event. Plain email/phone never enter the data layer | Google EC docs |
-| 11 | Closed deals | Owners/managers record "Closed deal" (date + optional sale price) on an inbox conversation. "Closed deals" page downloads a Google Ads file (legacy offline template: `Parameters:TimeZone=America/New_York`, Google Click ID, hashed Email, hashed Phone Number, Conversion Name "Closed deal", Conversion Time, Value, Currency, Ad User Data, Ad Personalization) and a Meta file (email, phone, event_name `Purchase`, event_time, value, currency, fbc, fbp). Only leads that allowed Advertising are included. Meta's server API rejects events older than 7 days, so files — not the API — are used | Features §3; Google/Meta limits |
-| 12 | Click IDs | On landing, the site reads `gclid`, `gbraid`, `wbraid`, `fbclid`, and `utm_*` into memory. Only after Advertising is allowed are they kept in this tab (`sessionStorage` `cwr-attribution`) and sent with a form. The server saves them in `cwr.lead_attribution` only if its own consent check agrees. Values are checked against strict patterns | Features §3; OWASP input validation |
+| 11 | Closed deals | Owners/managers record "Closed deal" (date + optional sale price) on an inbox conversation. "Closed deals" page downloads a Google Ads file (legacy offline template: `Parameters:TimeZone=America/New_York`, Google Click ID, hashed Email, hashed Phone Number, Conversion Name "Closed deal", Conversion Time, Value, Currency, Ad User Data, Ad Personalization) and a Meta file (email, phone, event_name `Purchase`, event_time, value, currency, fbc, fbp). Only leads that allowed Advertising are included; the Meta file skips deals without a sale price (Meta requires a Purchase value). Meta's server API rejects events older than 7 days, so files — not the API — are used | Features §3; Google/Meta limits |
+| 12 | Click IDs | On landing, the site reads `gclid`, `gbraid`, `wbraid`, `fbclid`, and `utm_*` into memory. Only after Advertising is allowed are they kept in this tab (`sessionStorage` `cwr-attribution`) and sent with a form. The server saves a `cwr.lead_attribution` row only if its own consent check agrees — even with no click IDs, since the row also records that the lead allowed Advertising. Values are checked against strict patterns | Features §3; OWASP input validation |
 | 13 | Housing ad rules | The site never sends age, gender, ZIP, city, or address to Google or Meta; Meta events carry only standard fields and the page address without its query string. Special Ad Category is an account setting (Launch notes) | Features §3 |
-| 14 | Removing consent | Turning a choice off saves it, deletes known tracker cookies (`_ga*`, `_gcl*`, `_fbp`, `_fbc`), clears saved click IDs, and reloads the page so no script keeps running | GDPR/CPRA practice |
+| 14 | Removing consent | Turning a choice off saves it, deletes known tracker cookies (`_ga*`, `_gcl*`, `_fbp`, `_fbc`, `FPLC`), clears saved click IDs when Advertising is turned off, and reloads the page so no script keeps running | GDPR/CPRA practice |
 | 15 | Deleting a closed deal | Soft delete into the 30-day trash like other items (restore / owner delete forever) | Admin §7 |
 | 16 | Tag review | "Mark tags reviewed" button on Ads & analytics; the dashboard card says when a review is due (over 90 days) | Features §4 "review tags quarterly" |
 
@@ -58,7 +58,7 @@ Visitors choose, in a cookie banner, whether the site may use analytics and adve
 5. Forms and chat: hidden `attribution` field; `RequestFormState.conversion`; server consent + attribution + Meta event in `submit-actions.ts` and `chat-handoff.ts`; `submitNewRequest` saves attribution; key events in `useRequestForm` and `useChatConversation`.
 6. Admin: `app/admin/(portal)/tracking/page.tsx` + `src/lib/admin/tracking/*` + `src/components/admin/tracking/*`; closed-deal box on `inbox/[id]`; `app/admin/(portal)/closed-deals/page.tsx` + download routes; navigation, dashboard lines, trash support.
 7. Privacy policy rewrite (task 21).
-8. `.env.example` (`META_CAPI_ACCESS_TOKEN`, `TAG_SERVER_URL`), `wrangler.jsonc` comment for `TAG_SERVER_URL`.
+8. `README.md` and a `wrangler.jsonc` comment document `META_CAPI_ACCESS_TOKEN` and `TAG_SERVER_URL` (`.env.example` was not editable in this session; add both there).
 9. Tests: unit, pgTAP, Playwright (banner shown only when configured, equal buttons, reject loads nothing, accept loads Tag Manager with nonce, GPC locks advertising, settings dialog keyboard/Escape, withdrawal reload, banner does not cover launcher or action bar, cookie link fallback, owner-only Ads & analytics, closed deal record/trash/export, privacy policy content, axe).
 
 ## Assumptions
@@ -114,6 +114,21 @@ New migration; `src/lib/tracking/*`; `src/components/tracking/*`; `content-secur
 - In Google Ads: a conversion action named exactly **Closed deal** (import, clicks). In Meta and Google Ads: mark campaigns as Housing (Special Ad Category).
 - Tag every campaign link with UTM tags.
 
-## Verification
+## Known exceptions (owner decisions)
 
-(Filled in after implementation.)
+- The "Cookie settings" dialog is a new component; Style §11.15 asks for it to be added to §11.13 with owner approval before it ships.
+- Meta server events are sent once (5-second limit) without the queue's retry and dead-letter handling that Infra §3 asks for; losing one ad event never affects the lead.
+- GBRAID/WBRAID click IDs are saved but not exported (Google's CSV header for them is unconfirmed).
+
+## Verification (2026-09-25)
+
+| Check | Result |
+|---|---|
+| Unit tests | 295 passed (consent cookie, GPC, click-ID checks, hashing, Consent Mode order, Meta event, CSV files, CSP, admin rules, server GPC re-check) |
+| Database tests (fresh database) | 142 passed (13 files, incl. new `120-tracking`) |
+| Playwright | 257 passed, incl. a separate `tracking` project that runs last: nothing loads before a choice, Reject keeps trackers off, Accept loads Tag Manager with the nonce after "denied" defaults, call tap event, withdrawal deletes cookies and reloads, GPC, Escape/focus, banner clear of launcher and action bar, axe + design checks on phone and desktop, click IDs saved only with consent; closed deals, trash, staff blocked, owner-only Ads & analytics, privacy policy content |
+| lint, typecheck, design:check, db:check, db:lint, Workers build + `wrangler deploy --dry-run` | pass |
+| Lighthouse (home, desktop) | performance, accessibility, best practices 100; page scripts 155 KB (budget 200 KB) |
+| Independent review | 0 high; 2 medium (no consent row for leads without an ad click; no server GPC test) and 11 low — fixed except the three owner decisions above and Gmail "+tag" handling (kept, per Google's current API guide); re-review found 1 low test weakness — fixed |
+
+Found and fixed while testing: the form library (zod) had been pulled onto every page by the cookie code (+90 KB of script), so the consent and click-ID checks use plain code; an icon passed from a server page to a client button crashed Ads & analytics.
