@@ -53,6 +53,7 @@ describe("isRedirectCandidate", () => {
     ["/team/charlie-ward", true],
     ["/about", false],
     ["/listings", false],
+    ["/services/seller-consulting", false],
     ["/admin/listings", false],
     ["/brand/cwr-logo-120.webp", false],
     ["/Upper-Case", false],

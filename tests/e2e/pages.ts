@@ -1,8 +1,8 @@
-import { STATIC_PAGE_PATHS } from "../../src/lib/site/navigation";
+import { STATIC_PAGE_PATHS, UNLISTED_PAGE_PATHS } from "../../src/lib/site/navigation";
 
-// Every public page Phase 1 serves, plus the viewports Style §10 requires.
+// Every public page the site serves (listed and link-only), plus the viewports Style §10 requires.
 
-export const PUBLIC_PAGE_PATHS = [...STATIC_PAGE_PATHS];
+export const PUBLIC_PAGE_PATHS = [...STATIC_PAGE_PATHS, ...UNLISTED_PAGE_PATHS];
 
 // Record pages, checked only when a database with imported content is connected.
 export const CONTENT_PAGE_PATHS = process.env.NEXT_PUBLIC_SUPABASE_URL

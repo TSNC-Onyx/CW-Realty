@@ -1,4 +1,4 @@
-import { STATIC_PAGE_PATHS } from "@/lib/site/navigation";
+import { STATIC_PAGE_PATHS, UNLISTED_PAGE_PATHS } from "@/lib/site/navigation";
 import {
   CWR_TENANT_SLUG,
   SupabaseQueryError,
@@ -27,7 +27,7 @@ function hasPrefixWithoutRedirects(path: string): boolean {
 
 /** True when a normalized path might be an old URL worth a database lookup. */
 export function isRedirectCandidate(path: string): boolean {
-  if (STATIC_PAGE_PATHS.has(path)) return false;
+  if (STATIC_PAGE_PATHS.has(path) || UNLISTED_PAGE_PATHS.has(path)) return false;
   if (hasPrefixWithoutRedirects(path) || FILE_EXTENSION.test(path)) return false;
   return path.length <= MAX_REDIRECT_SOURCE_LENGTH && REDIRECT_SOURCE_PATTERN.test(path);
 }

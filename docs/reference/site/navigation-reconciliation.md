@@ -26,6 +26,8 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
 | About | About Us (`/about`), Contact (`/contact`) |
 
+Link-only pages (owner decision 2026-09-26): Seller consulting (`/services/seller-consulting`) is served but kept out of the menu, footer, sitemap, and search results until its companion page launches (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`).
+
 Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above plus Privacy Policy, Cookie settings, Equal Housing Opportunity, NC "Working with Real Estate Agents".
 
 ## Pages and redirects

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { MENU_SECTIONS, getAllMenuLinks, isCurrentPath, isCurrentSection } from "@/lib/site/navigation";
+import {
+  MENU_SECTIONS,
+  STATIC_PAGE_PATHS,
+  UNLISTED_PAGE_PATHS,
+  getAllMenuLinks,
+  isCurrentPath,
+  isCurrentSection,
+} from "@/lib/site/navigation";
 
 describe("menu", () => {
   it("has five or fewer top-level items (Style §4)", () => {
@@ -23,6 +30,30 @@ describe("menu", () => {
 
     // Assert
     expect(paths).toEqual(expectedPaths);
+  });
+});
+
+describe("unlisted pages", () => {
+  it("keeps link-only pages out of the menu and footer", () => {
+    // Arrange
+    const menuPaths = new Set(getAllMenuLinks().map((link) => link.href));
+
+    // Act
+    const listedUnlistedPaths = [...UNLISTED_PAGE_PATHS].filter((path) => menuPaths.has(path));
+
+    // Assert
+    expect(listedUnlistedPaths).toEqual([]);
+  });
+
+  it("keeps link-only pages out of the sitemap page list", () => {
+    // Arrange
+    const unlistedPaths = [...UNLISTED_PAGE_PATHS];
+
+    // Act
+    const sitemapPaths = unlistedPaths.filter((path) => STATIC_PAGE_PATHS.has(path));
+
+    // Assert
+    expect(sitemapPaths).toEqual([]);
   });
 });
 

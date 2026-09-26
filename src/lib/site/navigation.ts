@@ -61,6 +61,10 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
   "/team",
 ]);
 
+// Pages served by this app but reachable only by their link: kept out of the menu,
+// footer, sitemap, and search results until the owner is ready to list them.
+export const UNLISTED_PAGE_PATHS: ReadonlySet<string> = new Set(["/services/seller-consulting"]);
+
 export function getFooterColumns(): { heading: string; links: NavLink[] }[] {
   return MENU_SECTIONS.map((section) =>
     section.kind === "link"

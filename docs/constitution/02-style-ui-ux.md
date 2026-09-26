@@ -229,6 +229,7 @@ Status colors (always with an icon and words, never color alone):
 - **Listing card**: no box or background; 2px `ink` top rule; 3:2 photo; 16px gap below the photo; price, then address (Manrope 17px 600) and city (400, `muted`), then details row (Manrope 15px `muted`, 18px icons, 16px gaps): beds, baths, square feet; the whole card is one link; hover zooms the photo to 1.03 over 200ms and underlines the address
 - **Team card**: 4:5 portrait, name in Fraunces 24px (19px mobile), role in Manrope 16px `muted`; whole card is one link
 - **Resource card**: `surface-soft` fill, 2px `ink` top rule, 40px padding, eyebrow, H3 at 32px, body, "Read more" text link
+- **Plan card** (owner approved 2026-09-26, seller consulting): cards side by side from 768px, stacked on phones; 24px padding (40px from 768px); eyebrow, H3, 15px summary, a bold "includes" line over a 1px divider, then items with 18px check icons and optional 15px detail lines; then an L "Ask for pricing" button, full width and pinned to the card bottom. Standard plan: `surface-soft` fill, 2px `ink` top rule, `ink` checks, L secondary button. Recommended plan: `dark` fill, 2px `gold` top rule, eyebrow with its gold rule, gold checks, `on-dark-muted` details, L gold main button. Add-ons follow as a 680px-wide list under a 2px `ink` rule: 18px icon, name, bold price, 1px `line` dividers
 
 ### 11.11 Forms
 
