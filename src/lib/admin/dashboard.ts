@@ -1,24 +1,21 @@
 import "server-only";
 
-import { fetchUnreadCount } from "@/lib/admin/inbox/queries";
+import { getAreaStats, getEditorToday, getStaffToday, type AreaStats, type EditorCounts, type StaffCounts, type TodayFigure } from "@/lib/admin/dashboard-figures";
+import { fetchOldestNewThreadDate, fetchUnreadCount } from "@/lib/admin/inbox/queries";
 import type { AdminContext } from "@/lib/admin/require-admin";
 
-// Short status lines for the dashboard cards (Admin §1 "every editable area as a labeled card").
+// Counts behind the dashboard, read through the signed-in session (RLS applies).
 
-export type DashboardStats = Record<string, string>;
+export type DashboardSummary = { today: TodayFigure[]; areaStats: AreaStats };
 
 type CountQuery = PromiseLike<{ count: number | null }>;
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function fetchCount(query: CountQuery): Promise<number> {
   const { count } = await query;
   return count ?? 0;
 }
-
-function getPlural(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}`;
-}
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 async function fetchPolicySummary({ supabase, tenantId, role }: AdminContext): Promise<string> {
   if (role !== "owner") return "";
@@ -29,12 +26,13 @@ async function fetchPolicySummary({ supabase, tenantId, role }: AdminContext): P
   return hasNewerDraft ? `${liveText} · a draft is waiting` : liveText;
 }
 
-export async function fetchDashboardStats(admin: AdminContext): Promise<DashboardStats> {
+async function fetchEditorCounts(admin: AdminContext, now: Date): Promise<EditorCounts> {
   const { supabase, tenantId } = admin;
   const countOf = (table: string) => supabase.from(table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
-  const weekAgo = new Date(Date.now() - WEEK_MS).toISOString();
-  const [unread, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary] = await Promise.all([
+  const weekAgo = new Date(now.getTime() - WEEK_MS).toISOString();
+  const [unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary] = await Promise.all([
     fetchUnreadCount(admin),
+    fetchOldestNewThreadDate(admin),
     fetchCount(countOf("notification_recipients").eq("is_active", true)),
     fetchCount(countOf("listings").is("deleted_at", null).eq("publish_state", "live")),
     fetchCount(countOf("listings").is("deleted_at", null).eq("publish_state", "draft")),
@@ -45,15 +43,18 @@ export async function fetchDashboardStats(admin: AdminContext): Promise<Dashboar
     fetchCount(countOf("chat_sessions").gte("started_at", weekAgo)),
     fetchPolicySummary(admin),
   ]);
-  return {
-    inbox: unread === 0 ? "Nothing waiting" : `${getPlural(unread, "message waits", "messages wait")} for you`,
-    notifications: activeRecipients === 0 ? "Nobody gets alerts yet" : `${getPlural(activeRecipients, "person gets", "people get")} alerts`,
-    listings: `${getPlural(liveListings, "listing", "listings")} on the website · ${getPlural(draftListings, "draft", "drafts")}`,
-    team: `${getPlural(shownMembers, "person", "people")} shown · ${hiddenMembers} hidden`,
-    contact: "Used in the header, footer, and Contact page",
-    "chat-policy": policySummary,
-    chats: `${getPlural(weekChats, "chat", "chats")} in the last 7 days`,
-    trash: getPlural(trashItems, "item", "items"),
-    users: getPlural(people, "person has", "people have") + " access",
-  };
+  return { unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary };
+}
+
+async function fetchStaffCounts(admin: AdminContext): Promise<StaffCounts> {
+  const { supabase, tenantId, userId } = admin;
+  const assignedOpenQuery = supabase.from("inbox_threads").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("assignee_id", userId).neq("status", "closed");
+  const [waitingReply, assignedOpen] = await Promise.all([fetchUnreadCount(admin), fetchCount(assignedOpenQuery)]);
+  return { waitingReply, assignedOpen };
+}
+
+export async function fetchDashboardSummary(admin: AdminContext, now: Date): Promise<DashboardSummary> {
+  if (admin.role === "staff") return { today: getStaffToday(await fetchStaffCounts(admin)), areaStats: {} };
+  const counts = await fetchEditorCounts(admin, now);
+  return { today: getEditorToday({ counts, now }), areaStats: getAreaStats(counts) };
 }

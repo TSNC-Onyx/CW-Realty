@@ -15,6 +15,11 @@ function getServiceSettings(): { url: string; serviceRoleKey: string } {
   return { url, serviceRoleKey };
 }
 
+/** False when the Worker is missing the service-role secret (email lookups, invites, uploads need it). */
+export function isServiceAccessConfigured(): boolean {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
+
 export function createServiceClient() {
   const { url, serviceRoleKey } = getServiceSettings();
   return createClient(url, serviceRoleKey, {

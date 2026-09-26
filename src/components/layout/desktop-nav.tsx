@@ -8,11 +8,11 @@ import { useId, useState, type FocusEvent, type KeyboardEvent } from "react";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { MENU_SECTIONS, isCurrentPath, isCurrentSection, type NavLink } from "@/lib/site/navigation";
 
-// Style §11.9 desktop menu. Items with sub-pages use the WAI-ARIA APG disclosure
+// Style §11.9 desktop menu on the dark header. Items with sub-pages use the WAI-ARIA APG disclosure
 // pattern: a button toggles a list; Escape, clicking a link, or leaving closes it.
 
 const ITEM_CLASS = "relative flex h-11 items-center gap-1 px-3 text-base font-semibold";
-const CURRENT_BAR_CLASS = "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-ink";
+const CURRENT_BAR_CLASS = "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-gold";
 
 function getItemClassName(isCurrent: boolean): string {
   return isCurrent ? `${ITEM_CLASS} ${CURRENT_BAR_CLASS}` : ITEM_CLASS;
@@ -63,7 +63,7 @@ function NavDisclosure({ label, links, pathname, isCurrent }: NavDisclosureProps
         {isCurrent && <span className="sr-only">(current section)</span>}
         <ChevronDown aria-hidden size={ICON_SIZE.chevron} />
       </button>
-      <ul id={listId} hidden={!isOpen} className="absolute top-full left-0 z-50 min-w-56 border border-line border-t-2 border-t-ink bg-page py-2">
+      <ul id={listId} hidden={!isOpen} className="absolute top-full left-0 z-50 min-w-56 border border-divider-dark border-t-2 border-t-gold bg-dark py-2">
         {links.map((link) => (
           <DisclosureLink key={link.href} link={link} isCurrent={isCurrentPath(pathname, link.href)} onNavigate={handleClose} />
         ))}

@@ -101,14 +101,14 @@ export function MobileMenu({ contact }: { contact: ContactLinks | null }) {
         href={`#${SITE_FOOTER_ID}`}
         aria-haspopup="dialog"
         onClick={handleOpen}
-        className={`${getButtonClassName({ size: "s", variant: "secondary" })} px-3 lg:hidden`}
+        className={`${getButtonClassName({ size: "s", variant: "secondary", tone: "dark" })} px-3 lg:hidden`}
       >
         <Menu aria-hidden size={ICON_SIZE.button} />
         Menu
       </a>
       <dialog ref={dialogRef} aria-label="Menu" className="menu-dialog tone-dark m-0 h-dvh max-h-none w-full max-w-none border-0 p-0 lg:hidden">
         <div className="flex h-full flex-col">
-          <div className="flex h-15 shrink-0 items-center justify-between border-b border-divider-menu px-4">
+          <div className="flex h-15.5 shrink-0 items-center justify-between border-b border-divider-menu px-4">
             <Logo placement="header" onNavigate={handleClose} />
             <button type="button" onClick={handleClose} className={getButtonClassName({ size: "s", variant: "secondary", tone: "dark" })}>
               <X aria-hidden size={ICON_SIZE.button} />

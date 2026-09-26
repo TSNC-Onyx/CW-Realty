@@ -7,8 +7,15 @@ import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { ROLE_OPTIONS } from "@/components/admin/users/role-options";
 import { changeRoleAction, removeAccessAction, resetSignInCodesAction, restoreAccessAction } from "@/lib/admin/users/actions";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
+import type { SignInCodeStatus } from "@/lib/admin/users/queries";
 
-export type UserListItem = { userId: string; email: string; role: AdminRole; hasSignInCodes: boolean; isCurrentUser: boolean };
+const SIGN_IN_CODE_LABELS: Record<SignInCodeStatus, string> = {
+  on: "Sign-in codes on",
+  "not-set-up": "Hasn't finished setting up sign-in codes",
+  unknown: "Sign-in code status unavailable right now",
+};
+
+export type UserListItem = { userId: string; email: string; role: AdminRole; signInCodes: SignInCodeStatus; isCurrentUser: boolean };
 
 function UserRow({ user }: { user: UserListItem }) {
   const selectId = useId();
@@ -20,7 +27,7 @@ function UserRow({ user }: { user: UserListItem }) {
           {user.email}
           {user.isCurrentUser && " (you)"}
         </p>
-        <p className="type-small text-muted">{user.hasSignInCodes ? "Sign-in codes on" : "Hasn't finished setting up sign-in codes"}</p>
+        <p className="type-small text-muted">{SIGN_IN_CODE_LABELS[user.signInCodes]}</p>
       </div>
       <div className="md:col-span-3">
         <label htmlFor={selectId} className="mb-1 block text-base font-bold">

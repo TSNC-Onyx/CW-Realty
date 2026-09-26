@@ -1,23 +1,27 @@
 import Link from "next/link";
 
-// Style §11.7: full round CWR mark, never recolored; links home with alt "CWR Real Estate".
+// Style §11.7: full round CWR mark with a 2px gold ring, never recolored; links home
+// (the admin dashboard inside the portal) with alt "CWR Real Estate".
 // A plain <img> is used because next/image writes inline styles the strict CSP blocks.
 
 export type LogoPlacement = "header" | "footer";
 
-const PLACEMENTS: Record<LogoPlacement, { src: string; pixelSize: number; sizeClass: string }> = {
-  header: { src: "/brand/cwr-logo-120.webp", pixelSize: 60, sizeClass: "size-11 lg:size-15" },
-  footer: { src: "/brand/cwr-logo-176.webp", pixelSize: 88, sizeClass: "size-18 lg:size-22" },
+const HOME_PATH = "/";
+const LOGO_SOURCE = "/brand/cwr-logo-176.webp";
+
+const PLACEMENTS: Record<LogoPlacement, { pixelSize: number; sizeClass: string }> = {
+  header: { pixelSize: 75, sizeClass: "size-13.75 lg:size-18.75" },
+  footer: { pixelSize: 88, sizeClass: "size-18 lg:size-22" },
 };
 
-type LogoProps = { placement: LogoPlacement; onNavigate?: () => void };
+type LogoProps = { placement: LogoPlacement; href?: string; onNavigate?: () => void };
 
-export function Logo({ placement, onNavigate }: LogoProps) {
-  const { src, pixelSize, sizeClass } = PLACEMENTS[placement];
+export function Logo({ placement, href = HOME_PATH, onNavigate }: LogoProps) {
+  const { pixelSize, sizeClass } = PLACEMENTS[placement];
   return (
-    <Link href="/" onClick={onNavigate} className="inline-flex shrink-0 rounded-full">
+    <Link href={href} onClick={onNavigate} className={`logo-mark ${sizeClass}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- see note above */}
-      <img src={src} alt="CWR Real Estate" width={pixelSize} height={pixelSize} className={`rounded-full ${sizeClass}`} />
+      <img src={LOGO_SOURCE} alt="CWR Real Estate" width={pixelSize} height={pixelSize} />
     </Link>
   );
 }

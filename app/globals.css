@@ -99,7 +99,7 @@
 @layer base {
   :root {
     --focus-ring-color: var(--color-info);
-    --header-height: 60px;
+    --header-height: 62px;
     --action-bar-space: 80px;
     scroll-padding-top: var(--header-height);
     scroll-padding-bottom: var(--action-bar-space);
@@ -289,6 +289,49 @@
   textarea.field-input {
     min-height: 104px;
     resize: vertical;
+  }
+
+  /* §11.7 logo: 2px gold ring; the image is scaled 104% so the file's light edge is clipped */
+  .logo-mark {
+    display: inline-flex;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 2px solid var(--color-gold);
+    border-radius: 9999px;
+    background: var(--color-dark);
+  }
+  .logo-mark img {
+    width: 104%;
+    height: 104%;
+    max-width: none;
+    margin: -2%;
+  }
+
+  /* §11.13 admin sidebar: fills the screen below the sticky top bar and scrolls on its own */
+  .admin-sidebar {
+    top: var(--header-height);
+    height: calc(100dvh - var(--header-height));
+  }
+
+  /* §11.13 dashboard: latest messages beside quick actions when there is room, stacked
+     otherwise; area cards fill as many 240px+ columns as fit (4 at 1440px, 1 on phones). */
+  .dashboard-split {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 32px;
+  }
+  .dashboard-split > :first-child {
+    flex: 2 1 28rem;
+    min-width: 0;
+  }
+  .dashboard-split > :nth-child(2) {
+    flex: 1 1 16rem;
+  }
+  .area-card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+    gap: 16px;
   }
 
   /* §11.9 action bar: 14px bottom padding plus the phone's home-bar area */

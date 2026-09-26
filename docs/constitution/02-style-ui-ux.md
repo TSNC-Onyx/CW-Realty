@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25.
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`).
 
 ## 1. Brand Identity
 
@@ -98,7 +98,7 @@
 | `muted` | `#4D4A44` | Secondary text, captions, helper text (8.3:1 on `page`) | Body paragraphs |
 | `line` | `#D9D3C7` | Decorative dividers only (1.4:1) | The only edge of a control or field |
 | `field-border` | `#6E6A62` | Input borders, dashed empty-state border (5.1:1) | — |
-| `dark` | `#121212` | Footer, dark bands, callouts, mobile menu, action bar, chat header, status tags, text on gold | — |
+| `dark` | `#121212` | Headers (public, admin, sign-in), admin sidebar, footer, dark bands, callouts, mobile menu, action bar, chat header, status tags, text on gold | — |
 | `dark-alt` | `#1E1E1E` | Current item in mobile menu | — |
 | `on-dark` | `#FFFFFF` | Text on `dark` | — |
 | `on-dark-muted` | `#CFCFCF` | Secondary text on `dark` | — |
@@ -189,10 +189,11 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.7 Logo
 
-- Always the full round CWR mark from `docs/reference/brand/`; never recolored, stretched, cropped, or redrawn
-- Sizes: 60px desktop header, 44px mobile header, 88px desktop footer, 72px mobile footer, 32px chat header
-- Clear space on all sides equals the house icon height (22% of the logo diameter)
-- Always links to the home page with alt text "CWR Real Estate"
+- Always the full round CWR mark from `docs/reference/brand/`; never recolored, stretched, or redrawn
+- On dark surfaces (every header, the footer, the mobile menu) the mark sits in a circle with a 2px `gold` ring; the image is scaled 104% inside it so the source file's light edge is clipped. No other cropping
+- Sizes: 75px desktop header, 55px mobile header, 88px desktop footer, 72px mobile footer, 32px chat header
+- Clear space on all sides equals the house icon height (22% of the logo diameter); in headers the gold ring provides the separation
+- Links to the home page with alt text "CWR Real Estate"; inside the admin portal it links to the admin dashboard
 
 ### 11.8 Images and image containers
 
@@ -212,12 +213,12 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.9 Header and navigation
 
-- Desktop header: 88px tall, `page` background, 1px `line` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages), phone link plus S main button "Contact us" right
-- Current page: 2px `ink` bar under the menu label plus `aria-current="page"`
-- Mobile header: 60px tall (meets Style §4 56–64px and Features §1 under 64px), 16px side padding, sticky; 44px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px `ink` border)
-- Mobile menu: full-screen `dark` panel; 60px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call" and L secondary "Text us" buttons pinned at the bottom
+- Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
+- Current page: 2px `gold` bar under the menu label plus `aria-current="page"`
+- Mobile header: 62px tall (meets Style §4 56–64px and Features §1 under 64px), `dark`, 16px side padding, sticky; 55px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px white border)
+- Mobile menu: full-screen `dark` panel; 62px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call" and L secondary "Text us" buttons pinned at the bottom
 - Mobile action bar: fixed to the bottom on every public page; `dark` background, `divider-dark` top border; three equal items Call, Text, Chat, each 60px tall with a 22px gold icon over a 14px white bold label; 14px bottom padding for phone home bars
-- Pages keep 88px (desktop) / 60px (mobile) top scroll padding and 80px bottom padding on mobile so focus is never hidden
+- Pages keep 88px (desktop) / 62px (mobile) top scroll padding and 80px bottom padding on mobile so focus is never hidden
 - Breadcrumbs: Manrope 15px; links `ink` underlined, 44px tall; 16px chevron separators in `muted`; current page bold with `aria-current="page"`
 
 ### 11.10 Cards
@@ -252,6 +253,11 @@ Status colors (always with an icon and words, never color alone):
 - **Empty state**: 1px dashed `field-border` box, 40×24px padding, centered; 64px round `dark` badge with a 30px gold icon; H3 at 24px; one line on what belongs here and the next step (16px, 420px max width); one M main button
 - **AI chat window**: 380px wide panel (full screen on mobile); `dark` header with 32px logo, "CWR Assistant", and "AI · NOT A PERSON" in 14px gold bold; visitor messages on `dark` with white text, right aligned; assistant messages on `surface-soft`, left aligned, ending with a 14px `muted` "Source: Policy [section]" line; "Talk to a person" S secondary button always visible; on desktop, an M gold "Chat with us" launcher sits 32px from the bottom-right corner
 - **Cookie banner**: `dark` panel at the bottom of the screen above the action bar; 16px white text; "Accept all" and "Reject all" as equal S gold main buttons, plus a "Cookie settings" text link
+- **Admin top bar**: same `dark` header as the public site (88px desktop, 62px mobile, sticky). Desktop: logo (links to the admin dashboard), "CWR Real Estate" in Fraunces 20px over an "ADMIN" eyebrow, breadcrumb "Admin › [area]" in 15px `on-dark-muted`, then right-aligned "View website" text link (opens a new tab, says so to screen readers) and an S secondary "Sign out" button. Mobile and tablet: logo, "Admin", a 44px Inbox icon link with the unread badge, and the "Menu" button
+- **Admin sidebar** (1024px and up): 256px `dark` column, sticky under the top bar and scrolling on its own; links grouped under 14px `gold` uppercase headings "Daily", "Website", "Settings" (empty groups hidden by role); each link is a 20px icon plus the word, Manrope 600 16px, 44px tall; current page has a 4px `gold` left bar on `dark-alt` plus `aria-current="page"`; the signed-in email (15px, cut with "…", full address on hover) and role (14px uppercase with the 8px gold dot) sit at the bottom above a `divider-dark` line
+- **Admin mobile menu**: the mobile menu pattern above with the same groups (Fraunces 20px items, 56px tall), then the email (wrapping), role, and an L secondary "Sign out" button at the bottom
+- **Unread badge**: `gold` fill, `dark` 14px bold number, 24px tall, capped at "99+"; screen readers hear "(N new)" after "Inbox"
+- **Admin dashboard**: date and greeting H1; owner-only error message when a required server setting is missing; a `dark` "Today" strip of numbered figures (four for owners and managers, two for staff; figures that need action turn `gold` with an arrow and the words "needs attention" for screen readers), 1px `divider-dark` gaps; "Latest messages" (five newest open requests) beside a `surface-soft` "Quick actions" panel with a 2px `ink` top rule (one M main button, the rest M secondary; only actions the role may use); "Manage the website" area cards: `surface` fill, 2px `ink` top rule, 16px padding, 40px square `dark` icon badge with a 20px `gold` icon, Fraunces 20px title, 14px `muted` description, 14px bold status line, as many 240px+ columns as fit
 - **Footer**: `dark` background; 72×64px padding with 40px bottom on desktop, 48×16px with 120px bottom on mobile (room for the action bar); logo, then phone, email, and office address with 18px gold icons; five link columns with 14px gold uppercase headings and 16px white links, each 44px tall (two columns on mobile); bottom row above a `divider-dark` line with the gold Equal Housing icon and text, plus underlined 15px `on-dark-muted` links for Privacy policy, Cookie settings, and NC "Working with Real Estate Agents"
 
 ### 11.14 Motion

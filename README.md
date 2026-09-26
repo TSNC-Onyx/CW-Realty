@@ -17,7 +17,7 @@ Without them the site still runs, but phone, email, office address, and database
 
 Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_PUBLIC_`):
 
-- `SUPABASE_SERVICE_ROLE_KEY` — used only on the server for invites, photo uploads, the content import, and alert emails.
+- `SUPABASE_SERVICE_ROLE_KEY` — used only on the server for saving public form requests, chat logs, invites, teammate emails, photo uploads, the content import, and alert emails. Without it in the Worker, forms fail and owners see a red notice on the admin dashboard (Cloudflare → Workers → `cw-realty` → Settings → Variables and Secrets → add a **Secret**).
 - `MAILERSEND_API_KEY` — alert and reply emails (with Worker variables `ALERT_FROM_EMAIL`, `ALERT_FROM_NAME`).
 - `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`).
 

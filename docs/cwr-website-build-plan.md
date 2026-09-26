@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); Phases 6–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); the admin console and header redesign (dark headers, admin sidebar, new dashboard) is built on `claude/admin-console-header-redesign-6a6ccd` (`docs/cwr-admin-console-header-redesign-plan.md`); Phases 6–7 not started.
 
 ## Goal
 
@@ -23,6 +23,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 - Repo: `TSNC-Onyx/CW-Realty` (**public**); docs and Phase 0 code on `build1`.
 - Domain: DNS hosted at Wix (`ns6/ns7.wixdns.net`); email on Google Workspace (MX `aspmx.l.google.com`).
 - Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): legacy property-management schema in `public` with demo data; no versioned migrations; 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
+- Production Worker is missing the `SUPABASE_SERVICE_ROLE_KEY` secret (Supabase edge logs, 2026-09-26): public form intake, chat logs, invites, uploads, and teammate emails fail until the owner adds it; admin pages degrade instead of crashing.
 - Local tooling: Node 25.9, npm 11.12, gh 2.92; Supabase CLI pinned in `package.json` (run via `npx supabase`); local Supabase uses ports 553xx because another project holds the defaults.
 
 ## Architecture
@@ -93,7 +94,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 6. Security headers + strict CSP in `middleware.ts`; request ID propagation; Workers Observability.
 
 **Phase 1 — Public shell**
-7. Design tokens (Style §11), fonts, layout, header (60px mobile / 88px desktop, sticky), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
+7. Design tokens (Style §11), fonts, layout, header (62px mobile / 88px desktop, sticky, dark since the admin console redesign), mobile menu (focus trap, Escape), skip link, footer, Call/Text/Chat bar.
 8. Redirect middleware reading `cwr.redirects` (single hop, normalization rules); hidden team members 302 to `/team` via `cwr.is_hidden_team_member()`; 404 page.
 9. Static pages: Home, About, Contact (form), Privacy Policy, Resources (FAQs & Homework), Connections, CWR TouchUp (booking request form), Property Search placeholder.
 

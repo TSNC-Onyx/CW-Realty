@@ -1,15 +1,18 @@
-import Link from "next/link";
+import { Logo } from "@/components/layout/logo";
 
-// Narrow, centered frame for the sign-in steps.
+// Sign-in steps: the dark header with the logo (Style §11.9), then a narrow, centered form.
 export default function AuthLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <main id="main" className="mx-auto min-h-dvh w-full max-w-form px-4 py-12">
-      <Link href="/" className="mb-8 inline-flex items-center gap-3 font-bold">
-        {/* eslint-disable-next-line @next/next/no-img-element -- plain image under the strict CSP */}
-        <img src="/brand/cwr-logo-120.webp" alt="" width={60} height={60} className="size-15 rounded-full" />
-        CWR admin portal
-      </Link>
-      {children}
-    </main>
+    <>
+      <header className="tone-dark sticky top-0 z-40 border-b border-divider-dark">
+        <div className="flex h-15.5 items-center gap-3 px-4 lg:h-22 lg:gap-4 lg:px-8">
+          <Logo placement="header" />
+          <p className="font-display text-xl font-medium">CWR admin portal</p>
+        </div>
+      </header>
+      <main id="main" className="mx-auto w-full max-w-form px-4 py-12">
+        {children}
+      </main>
+    </>
   );
 }
