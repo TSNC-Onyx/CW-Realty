@@ -2,6 +2,7 @@ import { House, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/layout/logo";
+import { CookieSettingsLink } from "@/components/tracking/cookie-settings-link";
 import { Container } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getContactLinks } from "@/lib/site/contact-links";
@@ -12,11 +13,7 @@ import type { SiteSettings } from "@/lib/site/site-settings";
 
 const FIRM_NAME = "Charlie Ward Realty";
 
-const LEGAL_LINKS = [
-  { label: "Privacy policy", href: "/privacy-policy" },
-  { label: "Cookie settings", href: "/privacy-policy#cookies" },
-  { label: "Working with Real Estate Agents (NC)", href: NC_AGENCY_DISCLOSURE_URL },
-];
+const LEGAL_LINK_CLASS = "type-small flex min-h-11 items-center text-on-dark-muted underline underline-offset-4";
 
 function FooterContact({ settings }: { settings: SiteSettings | null }) {
   const contact = getContactLinks(settings);
@@ -86,13 +83,19 @@ function FooterLegal({ licenseNumber, footerText }: { licenseNumber: string | nu
         </span>
       </p>
       <ul className="flex flex-col lg:flex-row lg:gap-6">
-        {LEGAL_LINKS.map((link) => (
-          <li key={link.href}>
-            <Link href={link.href} className="type-small flex min-h-11 items-center text-on-dark-muted underline underline-offset-4">
-              {link.label}
-            </Link>
-          </li>
-        ))}
+        <li>
+          <Link href="/privacy-policy" className={LEGAL_LINK_CLASS}>
+            Privacy policy
+          </Link>
+        </li>
+        <li>
+          <CookieSettingsLink className={LEGAL_LINK_CLASS}>Cookie settings</CookieSettingsLink>
+        </li>
+        <li>
+          <Link href={NC_AGENCY_DISCLOSURE_URL} className={LEGAL_LINK_CLASS}>
+            Working with Real Estate Agents (NC)
+          </Link>
+        </li>
       </ul>
     </div>
   );

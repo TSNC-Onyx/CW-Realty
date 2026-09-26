@@ -14,13 +14,13 @@ import type { SessionClient } from "@/lib/supabase/server-client";
 // only owners delete forever, which also removes the photo files.
 
 const trashTargetSchema = z.object({
-  table: z.enum(["listings", "listing_photos", "team_members"]),
+  table: z.enum(["listings", "listing_photos", "team_members", "closed_deals"]),
   id: z.uuid(),
 });
 
 export type TrashTarget = z.infer<typeof trashTargetSchema>;
 
-const ADMIN_PATHS_TO_REFRESH = ["/admin/listings", "/admin/team", "/admin/trash"];
+const ADMIN_PATHS_TO_REFRESH = ["/admin/listings", "/admin/team", "/admin/trash", "/admin/closed-deals", "/admin/inbox"];
 
 function refreshAdminLists(): void {
   ADMIN_PATHS_TO_REFRESH.forEach((path) => revalidatePath(path, "layout"));
@@ -50,6 +50,7 @@ async function fetchPhotoFolders(supabase: SessionClient, { table, id }: TrashTa
     const { data } = await supabase.from("listing_photos").select("storage_path").eq("id", id).maybeSingle<{ storage_path: string }>();
     return data ? [data.storage_path] : [];
   }
+  if (table === "closed_deals") return [];
   if (table === "listings") {
     const { data } = await supabase.from("listing_photos").select("storage_path").eq("listing_id", id);
     return (data ?? []).map((photo: { storage_path: string }) => photo.storage_path);

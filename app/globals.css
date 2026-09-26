@@ -303,6 +303,25 @@
   .menu-dialog::backdrop {
     background: var(--color-dark);
   }
+
+  /* §11.13 cookie banner: on phones it sits directly above the action bar (60px items,
+     1px top border, 14px home-bar padding); on desktop it sits bottom-left, clear of the
+     chat launcher at the bottom-right. */
+  .cookie-banner-position {
+    bottom: calc(75px + env(safe-area-inset-bottom));
+    @media (width >= 1024px) {
+      bottom: 32px;
+      left: 32px;
+      max-width: 640px;
+    }
+  }
+  .cookie-dialog {
+    max-width: min(520px, calc(100vw - 32px));
+  }
+  .cookie-dialog::backdrop {
+    background: var(--color-dark);
+    opacity: 0.6;
+  }
 }
 
 @keyframes menu-open {

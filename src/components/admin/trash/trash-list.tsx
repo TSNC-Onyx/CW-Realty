@@ -3,9 +3,9 @@
 import { RotateCcw, Trash2 } from "lucide-react";
 
 import { QuickActionButton } from "@/components/admin/quick-action-button";
-import { deleteForeverAction, restoreFromTrashAction } from "@/lib/admin/trash/actions";
+import { deleteForeverAction, restoreFromTrashAction, type TrashTarget } from "@/lib/admin/trash/actions";
 
-export type TrashListItem = { id: string; table: "listings" | "listing_photos" | "team_members"; typeLabel: string; label: string; deletedOn: string; purgeOn: string };
+export type TrashListItem = { id: string; table: TrashTarget["table"]; typeLabel: string; label: string; deletedOn: string; purgeOn: string };
 
 // Restore: owners and managers. Delete forever: owners only (parent plan role table).
 export function TrashList({ items, canDeleteForever }: { items: TrashListItem[]; canDeleteForever: boolean }) {

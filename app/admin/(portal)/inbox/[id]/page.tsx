@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { ClosedDealBox } from "@/components/admin/closed-deals/closed-deal-box";
 import { InboxStatusLabel } from "@/components/admin/inbox/inbox-status";
 import { ThreadComposer } from "@/components/admin/inbox/thread-composer";
 import { ThreadControls } from "@/components/admin/inbox/thread-controls";
 import { TextLink } from "@/components/ui/text-link";
+import { fetchThreadClosedDeal } from "@/lib/admin/closed-deals/queries";
 import { addNoteAction, sendReplyAction } from "@/lib/admin/inbox/actions";
 import { SOURCE_LABELS } from "@/lib/admin/inbox/inbox-labels";
 import { fetchInboxThread, fetchTeammates, type InboxMessage } from "@/lib/admin/inbox/queries";
@@ -63,9 +65,9 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   const parsedId = z.uuid().safeParse(id);
   const thread = parsedId.success ? await fetchInboxThread(admin, parsedId.data) : null;
   if (!thread) notFound();
-  const teammates = await fetchTeammates(admin);
+  const isEditor = hasRole(admin, EDITOR_ROLES);
+  const [teammates, closedDeal] = await Promise.all([fetchTeammates(admin), isEditor ? fetchThreadClosedDeal(admin, thread.id) : Promise.resolve(null)]);
   const names = new Map(teammates.map((teammate) => [teammate.userId, teammate.label]));
-  const canAssign = hasRole(admin, EDITOR_ROLES);
   return (
     <>
       <TextLink href="/admin/inbox">Back to inbox</TextLink>
@@ -80,7 +82,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
       <ContactLinks email={thread.contact_email} phone={thread.contact_phone} />
       <section aria-labelledby="handling-heading" className="mt-10 border-t-2 border-ink pt-6">
         <h2 id="handling-heading" className="type-h3 mb-4">Handling</h2>
-        <ThreadControls threadId={thread.id} status={thread.status} assigneeId={thread.assignee_id} teammates={canAssign ? teammates : null} />
+        <ThreadControls threadId={thread.id} status={thread.status} assigneeId={thread.assignee_id} teammates={isEditor ? teammates : null} />
       </section>
       <section aria-labelledby="history-heading" className="mt-10 border-t-2 border-ink pt-6">
         <h2 id="history-heading" className="type-h3 mb-4">Conversation</h2>
@@ -109,6 +111,12 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
         <h2 id="note-heading" className="type-h3 mb-4">Team note</h2>
         <ThreadComposer label="Note for your team" helperText="Only people with admin access see notes." buttonLabel="Add note" pendingLabel="Adding…" kind="note" onSend={addNoteAction.bind(null, thread.id)} />
       </section>
+      {isEditor && (
+        <section aria-labelledby="deal-heading" className="mt-10 border-t-2 border-ink pt-6">
+          <h2 id="deal-heading" className="type-h3 mb-4">Closed deal</h2>
+          <ClosedDealBox threadId={thread.id} deal={closedDeal} />
+        </section>
+      )}
     </>
   );
 }
