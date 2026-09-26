@@ -36,6 +36,7 @@
   --color-gold-active: #c9a227;
   --color-ink-hover: #3a3a3a;
   --color-ink-active: #000000;
+  --color-on-dark-hover: rgb(255 255 255 / 0.1);
   --color-photo-placeholder: #dcd5c7;
   --color-photo-placeholder-dark: #2b2b2b;
   --color-divider-dark: #333333;
@@ -238,7 +239,7 @@
     color: var(--color-on-dark);
   }
   .btn-secondary-dark:hover {
-    background: rgb(255 255 255 / 0.1);
+    background: var(--color-on-dark-hover);
   }
   .btn-secondary-dark:active {
     background: rgb(255 255 255 / 0.18);
@@ -253,6 +254,38 @@
     background: #3a3a3a;
     border-color: #3a3a3a;
     color: #9a9a9a;
+  }
+
+  /* §11.9 menu hover on dark: a 10% white layer fades in on mouse hover (real pointers
+     only, so taps never leave it stuck) and on keyboard focus; the current page never
+     changes. Animates opacity only (§11.14); forced-colors mode gets an outline instead. */
+  .nav-link-dark {
+    position: relative;
+    isolation: isolate;
+  }
+  .nav-link-dark::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: var(--color-on-dark-hover);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms var(--ease-out);
+  }
+  .nav-link-dark:not([aria-current="page"]):focus-visible::before {
+    opacity: 1;
+  }
+  @media (hover: hover) {
+    .nav-link-dark:not([aria-current="page"]):hover::before {
+      opacity: 1;
+    }
+  }
+  @media (hover: hover) and (forced-colors: active) {
+    .nav-link-dark:not([aria-current="page"]):hover {
+      outline: 1px solid CanvasText;
+      outline-offset: -1px;
+    }
   }
 
   /* §11.5 text link */

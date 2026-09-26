@@ -105,6 +105,7 @@
 | `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, status dots on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
 | `gold-hover` / `gold-active` | `#F0CD55` / `#C9A227` | Gold button hover / pressed | — |
 | `ink-hover` / `ink-active` | `#3A3A3A` / `#000000` | Black button hover / pressed | — |
+| `on-dark-hover` | White at 10% | Hover tint on `dark`: secondary buttons and menu links | — |
 | `photo-placeholder` | `#DCD5C7` (light) / `#2B2B2B` (dark) | Image space before the photo loads | — |
 | `divider-dark` | `#333333` | Dividers on `dark` (`#2A2A2A` between mobile menu items) | — |
 
@@ -215,6 +216,7 @@ Status colors (always with an icon and words, never color alone):
 
 - Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
 - Current page: 2px `gold` bar under the menu label plus `aria-current="page"`
+- Menu hover (owner choice 2026-09-26): every link on `dark` — header menu, sub-page lists, header phone link, mobile menu, footer, admin sidebar and admin mobile menu — fades in an `on-dark-hover` tint over 200ms; mouse only (never sticks after a tap), same tint on keyboard focus, never on the current page, outline in high-contrast mode
 - Mobile header: 62px tall (meets Style §4 56–64px and Features §1 under 64px), `dark`, 16px side padding, sticky; 55px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px white border)
 - Mobile menu: full-screen `dark` panel; 62px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call" and L secondary "Text us" buttons pinned at the bottom
 - Mobile action bar: fixed to the bottom on every public page; `dark` background, `divider-dark` top border; three equal items Call, Text, Chat, each 60px tall with a 22px gold icon over a 14px white bold label; 14px bottom padding for phone home bars

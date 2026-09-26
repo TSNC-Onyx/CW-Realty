@@ -11,7 +11,7 @@ import { MENU_SECTIONS, isCurrentPath, isCurrentSection, type NavLink } from "@/
 // Style §11.9 desktop menu on the dark header. Items with sub-pages use the WAI-ARIA APG disclosure
 // pattern: a button toggles a list; Escape, clicking a link, or leaving closes it.
 
-const ITEM_CLASS = "relative flex h-11 items-center gap-1 px-3 text-base font-semibold";
+const ITEM_CLASS = "nav-link-dark flex h-11 items-center gap-1 px-3 text-base font-semibold";
 const CURRENT_BAR_CLASS = "after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-gold";
 
 function getItemClassName(isCurrent: boolean): string {
@@ -27,7 +27,7 @@ function DisclosureLink({ link, isCurrent, onNavigate }: DisclosureLinkProps) {
         href={link.href}
         onClick={onNavigate}
         aria-current={isCurrent ? "page" : undefined}
-        className={`flex min-h-11 items-center px-4 text-base ${isCurrent ? "font-bold" : "font-semibold"}`}
+        className={`nav-link-dark flex min-h-11 items-center px-4 text-base ${isCurrent ? "font-bold" : "font-semibold"}`}
       >
         {link.label}
       </Link>

@@ -13,7 +13,8 @@ import type { SiteSettings } from "@/lib/site/site-settings";
 
 const FIRM_NAME = "Charlie Ward Realty";
 
-const LEGAL_LINK_CLASS = "type-small flex min-h-11 items-center text-on-dark-muted underline underline-offset-4";
+const FOOTER_LINK_CLASS = "nav-link-dark -mx-2 flex min-h-11 items-center px-2";
+const LEGAL_LINK_CLASS = "nav-link-dark -mx-2 px-2 type-small flex min-h-11 items-center text-on-dark-muted underline underline-offset-4";
 
 function FooterContact({ settings }: { settings: SiteSettings | null }) {
   const contact = getContactLinks(settings);
@@ -22,13 +23,13 @@ function FooterContact({ settings }: { settings: SiteSettings | null }) {
   return (
     <ul className="mt-6 text-base">
       <li>
-        <a href={contact.callHref} className="flex min-h-11 items-center gap-3">
+        <a href={contact.callHref} className={`${FOOTER_LINK_CLASS} gap-3`}>
           <Phone aria-hidden size={ICON_SIZE.inline} className="text-gold" />
           {contact.displayPhone}
         </a>
       </li>
       <li>
-        <a href={contact.emailHref} className="flex min-h-11 items-center gap-3 break-all">
+        <a href={contact.emailHref} className={`${FOOTER_LINK_CLASS} gap-3 break-all`}>
           <Mail aria-hidden size={ICON_SIZE.inline} className="shrink-0 text-gold" />
           {contact.email}
         </a>
@@ -58,7 +59,7 @@ function FooterColumns() {
           <ul>
             {column.links.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className="flex min-h-11 items-center text-base">
+                <Link href={link.href} className={`${FOOTER_LINK_CLASS} text-base`}>
                   {link.label}
                 </Link>
               </li>

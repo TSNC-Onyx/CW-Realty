@@ -14,7 +14,7 @@ import { MENU_SECTIONS, SITE_FOOTER_ID, isCurrentPath, isCurrentSection, type Na
 // Style §11.9 mobile menu. A native modal <dialog> traps focus, closes on Escape,
 // and returns focus to the Menu button; sub-pages open with native <details>.
 
-const ROW_CLASS = "flex h-14 w-full items-center justify-between border-b border-divider-menu px-4 font-display text-menu font-medium";
+const ROW_CLASS = "nav-link-dark flex h-14 w-full items-center justify-between border-b border-divider-menu px-4 font-display text-menu font-medium";
 const CURRENT_ROW_CLASS = "border-l-4 border-l-gold bg-dark-alt";
 
 type NavigateProps = { pathname: string; onNavigate: () => void };
@@ -31,7 +31,7 @@ function SubPageLink({ link, pathname, onNavigate }: NavigateProps & { link: Nav
         href={link.href}
         onClick={onNavigate}
         aria-current={isCurrent ? "page" : undefined}
-        className={`flex min-h-11 items-center pl-8 text-md underline-offset-4 ${isCurrent ? "font-bold underline" : ""}`}
+        className={`nav-link-dark flex min-h-11 items-center pl-8 text-md underline-offset-4 ${isCurrent ? "font-bold underline" : ""}`}
       >
         {link.label}
       </Link>

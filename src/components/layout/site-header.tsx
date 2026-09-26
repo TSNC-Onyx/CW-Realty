@@ -16,7 +16,7 @@ export function SiteHeader({ contact }: { contact: ContactLinks | null }) {
         <DesktopNav />
         <div className="hidden items-center gap-4 lg:flex">
           {contact && (
-            <a href={contact.callHref} className="flex min-h-11 items-center gap-2 text-base font-semibold">
+            <a href={contact.callHref} className="nav-link-dark -mx-2 flex min-h-11 items-center gap-2 px-2 text-base font-semibold">
               <Phone aria-hidden size={ICON_SIZE.inline} className="text-gold" />
               {contact.displayPhone}
             </a>

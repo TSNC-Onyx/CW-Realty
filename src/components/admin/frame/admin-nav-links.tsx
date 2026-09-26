@@ -14,8 +14,8 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 export type AdminNavLayout = "sidebar" | "menu";
 
 const LINK_CLASSES: Record<AdminNavLayout, string> = {
-  sidebar: "flex min-h-11 items-center gap-3 border-l-4 pr-5 pl-5 text-base font-semibold",
-  menu: "flex h-14 items-center gap-3 border-b border-l-4 border-b-divider-menu pr-4 pl-3 font-display text-xl font-medium",
+  sidebar: "nav-link-dark flex min-h-11 items-center gap-3 border-l-4 pr-5 pl-5 text-base font-semibold",
+  menu: "nav-link-dark flex h-14 items-center gap-3 border-b border-l-4 border-b-divider-menu pr-4 pl-3 font-display text-xl font-medium",
 };
 const CURRENT_CLASS = "border-l-gold bg-dark-alt";
 const IDLE_CLASS = "border-l-transparent";
