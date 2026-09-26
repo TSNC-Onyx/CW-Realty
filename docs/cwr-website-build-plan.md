@@ -154,11 +154,12 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | # | Item | Where |
 |---|---|---|
 | 1 | **Urgent:** add the Supabase service_role key as Worker secret `SUPABASE_SERVICE_ROLE_KEY` — until then contact/TouchUp forms can't save requests, and invites, photo uploads, and chat logs fail (the admin dashboard shows a red notice). Copy it from Supabase → Project Settings → API Keys, then Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets → Add → Secret | Supabase and Cloudflare |
-| 2 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
-| 3 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
-| 4 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
-| 5 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
-| 6 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
+| 2 | **Urgent:** set up the bot check (Turnstile) — until then every chat message and form is refused with "We couldn't confirm you're a person". In Cloudflare → Turnstile, add `cw-realty.onyxventuresnc.workers.dev` (and the final domain at launch) to the widget's hostnames; add its secret as Worker secret `TURNSTILE_SECRET_KEY`; keep its site key as build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (already present on the live build) | Cloudflare |
+| 3 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
+| 4 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
+| 5 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
+| 6 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
+| 7 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 
 ## DO NOT TOUCH
 
