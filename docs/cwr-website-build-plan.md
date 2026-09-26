@@ -153,11 +153,12 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 
 | # | Item | Where |
 |---|---|---|
-| 1 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
-| 2 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
-| 3 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
-| 4 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
-| 5 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
+| 1 | **Urgent:** add the Supabase service_role key as Worker secret `SUPABASE_SERVICE_ROLE_KEY` — until then contact/TouchUp forms can't save requests, and invites, photo uploads, and chat logs fail (the admin dashboard shows a red notice). Copy it from Supabase → Project Settings → API Keys, then Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets → Add → Secret | Supabase and Cloudflare |
+| 2 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
+| 3 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
+| 4 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
+| 5 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
+| 6 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 
 ## DO NOT TOUCH
 
