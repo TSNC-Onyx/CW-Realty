@@ -429,3 +429,32 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# Hosted project overrides, applied by `supabase config push` (the sections above are
+# for the local stack). The Site URL moves to the real domain on go-live day.
+[remotes.production]
+project_id = "egadvqpatnlkvgiiszzx"
+
+[remotes.production.auth]
+site_url = "https://cw-realty.onyxventuresnc.workers.dev"
+additional_redirect_urls = ["https://cw-realty.onyxventuresnc.workers.dev/**"]
+
+# The hosted project is shared with the legacy app: keep its email, pooler, and storage
+# settings as they are (the local values above suit tests, not the shared project).
+[remotes.production.auth.email]
+enable_confirmations = true
+max_frequency = "1m0s"
+otp_length = 8
+
+[remotes.production.db.pooler]
+default_pool_size = 15
+max_client_conn = 200
+
+[remotes.production.storage.analytics]
+enabled = true
+max_namespaces = 10
+
+# Off until the Turnstile secret is added to the hosted project; turning it on without
+# the secret would block every admin sign-in.
+[remotes.production.auth.captcha]
+enabled = false
