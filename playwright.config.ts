@@ -10,7 +10,11 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL: BASE_URL },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /tracking\// },
+    // Tracking switches on the cookie banner for the whole site, so it runs alone, after the rest.
+    { name: "tracking", use: { ...devices["Desktop Chrome"] }, testMatch: /tracking\/.*\.spec\.ts/, dependencies: ["chromium"] },
+  ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,
     url: BASE_URL,

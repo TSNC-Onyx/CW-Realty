@@ -1,6 +1,6 @@
 # CWR Website Build — Plan
 
-Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); the admin console and header redesign (dark headers, admin sidebar, new dashboard) is built on `claude/admin-console-header-redesign-6a6ccd` (`docs/cwr-admin-console-header-redesign-plan.md`); Phases 6–7 not started.
+Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); Phase 6 (analytics and consent) is built on `phase-6-analytics-consent` and merged into `build1` as PR #9 (`docs/cwr-phase-6-analytics-consent-plan.md`); the admin console and header redesign (dark headers, admin sidebar, new dashboard) is merged into `build1` (`docs/cwr-admin-console-header-redesign-plan.md`); Phase 7 not started.
 
 ## Goal
 
@@ -61,6 +61,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `notification_recipients` | Who gets contact / chat / booking alerts |
 | `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs` | Versioned policy file, preset test questions, pass/fail gate for publishing |
 | `chat_sessions`, `chat_messages` | Logged chats for weekly review |
+| `tracking_settings`, `lead_attribution`, `closed_deals` | Tag Manager / Meta Pixel IDs (owner-only); ad click IDs saved with a lead only after advertising consent; closed deals for the Google Ads and Meta download files |
 | `workflows`, `workflow_transitions` + `cwr.transition()` | The only path for any status change; every transition audited |
 | `audit_log` | Append-only: who, what, when, tenant, before/after (triggers on every table) |
 | `idempotency_keys` | Retry-safe mutations |
@@ -75,6 +76,8 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Notifications | Edit | Edit | — |
 | Chatbot policy | Edit | — | — |
 | Chat history (logged chats) | Read | Read | — |
+| Ads & analytics | Edit | — | — |
+| Closed deals (record, download) | Yes | Yes | — |
 | Users & roles, Trash restore/purge | Yes | Restore only | — |
 
 ### Retention (Infra §4)
@@ -142,9 +145,19 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | # | Item | Decision |
 |---|---|---|
 | 1 | Architecture (Next.js on Cloudflare, schema `cwr`) | Approved |
-| 2 | External services | Approved: Cloudflare, Anthropic (Claude), MailerSend. Declined: Resend, Sentry. Not yet confirmed: Google (GA4/GTM/Ads), Meta, status-page provider — required by the constitutions; confirm before Phase 6/7 |
+| 2 | External services | Approved: Cloudflare, Anthropic (Claude), MailerSend; Google (GA4/GTM/Ads) and Meta approved 2026-09-25, switched off until the owner enters their IDs. Declined: Resend, Sentry. Not yet confirmed: status-page provider — confirm before Phase 7 |
 | 3 | RLS lockdown of legacy tables `app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters` | Declined — left as-is; open security risk owned by the owner (anyone with the public key can read/write them) |
 | 4 | Domain connection at launch | Undetermined. Options: (a) move DNS from Wix to Cloudflare; (b) keep DNS at Wix and point `www` to Cloudflare via a custom hostname (canonical host is `www`). Decide before Phase 7 |
+
+## Open items (owner, before launch)
+
+| # | Item | Where |
+|---|---|---|
+| 1 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
+| 2 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
+| 3 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
+| 4 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
+| 5 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 
 ## DO NOT TOUCH
 

@@ -10,6 +10,12 @@ vi.mock("@/lib/chat/chat-log", () => ({ fetchOpenChatSession: vi.fn(), linkChatH
 vi.mock("@/lib/forms/intake", () => ({ submitNewRequest: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ isOverFormLimit: vi.fn().mockResolvedValue(false) }));
 vi.mock("@/lib/security/turnstile", () => ({ TURNSTILE_FIELD: "cf-turnstile-response", verifyTurnstileToken: vi.fn() }));
+// Visitor without advertising consent: no attribution, no Meta event, no hashed contact.
+vi.mock("@/lib/tracking/lead-tracking", () => ({
+  fetchLeadTracking: vi.fn().mockResolvedValue({ isAdsAllowed: false, attributionRow: null, fbc: null, fbp: null, sourceUrl: null, userAgent: null }),
+  getFormConversion: vi.fn().mockResolvedValue({ eventId: "key", userData: null }),
+  scheduleMetaLead: vi.fn(),
+}));
 
 const SESSION_ID = "0b6f7c1e-2f4a-4b8e-9a51-6c1d2e3f4a5b";
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
@@ -44,6 +50,7 @@ describe("submitChatHandoff", () => {
         subject: "Chat assistant handoff",
         body: "Can I see 100 Main St?\n\nChat with the AI assistant so far:\nVisitor: Hi\nAssistant (AI): Hello",
         idempotencyKey: "key",
+        attribution: null,
       },
       linked: { sessionId: SESSION_ID, threadId: "thread" },
     });

@@ -14,6 +14,7 @@ export function ContactForm({ contact }: { contact: ContactLinks | null }) {
       fields={CONTACT_FORM_FIELDS}
       submitLabel="Send message"
       contact={contact}
+      keyEvent="cwr_contact_form"
     />
   );
 }

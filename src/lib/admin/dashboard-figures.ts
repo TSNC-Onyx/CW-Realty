@@ -24,6 +24,8 @@ export type EditorCounts = {
   people: number;
   weekChats: number;
   policySummary: string;
+  closedDeals: number;
+  trackingSummary: string;
 };
 
 export type StaffCounts = { waitingReply: number; assignedOpen: number };
@@ -90,6 +92,8 @@ export function getAreaStats(counts: EditorCounts): AreaStats {
     contact: "Used on every page",
     "chat-policy": counts.policySummary,
     chats: `${getPlural(counts.weekChats, "chat", "chats")} in 7 days`,
+    "closed-deals": `${getPlural(counts.closedDeals, "closed deal", "closed deals")} recorded`,
+    tracking: counts.trackingSummary,
     trash: getPlural(counts.trashItems, "item", "items"),
     users: `${getPlural(counts.people, "person has", "people have")} access`,
   };

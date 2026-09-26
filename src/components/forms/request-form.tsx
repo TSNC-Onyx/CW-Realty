@@ -7,6 +7,7 @@ import { ErrorSummary } from "@/components/forms/error-summary";
 import { FormField } from "@/components/forms/form-field";
 import { TurnstileField } from "@/components/forms/turnstile-field";
 import { useRequestForm, type RequestFormAction } from "@/components/forms/use-request-form";
+import { AttributionField } from "@/components/tracking/attribution-field";
 import { ButtonLink, getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -14,6 +15,7 @@ import { REPLY_PROMISE } from "@/lib/site/reply-promise";
 import type { RequestFormSchema, RequestFormState } from "@/lib/forms/form-state";
 import type { FormFieldConfig } from "@/lib/forms/request-forms";
 import type { ContactLinks } from "@/lib/site/contact-links";
+import type { KeyEventName } from "@/lib/tracking/data-layer";
 
 export type RequestFormProps = {
   formId: string;
@@ -22,6 +24,7 @@ export type RequestFormProps = {
   fields: FormFieldConfig[];
   submitLabel: string;
   contact: ContactLinks | null;
+  keyEvent: KeyEventName;
 };
 
 const NOTICE_TITLES: Record<string, string> = {
@@ -86,12 +89,13 @@ function SentConfirmation({ sentTo }: { sentTo: NonNullable<RequestFormState["se
   );
 }
 
-export function RequestForm({ formId, action, schema, fields, submitLabel, contact }: RequestFormProps) {
-  const form = useRequestForm(action, schema);
+export function RequestForm({ formId, action, schema, fields, submitLabel, contact, keyEvent }: RequestFormProps) {
+  const form = useRequestForm(action, schema, { keyEvent });
   if (form.state.status === "sent" && form.state.sentTo) return <SentConfirmation sentTo={form.state.sentTo} />;
   return (
     <form id={formId} action={form.formAction} onSubmit={form.handleSubmit} noValidate className="grid max-w-form gap-6">
       <input type="hidden" name="idempotencyKey" value={form.idempotencyKey} />
+      <AttributionField />
       {form.isSummaryVisible && <ErrorSummary formId={formId} fields={fields} fieldErrors={form.fieldErrors} focusRef={form.summaryRef} />}
       {form.isNoticeVisible && (
         <Message tone="error" title={NOTICE_TITLES[form.state.status] ?? NOTICE_TITLES.failed ?? ""} onDismiss={form.handleNoticeDismiss} focusRef={form.noticeRef}>

@@ -14,6 +14,8 @@ const EDITOR_COUNTS: EditorCounts = {
   people: 1,
   weekChats: 14,
   policySummary: "Version 1 is live",
+  closedDeals: 0,
+  trackingSummary: "Off — no tracking on the website",
 };
 
 describe("getGreeting", () => {

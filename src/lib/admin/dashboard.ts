@@ -3,6 +3,7 @@ import "server-only";
 import { getAreaStats, getEditorToday, getStaffToday, type AreaStats, type EditorCounts, type StaffCounts, type TodayFigure } from "@/lib/admin/dashboard-figures";
 import { fetchOldestNewThreadDate, fetchUnreadCount } from "@/lib/admin/inbox/queries";
 import type { AdminContext } from "@/lib/admin/require-admin";
+import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 
 // Counts behind the dashboard, read through the signed-in session (RLS applies).
 
@@ -26,11 +27,18 @@ async function fetchPolicySummary({ supabase, tenantId, role }: AdminContext): P
   return hasNewerDraft ? `${liveText} · a draft is waiting` : liveText;
 }
 
+async function fetchTrackingSummary({ supabase, tenantId, role }: AdminContext): Promise<string> {
+  if (role !== "owner") return "";
+  const { data } = await supabase.from("tracking_settings").select("gtm_container_id, tags_reviewed_at").eq("tenant_id", tenantId).maybeSingle<{ gtm_container_id: string | null; tags_reviewed_at: string | null }>();
+  if (!data?.gtm_container_id) return "Off — no tracking on the website";
+  return isTagReviewDue({ reviewedAt: data.tags_reviewed_at, now: new Date() }) ? "On · tag review due" : "On after visitors agree";
+}
+
 async function fetchEditorCounts(admin: AdminContext, now: Date): Promise<EditorCounts> {
   const { supabase, tenantId } = admin;
   const countOf = (table: string) => supabase.from(table).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
   const weekAgo = new Date(now.getTime() - WEEK_MS).toISOString();
-  const [unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary] = await Promise.all([
+  const [unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary, closedDeals, trackingSummary] = await Promise.all([
     fetchUnreadCount(admin),
     fetchOldestNewThreadDate(admin),
     fetchCount(countOf("notification_recipients").eq("is_active", true)),
@@ -42,8 +50,10 @@ async function fetchEditorCounts(admin: AdminContext, now: Date): Promise<Editor
     fetchCount(countOf("memberships")),
     fetchCount(countOf("chat_sessions").gte("started_at", weekAgo)),
     fetchPolicySummary(admin),
+    fetchCount(countOf("closed_deals").is("deleted_at", null)),
+    fetchTrackingSummary(admin),
   ]);
-  return { unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary };
+  return { unread, oldestNewAt, activeRecipients, liveListings, draftListings, shownMembers, hiddenMembers, trashItems, people, weekChats, policySummary, closedDeals, trackingSummary };
 }
 
 async function fetchStaffCounts(admin: AdminContext): Promise<StaffCounts> {

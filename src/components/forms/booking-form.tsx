@@ -14,6 +14,7 @@ export function BookingForm({ contact }: { contact: ContactLinks | null }) {
       fields={BOOKING_FORM_FIELDS}
       submitLabel="Request a TouchUp visit"
       contact={contact}
+      keyEvent="cwr_booking_request"
     />
   );
 }

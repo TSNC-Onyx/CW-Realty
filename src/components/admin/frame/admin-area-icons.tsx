@@ -1,4 +1,4 @@
-import { BookOpen, Bell, Circle, House, Inbox, KeyRound, LayoutDashboard, MessagesSquare, Phone, Trash2, Users, type LucideIcon } from "lucide-react";
+import { BookOpen, Bell, ChartColumn, Circle, Handshake, House, Inbox, KeyRound, LayoutDashboard, MessagesSquare, Phone, Trash2, Users, type LucideIcon } from "lucide-react";
 
 // Style §11.6: each admin area pairs its word with one outline icon (never the icon alone).
 
@@ -11,6 +11,8 @@ const ADMIN_AREA_ICONS: Record<string, LucideIcon> = {
   contact: Phone,
   notifications: Bell,
   "chat-policy": BookOpen,
+  "closed-deals": Handshake,
+  tracking: ChartColumn,
   users: KeyRound,
   trash: Trash2,
 };

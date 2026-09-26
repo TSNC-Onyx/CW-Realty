@@ -24,6 +24,9 @@
   "upload_source_maps": true,
   // Public project URL for the queue consumer (the site itself uses NEXT_PUBLIC_SUPABASE_URL).
   // Previews and production share this one Supabase project; change both together.
+  // Optional TAG_SERVER_URL (Phase 6): the owner's server-side tagging address, e.g.
+  // "https://data.charliewardrealty.com". Add it here and to every environment when set up.
+  // Secret META_CAPI_ACCESS_TOKEN (Meta server events) is set with `wrangler secret put`.
   "vars": {
     "SUPABASE_URL": "https://egadvqpatnlkvgiiszzx.supabase.co"
   },

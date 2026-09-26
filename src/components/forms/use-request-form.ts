@@ -11,6 +11,7 @@ import {
   type RequestFormSchema,
   type RequestFormState,
 } from "@/lib/forms/form-state";
+import { pushKeyEvent, type KeyEventName } from "@/lib/tracking/data-layer";
 
 // Form behavior for Style §11.11: check each field when the visitor leaves it, block
 // a submit with errors and move focus to the summary, keep typed text after a reply that
@@ -39,7 +40,7 @@ function getFixedFieldsAfterBlur({ fixedFields, name, hadError, hasError }: {
   return nextFixedFields;
 }
 
-export function useRequestForm(action: RequestFormAction, schema: RequestFormSchema, { initialValues = {} }: { initialValues?: FieldValues } = {}) {
+export function useRequestForm(action: RequestFormAction, schema: RequestFormSchema, { initialValues = {}, keyEvent }: { initialValues?: FieldValues; keyEvent: KeyEventName }) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
   const [handledResponseId, setHandledResponseId] = useState(state.responseId);
   const [values, setValues] = useState<FieldValues>(() => ({ ...initialValues, ...state.values }));
@@ -63,6 +64,12 @@ export function useRequestForm(action: RequestFormAction, schema: RequestFormSch
     setIdempotencyKey(state.responseId);
     setFocusRequest({ target: state.status === "invalid" ? "summary" : "notice", id: state.responseId });
   }
+
+  // Features §3 key event: reported only once the server confirms the request was sent.
+  useEffect(() => {
+    if (state.status !== "sent" || !state.conversion) return;
+    pushKeyEvent({ name: keyEvent, eventId: state.conversion.eventId, userData: state.conversion.userData });
+  }, [state, keyEvent]);
 
   useEffect(() => {
     if (!focusRequest) return;

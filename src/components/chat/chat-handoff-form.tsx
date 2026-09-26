@@ -7,6 +7,7 @@ import { ErrorSummary } from "@/components/forms/error-summary";
 import { FormField } from "@/components/forms/form-field";
 import { TurnstileField } from "@/components/forms/turnstile-field";
 import { useRequestForm } from "@/components/forms/use-request-form";
+import { AttributionField } from "@/components/tracking/attribution-field";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
 import { submitChatHandoffAction } from "@/lib/chat/chat-actions";
@@ -43,7 +44,7 @@ function HandoffSent({ sentTo }: { sentTo: NonNullable<RequestFormState["sentTo"
 }
 
 export function ChatHandoffForm({ sessionId, question }: { sessionId: string | null; question: string }) {
-  const form = useRequestForm(submitChatHandoffAction, handoffFormSchema, { initialValues: { question } });
+  const form = useRequestForm(submitChatHandoffAction, handoffFormSchema, { initialValues: { question }, keyEvent: "cwr_chat_handoff" });
   if (form.state.status === "sent" && form.state.sentTo) return <HandoffSent sentTo={form.state.sentTo} />;
   return (
     <form id={FORM_ID} action={form.formAction} onSubmit={form.handleSubmit} noValidate className="grid gap-4 overflow-y-auto p-4">
@@ -51,6 +52,7 @@ export function ChatHandoffForm({ sessionId, question }: { sessionId: string | n
       <p className="type-small">Leave your details and a person from our team will reply {REPLY_PROMISE}. Please don&apos;t include bank, card, or ID numbers.</p>
       <input type="hidden" name="idempotencyKey" value={form.idempotencyKey} />
       <input type="hidden" name="sessionId" value={sessionId ?? ""} />
+      <AttributionField />
       {form.isSummaryVisible && <ErrorSummary formId={FORM_ID} fields={HANDOFF_FORM_FIELDS} fieldErrors={form.fieldErrors} focusRef={form.summaryRef} />}
       {form.isNoticeVisible && <Message tone="error" title={NOTICE_TITLES[form.state.status] ?? NOTICE_TITLES.failed ?? ""} onDismiss={form.handleNoticeDismiss} focusRef={form.noticeRef} />}
       {HANDOFF_FORM_FIELDS.map((field) => (
