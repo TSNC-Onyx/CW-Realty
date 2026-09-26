@@ -1,6 +1,6 @@
 # Phase 6 — Analytics & Consent — Plan
 
-Status: **built** (2026-09-25) on branch `phase-6-analytics-consent` (from `build1`).
+Status: **built** (2026-09-25) on branch `phase-6-analytics-consent` (from `build1`); merged into `build1` as PR #9 (all checks passed).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 6, tasks 20–21).
 
 ## Goal
