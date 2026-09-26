@@ -58,6 +58,8 @@ async function getMetaLine(deal: ExportDeal): Promise<string | null> {
   const { emailHash, phoneHash } = await getMetaHashedContact({ email: deal.contactEmail, phone: deal.contactPhone });
   const fbc = deal.attribution?.fbc ?? "";
   const fbp = deal.attribution?.fbp ?? "";
+  // Meta requires a value on a Purchase, so deals without a sale price are left out of its file.
+  if (deal.valueCents === null) return null;
   if (!emailHash && !phoneHash && !fbc && !fbp) return null;
   return getCsvLine([emailHash ?? "", phoneHash ?? "", META_EVENT_NAME, getMetaEventTime(deal.closedOn), getDollars(deal.valueCents), CURRENCY, fbc, fbp]);
 }

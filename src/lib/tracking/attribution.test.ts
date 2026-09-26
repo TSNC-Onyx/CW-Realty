@@ -93,11 +93,11 @@ describe("getLeadAttributionRow", () => {
     expect(Object.keys(row ?? {}).sort()).toEqual(["fbc", "fbp", "gbraid", "gclid", "landing_path", "utm_campaign", "utm_content", "utm_medium", "utm_source", "utm_term", "wbraid"]);
   });
 
-  it("saves nothing when there is nothing to save", () => {
+  it("still records advertising consent when the visitor came without an ad click", () => {
     // Arrange / Act
     const row = getLeadAttributionRow({ attribution: null, fbc: null, fbp: null });
 
     // Assert
-    expect(row).toBeNull();
+    expect(Object.values(row).every((value) => value === null)).toBe(true);
   });
 });

@@ -1,6 +1,6 @@
 -- Tracking settings, lead attribution, and closed deals (Phase 6).
 begin;
-select plan(16);
+select plan(19);
 select cwr_test.create_fixture();
 
 insert into cwr.tracking_settings (tenant_id, gtm_container_id, meta_pixel_id, tags_reviewed_at)
@@ -16,6 +16,12 @@ select throws_ok(
 
 select cwr_test.sign_out();
 set local role anon;
+select throws_ok(
+  $$ insert into cwr.tracking_settings (tenant_id) values (cwr_test.id('tenant_b')) $$,
+  '42501',
+  null,
+  'Visitors cannot add tracking settings'
+);
 select results_eq(
   $$ select gtm_container_id from cwr.tracking_settings where tenant_id = cwr_test.id('tenant_a') $$,
   $$ values ('GTM-ABC1234'::text) $$,
@@ -26,6 +32,12 @@ reset role;
 select cwr_test.sign_in('manager');
 set local role authenticated;
 update cwr.tracking_settings set gtm_container_id = 'GTM-EVIL999' where tenant_id = cwr_test.id('tenant_a');
+select throws_ok(
+  $$ insert into cwr.tracking_settings (tenant_id, gtm_container_id) values (cwr_test.id('tenant_b'), 'GTM-EVIL999') $$,
+  '42501',
+  null,
+  'Managers cannot add tracking settings'
+);
 reset role;
 select results_eq(
   $$ select gtm_container_id from cwr.tracking_settings where tenant_id = cwr_test.id('tenant_a') $$,
@@ -98,7 +110,9 @@ select results_eq(
   $$ values ('closed_deals'::text, 'Closed deal: Visitor One'::text) $$,
   'A deleted closed deal shows in the trash with the contact''s name'
 );
+delete from cwr.closed_deals where thread_id = cwr_test.id('staff_thread');
 reset role;
+select isnt_empty($$ select 1 from cwr.closed_deals $$, 'Managers cannot delete a closed deal forever');
 
 select cwr_test.sign_in('staff');
 set local role authenticated;

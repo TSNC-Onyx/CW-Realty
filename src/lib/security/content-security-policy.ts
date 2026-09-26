@@ -5,7 +5,7 @@ const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 // the Meta Pixel (Phase 6). Scripts still need the page nonce; these only let loaded tags
 // send measurements (Google "Content Security Policy" guide for tags).
 const TRACKER_IMAGE_SOURCES = [
-  "https://www.googletagmanager.com",
+  "https://*.googletagmanager.com",
   "https://*.google-analytics.com",
   "https://*.google.com",
   "https://*.g.doubleclick.net",

@@ -46,9 +46,9 @@ function writeConsentCookie(choice: ConsentChoice): void {
 
 // Tags already running cannot be told to forget what they set, so their cookies are deleted
 // and the page reloads without them.
-function withdrawConsent(): void {
+function withdrawConsent({ isAdsAllowed }: { isAdsAllowed: boolean }): void {
   deleteTrackerCookies();
-  forgetAttribution();
+  if (!isAdsAllowed) forgetAttribution();
   window.location.reload();
 }
 
@@ -70,7 +70,7 @@ export function useConsent({ initialChoice, isGpcOnServer, containerId, scriptOr
     writeConsentCookie(allowed);
     setChoice(allowed);
     if (previous && isTagManagerRunning() && isNarrower({ previous, next: allowed })) {
-      withdrawConsent();
+      withdrawConsent({ isAdsAllowed: allowed.ads });
       return;
     }
     applyAllowedConsent({ allowed, tagManager });

@@ -49,13 +49,23 @@ describe("getGoogleAdsCsv", () => {
 describe("getMetaCsv", () => {
   it("writes hashed contact, a Purchase at midday Eastern, and the click value", async () => {
     // Arrange / Act
-    const csv = await getMetaCsv([{ ...CONSENTED_DEAL, valueCents: null }]);
+    const csv = await getMetaCsv([CONSENTED_DEAL]);
 
     // Assert
     expect(csv.split("\n").slice(0, 2)).toEqual([
       "email,phone,event_name,event_time,value,currency,fbc,fbp",
-      `${getReferenceHash("jordan.smith@gmail.com")},${getReferenceHash("13365550123")},Purchase,1789920000,,USD,fb.1.1727265600000.IwAR1abcdefghij,`,
+      `${getReferenceHash("jordan.smith@gmail.com")},${getReferenceHash("13365550123")},Purchase,1789920000,350000.00,USD,fb.1.1727265600000.IwAR1abcdefghij,`,
     ]);
+  });
+});
+
+describe("getMetaCsv without a sale price", () => {
+  it("leaves the deal out, because Meta requires a Purchase value", async () => {
+    // Arrange / Act
+    const csv = await getMetaCsv([{ ...CONSENTED_DEAL, valueCents: null }]);
+
+    // Assert
+    expect(csv.trim().split("\n")).toHaveLength(1);
   });
 });
 

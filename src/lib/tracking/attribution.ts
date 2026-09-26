@@ -93,10 +93,13 @@ export type LeadAttributionRow = {
   landing_path: string | null;
 };
 
-/** The row saved with a lead; every column is present (multi-row inserts need that). Null when there is nothing to save. */
-export function getLeadAttributionRow({ attribution, fbc, fbp }: { attribution: Attribution | null; fbc: string | null; fbp: string | null }): LeadAttributionRow | null {
+/**
+ * The row saved with a lead whose visitor allowed Advertising. It is saved even when empty: the
+ * row itself records the consent, so the hashed email can still be matched for a closed deal.
+ * Every column is present (multi-row inserts need that).
+ */
+export function getLeadAttributionRow({ attribution, fbc, fbp }: { attribution: Attribution | null; fbc: string | null; fbp: string | null }): LeadAttributionRow {
   const clickFbc = fbc ?? (attribution ? getFbcFromAttribution(attribution) : null);
-  if (!attribution && !clickFbc && !fbp) return null;
   return {
     gclid: attribution?.gclid ?? null,
     gbraid: attribution?.gbraid ?? null,

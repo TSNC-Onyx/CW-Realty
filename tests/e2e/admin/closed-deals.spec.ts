@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { createClient } from "@supabase/supabase-js";
 import { expect, test } from "@playwright/test";
 
@@ -47,9 +49,11 @@ test("a manager records a closed deal and only consented leads go into the Googl
   const download = await page.request.get("/admin/closed-deals/download/google-ads");
 
   // Assert
-  expect(await download.text()).toContain(`${gclid},`);
+  const csv = await download.text();
+  const privateEmailHash = createHash("sha256").update(`deal-no-${stamp}@example.com`).digest("hex");
+  expect({ hasConsentedLead: csv.includes(`${gclid},`), hasPrivateLead: csv.includes(privateEmailHash) }).toEqual({ hasConsentedLead: true, hasPrivateLead: false });
   await page.goto("/admin/closed-deals");
-  await expect(page.getByText("not shared (this person did not allow advertising cookies)").first()).toBeVisible();
+  await expect(page.getByText("not shared (no advertising consent recorded)").first()).toBeVisible();
 });
 
 test("a removed closed deal goes to the trash and can be restored", async ({ page }) => {

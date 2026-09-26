@@ -25,7 +25,7 @@ const DOWNLOADS = [
 function getDealDetails(deal: ClosedDeal): string {
   const closed = `Closed ${DATE_FORMAT.format(new Date(`${deal.closedOn}T00:00:00Z`))}`;
   const price = deal.valueCents === null ? "" : ` · ${PRICE_FORMAT.format(deal.valueCents / CENTS_PER_DOLLAR)}`;
-  const sharing = deal.attribution ? " · included in downloads" : " · not shared (this person did not allow advertising cookies)";
+  const sharing = deal.attribution ? " · included in downloads" : " · not shared (no advertising consent recorded)";
   return `${closed}${price}${sharing}`;
 }
 

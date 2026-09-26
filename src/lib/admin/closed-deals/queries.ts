@@ -4,7 +4,8 @@ import type { AdminContext } from "@/lib/admin/require-admin";
 
 // Closed deals with the lead's contact details and ad attribution (owners and managers by RLS).
 
-const MAX_CLOSED_DEALS = 500;
+// Read in pages so the list and the downloads always include every deal (Infra §5).
+const PAGE_SIZE = 500;
 
 const CLOSED_DEAL_COLUMNS =
   "id, thread_id, closed_on, value_cents, inbox_threads!inner(contact_name, contact_email, contact_phone, created_at, lead_attribution(gclid, gbraid, wbraid, fbc, fbp))";
@@ -58,16 +59,27 @@ function getClosedDeal(row: ClosedDealRow): ClosedDeal {
   };
 }
 
-export async function fetchClosedDeals({ supabase, tenantId }: AdminContext): Promise<ClosedDeal[]> {
+async function fetchClosedDealPage({ supabase, tenantId }: AdminContext, pageIndex: number): Promise<ClosedDealRow[]> {
+  const from = pageIndex * PAGE_SIZE;
   const { data } = await supabase
     .from("closed_deals")
     .select(CLOSED_DEAL_COLUMNS)
     .eq("tenant_id", tenantId)
     .is("deleted_at", null)
     .order("closed_on", { ascending: false })
-    .limit(MAX_CLOSED_DEALS)
+    .order("id")
+    .range(from, from + PAGE_SIZE - 1)
     .returns<ClosedDealRow[]>();
-  return (data ?? []).map(getClosedDeal);
+  return data ?? [];
+}
+
+export async function fetchClosedDeals(admin: AdminContext): Promise<ClosedDeal[]> {
+  const rows: ClosedDealRow[] = [];
+  for (let pageIndex = 0; ; pageIndex += 1) {
+    const page = await fetchClosedDealPage(admin, pageIndex);
+    rows.push(...page);
+    if (page.length < PAGE_SIZE) return rows.map(getClosedDeal);
+  }
 }
 
 export type ThreadClosedDeal = { id: string; closedOn: string; valueCents: number | null };

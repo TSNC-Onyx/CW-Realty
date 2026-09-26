@@ -71,15 +71,22 @@ async function createThread({ tenantId, request }: { tenantId: string; request: 
   return { threadId };
 }
 
+// What makes two submits "the same form". Attribution is left out: cookies set between a
+// submit and its retry (the Meta Pixel's, or a new consent) must not make the retry look new.
+function getFingerprintDetails(request: NewRequest): Omit<NewRequest, "idempotencyKey" | "attribution"> {
+  const { source, contactName, contactEmail, contactPhone, subject, body } = request;
+  return { source, contactName, contactEmail, contactPhone, subject, body };
+}
+
 /** Saves the request (once per key) and queues its alerts. Throws IntakeError. */
 export async function submitNewRequest(request: NewRequest): Promise<string> {
-  const { idempotencyKey, ...details } = request;
+  const { idempotencyKey } = request;
   const tenantId = await fetchTenantId();
   const { threadId } = await runOnce({
     tenantId,
     scope: `inbox.${request.source}`,
     key: idempotencyKey,
-    requestBody: JSON.stringify(details),
+    requestBody: JSON.stringify(getFingerprintDetails(request)),
     run: () => createThread({ tenantId, request }),
   });
   await enqueueAlertJob({ kind: "new_request", threadId });

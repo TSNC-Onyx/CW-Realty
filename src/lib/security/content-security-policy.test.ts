@@ -93,7 +93,7 @@ describe("getContentSecurityPolicy with trackers (Phase 6)", () => {
 
     // Assert
     expect(getDirective(policy, "connect-src")).toBe(
-      "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com https://*.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.facebook.com https://*.analytics.google.com https://ad.doubleclick.net https://connect.facebook.net",
+      "connect-src 'self' https://*.googletagmanager.com https://*.google-analytics.com https://*.google.com https://*.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.facebook.com https://*.analytics.google.com https://ad.doubleclick.net https://connect.facebook.net",
     );
   });
 

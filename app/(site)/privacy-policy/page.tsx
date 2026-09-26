@@ -96,7 +96,7 @@ export default async function PrivacyPolicyPage() {
             <strong>Analytics (only if you agree)</strong>
           </p>
           <ul>
-            <li>Google Analytics, loaded through Google Tag Manager: counts visits and which pages help people. Its cookies (names starting with &ldquo;_ga&rdquo;) last up to 2 years.</li>
+            <li>Google Analytics, loaded through Google Tag Manager: counts visits and which pages help people. Its cookies (names starting with &ldquo;_ga&rdquo;, and &ldquo;FPID&rdquo; and &ldquo;FPLC&rdquo; if we measure through our own server) last up to 2 years.</li>
           </ul>
           <p>
             <strong>Advertising (only if you agree)</strong>
@@ -111,9 +111,9 @@ export default async function PrivacyPolicyPage() {
             </li>
             <li>
               If you arrived from one of our ads, we keep the ad&apos;s click code and campaign name with your message
-              (&ldquo;cwr-attribution&rdquo; session storage until then). If you later buy or sell a home with us, we may tell Google and
-              Meta that the ad led to a sale, again with your email and phone only in hashed form.
+              (&ldquo;cwr-attribution&rdquo; session storage until then).
             </li>
+            <li>If you later buy or sell a home with us, we may tell Google and Meta about the sale, again with your email and phone only in hashed form.</li>
           </ul>
           <p>
             We never send your name, address, age, or gender to Google or Meta, and our housing ads are not targeted by age, gender,

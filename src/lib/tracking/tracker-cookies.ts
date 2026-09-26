@@ -1,7 +1,9 @@
 // Cookies that Google and Meta tags set on this site. When a visitor withdraws consent they
 // are deleted (plan decision 14). Browser-only apart from the pure helpers.
 
-const TRACKER_COOKIE_PATTERN = /^(_ga|_gid|_gat|_gcl|_fbp|_fbc)/;
+// FPLC comes from server-side tagging; its partner FPID is set by the tag server as
+// HttpOnly, so only the tag server can clear it (listed in the privacy policy).
+const TRACKER_COOKIE_PATTERN = /^(_ga|_gid|_gat|_gcl|_fbp|_fbc|FPLC)/;
 
 /** Cookie names in a document.cookie string that belong to ad or analytics tags. */
 export function getTrackerCookieNames(cookieHeader: string): string[] {
