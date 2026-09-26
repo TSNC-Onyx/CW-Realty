@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { sendChatMessageAction } from "@/lib/chat/chat-actions";
 import type { AssistantReply } from "@/lib/chat/assistant-reply";
 import { getRedactedText } from "@/lib/chat/restricted-data";
+import { pushKeyEvent } from "@/lib/tracking/data-layer";
 
 // The widget's side of a chat: what it shows and the session id, kept in this tab's
 // sessionStorage so a page load does not lose the conversation. The history the assistant
@@ -67,6 +68,8 @@ export function useChatConversation() {
     setPendingQuestion(null);
     if (chat.sessionId === null) setBotCheckKey(crypto.randomUUID());
     if (result.status === "replied") setChat((current) => ({ sessionId: result.sessionId, entries: [...current.entries, ...getEntries({ question: result.question, reply: result.reply })] }));
+    // Features §3 key event "chats": a question the assistant received (sent only after consent).
+    if (result.status === "replied") pushKeyEvent({ name: "cwr_chat_question", eventId: crypto.randomUUID() });
     if (result.status === "expired") setChat((current) => ({ ...current, sessionId: null }));
     if (result.status !== "replied") setNotice(result.status === "expired" ? EXPIRED_NOTICE : result.message);
     return result.status === "replied";

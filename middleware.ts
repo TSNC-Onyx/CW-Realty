@@ -11,6 +11,7 @@ import {
   createNonce,
   getContentSecurityPolicy,
 } from "@/lib/security/content-security-policy";
+import { getTagServerOrigin } from "@/lib/tracking/tag-server";
 
 const NORMALIZATION_STATUS = 301;
 const REDIRECT_LOOKUP_DEADLINE_MS = 1500;
@@ -76,6 +77,8 @@ function getPageResponse(request: NextRequest, { requestId, isAdmin }: { request
     isDevelopment: process.env.NODE_ENV === "development",
     supabaseOrigin: process.env.NEXT_PUBLIC_SUPABASE_URL,
     allowWebAssembly: isAdmin,
+    allowTrackers: !isAdmin,
+    tagServerOrigin: getTagServerOrigin(process.env.TAG_SERVER_URL),
   });
 
   const requestHeaders = new Headers(request.headers);

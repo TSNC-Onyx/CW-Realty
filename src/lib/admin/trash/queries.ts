@@ -1,13 +1,14 @@
 import "server-only";
 
 import type { AdminContext } from "@/lib/admin/require-admin";
+import type { TrashTarget } from "@/lib/admin/trash/actions";
 
 // Everything soft-deleted in the last 30 days (cwr.trash view, the viewer's own access rules).
 
 const MAX_TRASH_ROWS = 200;
 
 export type TrashItem = {
-  item_type: "listings" | "listing_photos" | "team_members";
+  item_type: TrashTarget["table"];
   id: string;
   label: string;
   deleted_at: string;

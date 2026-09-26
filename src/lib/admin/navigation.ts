@@ -18,6 +18,8 @@ export const ADMIN_AREAS: AdminArea[] = [
   { key: "contact", label: "Contact & footer", href: "/admin/contact", description: "Phone, email, contact names, office address, and footer text.", roles: EDITOR_ROLES },
   { key: "notifications", label: "Notifications", href: "/admin/notifications", description: "Choose who gets email alerts, and check they arrive.", roles: EDITOR_ROLES },
   { key: "chat-policy", label: "Chatbot policy", href: "/admin/chat-policy", description: "Write, test, and publish what the chat assistant may answer.", roles: OWNER_ROLES },
+  { key: "closed-deals", label: "Closed deals", href: "/admin/closed-deals", description: "Record sales from website leads and download them for Google and Meta.", roles: EDITOR_ROLES },
+  { key: "tracking", label: "Ads & analytics", href: "/admin/tracking", description: "Google Tag Manager, Meta, and the quarterly tag review.", roles: OWNER_ROLES },
   { key: "chats", label: "Chat history", href: "/admin/chats", description: "Read what visitors asked the chat assistant, for the weekly review.", roles: EDITOR_ROLES },
   { key: "trash", label: "Trash", href: "/admin/trash", description: "Restore anything deleted in the last 30 days.", roles: EDITOR_ROLES },
   { key: "users", label: "Users & roles", href: "/admin/users", description: "Invite people and choose what they can change.", roles: OWNER_ROLES },

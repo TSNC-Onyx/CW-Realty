@@ -8,7 +8,7 @@ import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully } from "./admin-helper
 // Admin §1 "works fully on mobile" + WCAG 2.2 AA + Style §11.15 on every admin screen.
 
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-const SIGNED_IN_PATHS = ["/admin", "/admin/listings", "/admin/listings/new", "/admin/team", "/admin/team/new", "/admin/contact", "/admin/trash", "/admin/users"];
+const SIGNED_IN_PATHS = ["/admin", "/admin/listings", "/admin/listings/new", "/admin/team", "/admin/team/new", "/admin/contact", "/admin/trash", "/admin/users", "/admin/tracking", "/admin/closed-deals"];
 const SIGNED_OUT_PATHS = ["/admin/login", "/admin/forgot-password"];
 
 test.skip(!HAS_ADMIN_DATABASE, "Needs the local database and service-role key");

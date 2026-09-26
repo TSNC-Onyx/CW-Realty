@@ -82,3 +82,51 @@ describe("createNonce", () => {
     expect(nonces.every((nonce) => /^[A-Za-z0-9+/]+=*$/.test(nonce))).toBe(true);
   });
 });
+
+describe("getContentSecurityPolicy with trackers (Phase 6)", () => {
+  it("lets public pages send measurements to Google and Meta after consent", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, allowTrackers: true };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(getDirective(policy, "connect-src")).toBe(
+      "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com https://*.g.doubleclick.net https://www.googleadservices.com https://pagead2.googlesyndication.com https://www.facebook.com https://*.analytics.google.com https://ad.doubleclick.net https://connect.facebook.net",
+    );
+  });
+
+  it("keeps trackers out of admin pages", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, allowWebAssembly: true, tagServerOrigin: "https://data.example.com" };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(policy).not.toMatch(/google|facebook|data\.example\.com/);
+  });
+
+  it("allows the owner's server-side tagging address on public pages", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, allowTrackers: true, tagServerOrigin: "https://data.example.com" };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(getDirective(policy, "connect-src")).toContain("https://data.example.com");
+  });
+
+  it("still requires the nonce for every script when trackers are allowed", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, allowTrackers: true };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(getDirective(policy, "script-src")).toBe(`script-src 'self' 'nonce-${NONCE}' 'strict-dynamic'`);
+  });
+});

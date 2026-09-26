@@ -11,6 +11,7 @@ import { isOverFormLimit } from "@/lib/security/rate-limit";
 import { TURNSTILE_FIELD, verifyTurnstileToken } from "@/lib/security/turnstile";
 import type { Visitor } from "@/lib/security/visitor";
 import { getE164Phone } from "@/lib/site/phone";
+import { fetchLeadTracking, getFormConversion, scheduleMetaLead, type LeadContact, type LeadTracking } from "@/lib/tracking/lead-tracking";
 
 // "Talk to a person" (Features §2): name, contact, and question go to the inbox through
 // the same intake as the Contact form, with the chat so far attached for context.
@@ -28,16 +29,22 @@ function getSessionId(formData: FormData): string | null {
   return parsed.success ? parsed.data : null;
 }
 
-async function saveHandoff({ values, sessionId, idempotencyKey }: { values: FieldValues; sessionId: string | null; idempotencyKey: string }): Promise<void> {
+function getHandoffContact(values: FieldValues): LeadContact {
+  return { email: (values.email ?? "").trim().toLowerCase() || null, phone: getE164Phone(values.phone ?? "") };
+}
+
+async function saveHandoff({ values, sessionId, idempotencyKey, tracking }: { values: FieldValues; sessionId: string | null; idempotencyKey: string; tracking: LeadTracking }): Promise<void> {
   const session = sessionId ? await fetchOpenChatSession(sessionId) : null;
+  const contact = getHandoffContact(values);
   const threadId = await submitNewRequest({
     source: "chat_handoff",
     contactName: (values.fullName ?? "").trim(),
-    contactEmail: (values.email ?? "").trim().toLowerCase() || null,
-    contactPhone: getE164Phone(values.phone ?? ""),
+    contactEmail: contact.email,
+    contactPhone: contact.phone,
     subject: "Chat assistant handoff",
     body: getHandoffBody({ question: values.question ?? "", turns: session?.turns ?? [] }),
     idempotencyKey,
+    attribution: tracking.attributionRow,
   });
   if (session) await linkChatHandoff({ sessionId: session.id, threadId });
 }
@@ -52,7 +59,10 @@ export async function submitChatHandoff({ formData, visitor }: { formData: FormD
   const isHuman = await verifyTurnstileToken({ token, remoteIp: visitor.ip, expectedAction: HANDOFF_TURNSTILE_ACTION, expectedHostname: visitor.hostname });
   if (!isHuman) return getResultState({ status: "blocked", values });
   const idempotencyKey = String(formData.get("idempotencyKey") ?? crypto.randomUUID());
-  await saveHandoff({ values, sessionId: getSessionId(formData), idempotencyKey });
-  const email = (values.email ?? "").trim().toLowerCase() || null;
-  return getResultState({ status: "sent", values: {}, sentTo: { name: (values.fullName ?? "").trim(), email } });
+  const tracking = await fetchLeadTracking(formData);
+  await saveHandoff({ values, sessionId: getSessionId(formData), idempotencyKey, tracking });
+  const contact = getHandoffContact(values);
+  scheduleMetaLead({ source: "chat_handoff", eventId: idempotencyKey, contact, tracking, visitor });
+  const conversion = await getFormConversion({ eventId: idempotencyKey, contact, tracking });
+  return getResultState({ status: "sent", values: {}, sentTo: { name: (values.fullName ?? "").trim(), email: contact.email }, conversion });
 }

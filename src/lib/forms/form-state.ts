@@ -1,6 +1,7 @@
 import type { z } from "zod";
 
 import type { FormFieldConfig } from "@/lib/forms/request-forms";
+import type { FormConversion } from "@/lib/tracking/lead-tracking";
 
 // Result of a public request-form submission, shared by the server action and the form UI.
 
@@ -20,6 +21,8 @@ export type RequestFormState = {
   fieldErrors: FieldErrors;
   responseId: string;
   sentTo: { name: string; email: string | null } | null;
+  /** Set when a request is sent: the key event's ID and, with Advertising allowed, hashed contact details. */
+  conversion: FormConversion | null;
 };
 
 export type RequestFormSchema = z.ZodObject<Record<string, z.ZodType<unknown, string>>>;
@@ -30,6 +33,7 @@ export const INITIAL_FORM_STATE: RequestFormState = {
   fieldErrors: {},
   responseId: "initial",
   sentTo: null,
+  conversion: null,
 };
 
 export function getFieldValues(formData: FormData, fields: FormFieldConfig[]): FieldValues {
@@ -54,6 +58,6 @@ export function getFieldErrors(schema: RequestFormSchema, values: FieldValues): 
   return Object.fromEntries(entries.filter((entry): entry is [string, string] => entry[1] !== null));
 }
 
-export function getResultState({ status, values, fieldErrors = {}, sentTo = null }: { status: RequestFormStatus; values: FieldValues; fieldErrors?: FieldErrors; sentTo?: RequestFormState["sentTo"] }): RequestFormState {
-  return { status, values, fieldErrors, sentTo, responseId: crypto.randomUUID() };
+export function getResultState({ status, values, fieldErrors = {}, sentTo = null, conversion = null }: { status: RequestFormStatus; values: FieldValues; fieldErrors?: FieldErrors; sentTo?: RequestFormState["sentTo"]; conversion?: FormConversion | null }): RequestFormState {
+  return { status, values, fieldErrors, sentTo, conversion, responseId: crypto.randomUUID() };
 }
