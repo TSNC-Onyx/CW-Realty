@@ -60,6 +60,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `notification_recipients` | Who gets contact / chat / booking alerts |
 | `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs` | Versioned policy file, preset test questions, pass/fail gate for publishing |
 | `chat_sessions`, `chat_messages` | Logged chats for weekly review |
+| `tracking_settings`, `lead_attribution`, `closed_deals` | Tag Manager / Meta Pixel IDs (owner-only); ad click IDs saved with a lead only after advertising consent; closed deals for the Google Ads and Meta download files |
 | `workflows`, `workflow_transitions` + `cwr.transition()` | The only path for any status change; every transition audited |
 | `audit_log` | Append-only: who, what, when, tenant, before/after (triggers on every table) |
 | `idempotency_keys` | Retry-safe mutations |
@@ -74,6 +75,8 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Notifications | Edit | Edit | — |
 | Chatbot policy | Edit | — | — |
 | Chat history (logged chats) | Read | Read | — |
+| Ads & analytics | Edit | — | — |
+| Closed deals (record, download) | Yes | Yes | — |
 | Users & roles, Trash restore/purge | Yes | Restore only | — |
 
 ### Retention (Infra §4)
