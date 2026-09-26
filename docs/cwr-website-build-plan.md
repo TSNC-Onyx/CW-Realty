@@ -161,6 +161,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 6 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
 | 7 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
 | 8 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
+| 9 | Choose the Triad MLS search provider (IDX feed or embed, e.g. through Triad MLS or the brokerage's IDX vendor) and get its approval/credentials; then add live home search to Property Search (`/property-search`, now a "Home search is on the way" placeholder) in a sandboxed, lazy-loaded frame, with a CSP entry for the provider (developer) | Owner decision, then `app/(site)/property-search/page.tsx` |
 
 ## DO NOT TOUCH
 
