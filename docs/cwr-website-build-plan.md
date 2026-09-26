@@ -22,7 +22,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 
 - Repo: `TSNC-Onyx/CW-Realty` (**public**); docs and Phase 0 code on `build1`.
 - Domain: DNS hosted at Wix (`ns6/ns7.wixdns.net`); email on Google Workspace (MX `aspmx.l.google.com`).
-- Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): legacy property-management schema in `public` with demo data; no versioned migrations; 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
+- Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): `cwr` migrations applied and exposed in the Data API (2026-09-26); hosted auth settings come from `[remotes.production]` in `supabase/config.toml` via `supabase config push`; legacy property-management schema in `public` with demo data (unversioned); 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
 - Local tooling: Node 25.9, npm 11.12, gh 2.92; Supabase CLI pinned in `package.json` (run via `npx supabase`); local Supabase uses ports 553xx because another project holds the defaults.
 
 ## Architecture
@@ -134,7 +134,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 - TouchUp "booking" is a request form (preferred dates/times) confirmed by staff, not a live calendar.
 - Every admin account (all three roles) must use MFA.
 - The chatbot policy file lives in the database, never in this public repo.
-- Hosted database changes are applied only by `supabase db push` in the Deploy workflow — never via the Supabase MCP `apply_migration`, which records different version numbers and breaks later pushes.
+- Hosted database changes are applied only by `supabase db push` (from the linked local CLI until go-live, then the Deploy workflow) — never via the Supabase MCP `apply_migration`, which records different version numbers and breaks later pushes.
 
 ## Owner approvals (2026-09-25)
 
