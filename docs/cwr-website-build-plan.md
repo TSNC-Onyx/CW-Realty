@@ -155,11 +155,12 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 |---|---|---|
 | 1 | **Urgent:** add the Supabase service_role key as Worker secret `SUPABASE_SERVICE_ROLE_KEY` — until then contact/TouchUp forms can't save requests, and invites, photo uploads, and chat logs fail (the admin dashboard shows a red notice). Copy it from Supabase → Project Settings → API Keys, then Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets → Add → Secret | Supabase and Cloudflare |
 | 2 | **Urgent:** set up the bot check (Turnstile) — until then every chat message and form is refused with "We couldn't confirm you're a person". In Cloudflare → Turnstile, add `cw-realty.onyxventuresnc.workers.dev` (and the final domain at launch) to the widget's hostnames; add its secret as Worker secret `TURNSTILE_SECRET_KEY`; keep its site key as build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (already present on the live build) | Cloudflare |
-| 3 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
-| 4 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
-| 5 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
-| 6 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
-| 7 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
+| 3 | Log every bot check refusal (forms and chat) with the reason Cloudflare gives, and log loudly when `TURNSTILE_SECRET_KEY` is missing in production, so a setup problem that blocks every visitor shows up in Workers Observability instead of looking like normal bot filtering (Infra §7) (developer) | `src/lib/security/turnstile.ts`, `src/lib/forms/submit-actions.ts`, `src/lib/chat/send-chat-message.ts` |
+| 4 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
+| 5 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
+| 6 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
+| 7 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
+| 8 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 
 ## DO NOT TOUCH
 
