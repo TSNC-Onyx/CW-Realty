@@ -166,3 +166,53 @@ Risk: low, provided tests are updated in the same PR.
 4. **Video captions**: approve the caption text I write from the video's audio.
 5. **Confirm** partner photos may be reused.
 6. **Chatbot policy**: add a Property Management section in Admin → Chatbot policy (I can draft the text).
+
+---
+
+# Round 2 — Homework page and Admin → Homework (approved 2026-09-27)
+
+> Owner approved the public Homework page mockup and the three Admin → Homework screens (`docs/reference/design/site-review-2026-09-26/homework*.html`). Decisions: videos at 480p (approved); link the NC Real Estate Commission's official brochure instead of the old copy (approved); keep the Spanish PowerPoint as-is (no PDF); video captions moved to open items. **Do not start until the owner says "build."** Same branch (`site-review-round`) and PR #11; nothing merges without explicit approval.
+
+## Goal
+
+Staff can upload, describe, group, order, show/hide, and trash the Homework page's videos, downloads, and links from the admin portal, and the public `/resources` page shows them like the old site: embedded videos plus grouped downloads.
+
+## Design summary (approved)
+
+- **Public `/resources`**: intro ("FAQs & Homework" / "Homework"); **Videos** (16:9 players with cover, title, "Video · m:ss", description; two per row on desktop); **Guides to read and keep** grouped For buyers / For sellers / En español / Required reading in North Carolina, each row: file icon, title, description, "PDF · 1.3 MB", M secondary "Download PDF" (Spanish items read "Descargar …" and carry `lang="es"`); closing box "Have a question these don't answer?" → Ask us a question.
+- **Admin → Homework** (Website group, editors): list with Videos and grouped Downloads and links; each row shows cover or file icon, title, type/length/size, Shown/Hidden (icon + word), a warning tag "No captions yet" on videos without captions, and Edit / Up / Down / Hide / Trash. Buttons "Add video" (main) and "Add download or link".
+- **Video editor**: Video file (MP4, up to 50 MB; length and size filled in), optional Cover picture (16:9, via the existing photo upload), Captions (.vtt upload; warning message until added), Details (title, description, "This video is in Spanish"), On the website (show), sticky Save bar.
+- **Download editor**: What visitors get (file / link), File (PDF, PowerPoint, Word, Excel up to 20 MB; type and size filled in) or Web address, Details (title, description, group, "This guide is in Spanish"), On the website, Save bar.
+
+## Task breakdown
+
+1. **Database** — migration `20260927000100_cwr_homework.sql`: `cwr.homework_items` (id, tenant_id, kind `video|file|link`, group_key `buyers|sellers|spanish|required` (null for videos), title, description, is_spanish, file_path, file_name, file_mime, file_size_bytes, duration_seconds, poster photo columns (same pairing checks as team), captions_path, link_url (https only), is_visible, sort_order, deleted_at, timestamps; checks that each kind has its required fields). RLS, grants, audit trigger, `updated_at`/`deleted_at` guards, trash view + 30-day purge exactly like `cwr.connections`. Reordering stays inside one list (videos, or one download group), so add `cwr.move_homework_item(id, direction)` built on `move_item`'s logic, scoped by tenant + list. pgTAP `140-homework.test.sql`.
+2. **File storage** — new public bucket `cwr-files` (50 MiB limit; MP4, PDF, PPTX, DOCX, XLSX, VTT): `supabase/config.toml` for local; created by the import script when missing (as `cwr-media` is). Files at `homework/{item id}/{upload id}/{file name}`. Downloads use Supabase's `?download=<file name>` so browsers save them with a clear name.
+3. **Security setting** (security-sensitive; covered by this approval) — add `media-src 'self' <Supabase origin>` to `src/lib/security/content-security-policy.ts` (+ its test) so videos and captions play from storage.
+4. **Uploads** — server actions that check the editor and item, check type and size, and hand out one-time signed upload links (like photos); the browser uploads directly (large files never pass through the website), reads a video's length first, then a save action confirms the file exists and records name, type, size, and length. Captions must start with `WEBVTT`. Replacing a file makes the old one unused; `scripts/cleanup-photo-files.mjs` (extended to `cwr-files/homework`) removes files nothing uses at its next nightly run (no Undo for a replaced file).
+5. **Admin** — `src/lib/admin/homework/*`, `src/components/admin/homework/*`, `app/admin/(portal)/homework/{page,new-video,new-download,[id]}`; area in `src/lib/admin/navigation.ts` + icon; trash label "Homework item".
+6. **Public page** — rewrite `app/(site)/resources/page.tsx` from `src/lib/content/homework.ts` (visible items, grouped, formatted size/length); tracks captions when present; falls back to a short message and contact link if the database is unavailable.
+7. **Import** — add the 2 videos (480p), their covers, the 5 files (4 PDFs + the Spanish PowerPoint), and the NCREC link to `scripts/content/live-site-content.json`; `import-live-site-content.mjs` loads them (skip if a same-title item exists).
+8. **Verification** — lint, types, unit, design and migration checks, pgTAP, Playwright (public page, admin: add a PDF and a link, reorder, hide/undo; captions warning shown). Afterwards reset the local database and reload real content before any preview (standing rule). Style guide: add the download row and the admin captions tag.
+
+## Downstream impact (3 levels)
+
+- **Level 1**: new table, bucket, CSP `media-src`, `/resources` page, admin area.
+- **Level 2**: trash view/purge (all earlier item types kept), admin sidebar and dashboard cards, cleanup script, import script, security-header tests (`content-security-policy.test.ts`, `security-headers.spec.ts`).
+- **Level 3**: production needs the `cwr-files` bucket (created by the import script run or once in the Supabase dashboard) and the migration applied at deploy; the chat assistant's policy does not mention these guides (content, owner's choice). Risk: low with tests updated in the same PR.
+
+## DO NOT TOUCH
+
+Same list as round 1, plus: existing `cwr-media` bucket and photo pipeline behavior, Connections, and all round-1 approved pages.
+
+## Round 2 build notes (2026-09-27)
+
+- Built as planned: migration `20260927000100_cwr_homework.sql` (table, RLS, trash, purge, `cwr.move_homework_item`), bucket `cwr-files` (config + created by the import script), CSP `media-src 'self' <Supabase>`, Admin → Homework (list, add video, add download or link, edit with file/cover/captions panels), public `/resources` from the database, import of the 2 videos (480p, 11.5 MB and 22.3 MB), 5 files, and the NCREC link, and the cleanup script extended to `cwr-files`.
+- New items start hidden; the first successful file upload shows them. A download switched to a link drops its file (cleanup removes it); a link switched to a file stays hidden until a file is uploaded.
+- After upload the server checks the stored file's type and extension against the slot (video, guide, captions) and removes anything that doesn't match; a replaced video's length is always rewritten.
+- The edit page shows file type, size, and length but not an upload date (the database does not record one).
+- The admin accessibility test now also covers Connections and the Homework screens (Connections had been missed in round 1).
+
+## Open items after round 2
+
+Captions for the TouchUp video and both Homework videos (staff can upload `.vtt` files in Admin once built); chatbot policy section for Property Management; production content import.
