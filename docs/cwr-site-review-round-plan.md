@@ -150,7 +150,7 @@ Risk: low, provided tests are updated in the same PR.
 
 ## Build notes (2026-09-26)
 
-- Built on branch `site-review-round` from `build1`. Photos are self-hosted in `public/images/site` by `npm run photos:site` (list and licenses: `scripts/content/site-photos.json`); the TouchUp video is `public/video/cwr-touchup.mp4` (12 MB, under the 25 MiB Cloudflare file limit).
+- Built on branch `site-review-round` from `build1`. Photos are self-hosted in `public/images/site` by `npm run photos:site` (list and licenses: `scripts/content/site-photos.json`); the TouchUp video is `public/video/cwr-touchup.mp4` (v2 from the owner 2026-09-27: 18 MB, 1080p H.264, under the 25 MiB Cloudflare file limit).
 - Connections: the optional "company" column was left out; the approved admin mockup had no company field, and the title line covers it (for example "State Farm insurance agent"). The public page shows one grid under a heading built from the categories present ("Lending and insurance"), matching the approved mockup, rather than one heading per category.
 - Video captions: not added yet. No transcription tool was available, so the owner needs to supply a transcript (or confirm the video has no speech). The page has no caption track until then; this is a launch blocker under WCAG 1.2.2.
 - Site photos use the site's shared 640/1280/1920px widths rather than the 2400w/1200w/600w sizes planned; on very large high-density screens the hero is capped at 1920px wide.
