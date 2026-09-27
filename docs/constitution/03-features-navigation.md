@@ -1,12 +1,12 @@
 # Features & Navigation Constitution
 
-> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval.
+> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §1 amended with owner approval on 2026-09-26 (Home menu item, `docs/cwr-site-review-round-plan.md`).
 > Menu and navigation pages: see `docs/reference/site/CWR-sitemap.xml` and `docs/reference/site/CWR-routes.ts` (the redirects file), as reconciled in `docs/reference/site/navigation-reconciliation.md`.
 
 ## 1. Mobile Navigation (NN/g, WCAG 2.2)
 
 - Mobile first layout; 16px+ text, short sections, 8px spacing grid
-- Five or fewer labeled menu items; sticky compact header under 64px
+- Six or fewer labeled menu items; sticky compact header under 64px
 - Tap targets 44px+; call, text, and chat buttons always reachable
 - Current page highlighted; skip link and full keyboard access
 

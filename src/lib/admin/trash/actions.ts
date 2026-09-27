@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getDatabaseErrorMessage } from "@/lib/admin/database-errors";
+import { removeHomeworkFiles } from "@/lib/admin/homework/file-storage";
 import { removePhotoFiles } from "@/lib/admin/photos/photo-storage";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
 import { EDITOR_ROLES, OWNER_ROLES } from "@/lib/admin/require-admin";
@@ -14,13 +15,13 @@ import type { SessionClient } from "@/lib/supabase/server-client";
 // only owners delete forever, which also removes the photo files.
 
 const trashTargetSchema = z.object({
-  table: z.enum(["listings", "listing_photos", "team_members", "closed_deals"]),
+  table: z.enum(["listings", "listing_photos", "team_members", "closed_deals", "connections", "homework_items"]),
   id: z.uuid(),
 });
 
 export type TrashTarget = z.infer<typeof trashTargetSchema>;
 
-const ADMIN_PATHS_TO_REFRESH = ["/admin/listings", "/admin/team", "/admin/trash", "/admin/closed-deals", "/admin/inbox"];
+const ADMIN_PATHS_TO_REFRESH = ["/admin/listings", "/admin/team", "/admin/connections", "/admin/homework", "/admin/trash", "/admin/closed-deals", "/admin/inbox"];
 
 function refreshAdminLists(): void {
   ADMIN_PATHS_TO_REFRESH.forEach((path) => revalidatePath(path, "layout"));
@@ -55,19 +56,29 @@ async function fetchPhotoFolders(supabase: SessionClient, { table, id }: TrashTa
     const { data } = await supabase.from("listing_photos").select("storage_path").eq("listing_id", id);
     return (data ?? []).map((photo: { storage_path: string }) => photo.storage_path);
   }
-  const { data } = await supabase.from("team_members").select("photo_path").eq("id", id).maybeSingle<{ photo_path: string | null }>();
+  const portraitTable = table === "connections" || table === "homework_items" ? table : "team_members";
+  const { data } = await supabase.from(portraitTable).select("photo_path").eq("id", id).maybeSingle<{ photo_path: string | null }>();
   return data?.photo_path ? [data.photo_path] : [];
+}
+
+// Homework videos, guides, and captions live in the cwr-files bucket, apart from photos.
+async function fetchHomeworkFilePaths(supabase: SessionClient, { table, id }: TrashTarget): Promise<string[]> {
+  if (table !== "homework_items") return [];
+  const { data } = await supabase.from("homework_items").select("file_path, captions_path").eq("id", id).maybeSingle<{ file_path: string | null; captions_path: string | null }>();
+  return [data?.file_path, data?.captions_path].filter((path): path is string => Boolean(path));
 }
 
 export async function deleteForeverAction(target: TrashTarget): Promise<QuickResult> {
   return runQuickAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
     const parsed = trashTargetSchema.parse(target);
     const folders = await fetchPhotoFolders(supabase, parsed);
+    const homeworkFiles = await fetchHomeworkFilePaths(supabase, parsed);
     const { error, count } = await supabase.from(parsed.table).delete({ count: "exact" }).eq("id", parsed.id).eq("tenant_id", tenantId).not("deleted_at", "is", null);
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     if (!count) return getQuickError("Only items in the trash can be deleted forever.");
     // The record is gone either way; files that fail to delete are left to the nightly cleanup.
     await removePhotoFiles(folders).catch((fileError) => console.error("Photo files not removed after delete forever", fileError));
+    await removeHomeworkFiles(homeworkFiles).catch((fileError) => console.error("Homework files not removed after delete forever", fileError));
     refreshAdminLists();
     return getQuickSuccess("Deleted forever.");
   });

@@ -28,7 +28,8 @@ export function getTapTargetViolations(page: Page): Promise<string[]> {
 export function getGoldOnLightViolations(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const gold = "rgb(230, 189, 53)";
-    const darkBackgrounds = ["rgb(18, 18, 18)", "rgb(30, 30, 30)", "rgb(43, 43, 43)"];
+    // dark, dark-alt, photo placeholder, and the see-through dark of the home hero panel.
+    const darkBackgrounds = ["rgb(18, 18, 18)", "rgb(30, 30, 30)", "rgb(43, 43, 43)", "rgba(18, 18, 18, 0.65)"];
     const getBackground = (start: Element | null): string => {
       for (let node = start; node; node = node.parentElement) {
         const background = getComputedStyle(node).backgroundColor;

@@ -9,7 +9,7 @@ import { AdminAccessError, EDITOR_ROLES, requireAdmin } from "@/lib/admin/requir
 // one-time upload links for a fresh folder (the Phase 2 photo file layout).
 
 const photoTargetSchema = z.object({
-  kind: z.enum(["listing", "team"]),
+  kind: z.enum(["listing", "team", "connection", "homework"]),
   recordId: z.uuid(),
 });
 
@@ -19,8 +19,8 @@ export type PhotoUploadTicket =
   | { status: "ready"; folder: string; uploads: SignedUpload[] }
   | { status: "error"; message: string };
 
-const TARGET_TABLES: Record<PhotoTarget["kind"], string> = { listing: "listings", team: "team_members" };
-const TARGET_FOLDERS: Record<PhotoTarget["kind"], string> = { listing: "listings", team: "team" };
+const TARGET_TABLES: Record<PhotoTarget["kind"], string> = { listing: "listings", team: "team_members", connection: "connections", homework: "homework_items" };
+const TARGET_FOLDERS: Record<PhotoTarget["kind"], string> = { listing: "listings", team: "team", connection: "connections", homework: "homework" };
 
 export async function requestPhotoUploadAction(target: PhotoTarget): Promise<PhotoUploadTicket> {
   const parsed = photoTargetSchema.safeParse(target);

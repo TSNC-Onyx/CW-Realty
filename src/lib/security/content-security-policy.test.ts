@@ -56,6 +56,17 @@ describe("getContentSecurityPolicy", () => {
     expect(getDirective(policy, "img-src")).toBe(`img-src 'self' blob: data: ${SUPABASE_ORIGIN}`);
   });
 
+  it("lets videos and captions play from this site and the Supabase origin only", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, supabaseOrigin: SUPABASE_ORIGIN };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(getDirective(policy, "media-src")).toBe(`media-src 'self' ${SUPABASE_ORIGIN}`);
+  });
+
   it("relaxes script and style rules only in development", () => {
     // Arrange
     const options = { nonce: NONCE, isDevelopment: true };

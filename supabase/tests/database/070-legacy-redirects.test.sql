@@ -5,8 +5,8 @@ select plan(5);
 select is(
   (select count(*)::int from cwr.redirects r join cwr.tenants t on t.id = r.tenant_id
    where t.slug = 'cwr' and r.origin = 'legacy'),
-  21,
-  'Every old Wix URL has a redirect'
+  20,
+  'Every old Wix URL has a redirect (/services became a page on 2026-09-26)'
 );
 
 select is_empty(

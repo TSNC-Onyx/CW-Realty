@@ -8,7 +8,7 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 |---|---|---|
 | 1 | Listing and team pages are hard-coded, but the admin portal must let the manager change them without a developer | Listings and team members are database records managed in the admin portal; the 4 listings and 10 team members below are the launch seed. The sitemap is generated from fixed pages + published records |
 | 2 | Listing URL patterns differ: one ends in a ZIP, one has no city | One pattern: `/listings/{street}-{city}-nc`. `3826-burlington-rd-greensboro-nc-27405` → `3826-burlington-rd-greensboro-nc`. `912-rocky-meadows-ln` keeps its current slug (owner decision) |
-| 3 | `/services/cwr-touchup` has no `/services` parent, so trimming the URL returns a 404 | `/services` redirects to `/services/cwr-touchup` until a second service exists |
+| 3 | `/services/cwr-touchup` has no `/services` parent, so trimming the URL returns a 404 | `/services` redirected to `/services/cwr-touchup` until a second service existed. Since 2026-09-26 (Property Management added) `/services` is an overview page of both services |
 | 4 | "Homework" (at `/resources`, formerly `/faq`) is an unclear menu label (NN/g: plain words) | Menu label "FAQs & Homework"; page keeps the "Homework" heading; URL stays `/resources` |
 | 5 | "Connections" (formerly `/sell`) sits under Resources while its old URL suggests a sellers page | Confirmed by owner: a referral directory of partner professionals (insurance agents, loan officers, etc.); stays under Resources, `/sell` keeps redirecting to it |
 | 6 | Sold listings and departed team members would leave dead links | Sold listings stay live with a "Sold" label; a hidden team member's page temporarily redirects (302) to `/team` and returns when un-hidden; when the manager deletes a listing or team member, their URL permanently redirects (301) to `/listings` or `/team`. Changing a slug in the admin portal creates a redirect automatically |
@@ -16,12 +16,13 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | 8 | No 404, admin, or legally required pages listed | Add a 404 page (search + menu), `/admin` (not indexed, not in sitemap), and footer links for Equal Housing Opportunity and the NC Real Estate Commission "Working with Real Estate Agents" disclosure, plus a "Cookie settings" control |
 | 9 | Existing database property records (25) do not match the 4 real listings and use test-style slugs (`mgp-001`) | Treated as demo/seed data: not imported into the new site, left untouched in place |
 
-## Menu (5 top-level items)
+## Menu (6 top-level items; Home added by owner choice 2026-09-26)
 
 | Menu item | Contains |
 |---|---|
+| Home | Home page (`/`); the footer reaches it through the logo instead of a column |
 | Listings | Featured Properties (`/listings`), Property Search (`/property-search`) |
-| Services | CWR TouchUp (`/services/cwr-touchup`) |
+| Services | CWR TouchUp (`/services/cwr-touchup`), Property Management (`/services/property-management`); overview at `/services` |
 | Team | CWR Team (`/team`) and member pages |
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
 | About | About Us (`/about`), Contact (`/contact`) |
@@ -55,7 +56,9 @@ Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the
 | `/listings/912-rocky-meadows-ln` | `/rocky-meadows-lane` |
 | `/listings/3826-burlington-rd-greensboro-nc` | `/3826-burlington-rd-greensboro-nc-27405`, `/listings/3826-burlington-rd-greensboro-nc-27405` |
 | `/property-search` | — |
-| `/services/cwr-touchup` | `/cwrtouchup`, `/services` |
+| `/services` | — (overview page since 2026-09-26) |
+| `/services/cwr-touchup` | `/cwrtouchup` |
+| `/services/property-management` | — |
 | `/connections` | `/sell` |
 | `/resources` | `/faq` |
 

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { getPhotoSources } from "@/lib/content/media";
+import { getPhotoSources, getSitePhotoSources } from "@/lib/content/media";
 
 const BASE_URL = "https://example.supabase.co";
 const FOLDER = "listings/100-main-st/01";
@@ -43,5 +43,29 @@ describe("getPhotoSources", () => {
 
     // Assert
     expect(sources).toBeNull();
+  });
+});
+
+describe("getSitePhotoSources", () => {
+  it("points at the photo folder this site serves", () => {
+    // Arrange
+    const photo = { folder: "hero-farmhouse", originalWidth: 2400 };
+
+    // Act
+    const sources = getSitePhotoSources(photo);
+
+    // Assert
+    expect(sources.fallbackSrc).toBe("/images/site/hero-farmhouse/1280.webp");
+  });
+
+  it("lists a small original once at its real width", () => {
+    // Arrange
+    const photo = { folder: "touchup-poster", originalWidth: 1280 };
+
+    // Act
+    const sources = getSitePhotoSources(photo);
+
+    // Assert
+    expect(sources.avifSrcSet).toBe("/images/site/touchup-poster/640.avif 640w, /images/site/touchup-poster/1280.avif 1280w");
   });
 });

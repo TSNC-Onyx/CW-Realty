@@ -1,105 +1,165 @@
+import { Download, ExternalLink, FileText, Play, Presentation, type LucideIcon } from "lucide-react";
+
 import type { Metadata } from "next";
 
+import { ButtonLink, getButtonClassName } from "@/components/ui/button-link";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { PageIntro } from "@/components/ui/page-intro";
 import { Section } from "@/components/ui/section";
-import { TextLink } from "@/components/ui/text-link";
-import { NC_AGENCY_DISCLOSURE_URL } from "@/lib/site/navigation";
+import { getPhotoSources } from "@/lib/content/media";
+import { fetchHomework, type DownloadIcon, type HomeworkContent, type HomeworkDownload, type HomeworkVideo } from "@/lib/content/homework";
+import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
 
-// Topics from the current live "Homework" page. The guides themselves are shared on
-// request until the owner supplies files to publish here.
+// Homework (FAQs & Homework) from Admin → Homework: embedded videos and grouped downloads,
+// like the old site's page (owner-approved design 2026-09-27, docs/cwr-site-review-round-plan.md Round 2).
 
 export const metadata: Metadata = {
   title: "FAQs & Homework",
-  description: "Guides for buying and selling a home in the Triad, from Charlie Ward Realty.",
+  description: "Short videos and guides for buying and selling a home in the Triad, from Charlie Ward Realty.",
 };
 
-type ResourceTopic = { audience: string; title: string; body: string; linkLabel: string; href: string };
+const SPANISH = "es";
+const DOWNLOAD_ICONS: Record<DownloadIcon, LucideIcon> = { document: FileText, presentation: Presentation, link: ExternalLink };
 
-const ASK_FOR_GUIDE_PATH = "/contact";
+// A database problem must not blank the page: it shows the question box instead (Infra §3).
+async function fetchHomeworkOrEmpty(): Promise<HomeworkContent> {
+  try {
+    return await fetchHomework();
+  } catch (error) {
+    console.error("Homework unavailable", error);
+    return { videos: [], groups: [] };
+  }
+}
 
-const TOPICS: ResourceTopic[] = [
-  {
-    audience: "For buyers",
-    title: "Four basic steps in buying a home",
-    body: "The path from pre-approval to closing day, one step at a time.",
-    linkLabel: "Ask for the buying guide",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "For buyers",
-    title: "Do the math",
-    body: "Work out what you can comfortably spend before you start touring homes.",
-    linkLabel: "Ask for the budget worksheet",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "For buyers",
-    title: "Buyers working with real estate agents",
-    body: "What a buyer's agent does for you and how the relationship works in North Carolina.",
-    linkLabel: "Ask for the buyer guide",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "For sellers",
-    title: "Listing with CWR",
-    body: "How we price, market, and show your home, and what we ask of you along the way.",
-    linkLabel: "Ask for the listing guide",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "For sellers",
-    title: "Video and showing prep",
-    body: "Simple ways to get each room ready for photos, video, and showings.",
-    linkLabel: "Ask for the showing checklist",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "For sellers",
-    title: "CWR TouchUp",
-    body: "Small changes before you list that can raise your sale price, with nothing due up front.",
-    linkLabel: "Learn about CWR TouchUp",
-    href: "/services/cwr-touchup",
-  },
-  {
-    audience: "Para vendedores",
-    title: "Vender su casa",
-    body: "Información en español para vender su casa con CWR.",
-    linkLabel: "Pida la guía en español",
-    href: ASK_FOR_GUIDE_PATH,
-  },
-  {
-    audience: "Required reading",
-    title: "Working with real estate agents",
-    body: "The North Carolina Real Estate Commission's guide to how agents work for buyers and sellers.",
-    linkLabel: "Read the NC Real Estate Commission guide",
-    href: NC_AGENCY_DISCLOSURE_URL,
-  },
-];
+function getPosterSource(video: HomeworkVideo): string | undefined {
+  if (!video.cover) return undefined;
+  return getPhotoSources({ folder: video.cover.folder, originalWidth: video.cover.width })?.fallbackSrc;
+}
 
-export default function ResourcesPage() {
+function VideoCard({ video }: { video: HomeworkVideo }) {
+  return (
+    <li lang={video.isSpanish ? SPANISH : undefined} className="border-t-2 border-ink pt-6">
+      <video
+        controls
+        preload="none"
+        playsInline
+        crossOrigin={video.captionsUrl ? "anonymous" : undefined}
+        poster={getPosterSource(video)}
+        aria-label={`${video.title} video`}
+        className="block aspect-video w-full bg-photo-placeholder-dark object-cover"
+      >
+        <source src={video.videoUrl} type="video/mp4" />
+        {video.captionsUrl && <track kind="captions" src={video.captionsUrl} srcLang={video.isSpanish ? SPANISH : "en"} label={video.isSpanish ? "Español" : "English"} default />}
+      </video>
+      <h3 className="type-h3 mt-4">{video.title}</h3>
+      {video.lengthLabel && (
+        <p className="type-small mt-1 flex items-center gap-2 font-semibold text-muted">
+          <Play aria-hidden size={ICON_SIZE.inline} />
+          {`Video · ${video.lengthLabel}`}
+        </p>
+      )}
+      {video.description && <p className="mt-2">{video.description}</p>}
+    </li>
+  );
+}
+
+function DownloadRow({ download }: { download: HomeworkDownload }) {
+  const Icon = DOWNLOAD_ICONS[download.icon];
+  const ButtonIcon = download.icon === "link" ? ExternalLink : Download;
+  return (
+    <li lang={download.isSpanish ? SPANISH : undefined} className="grid grid-cols-[auto_1fr] items-start gap-4 border-b border-line py-6 md:grid-cols-[auto_1fr_auto] md:items-center md:gap-6">
+      <span aria-hidden className="flex size-12 items-center justify-center border border-field-border bg-surface">
+        <Icon size={ICON_SIZE.message} />
+      </span>
+      <div>
+        <h4 className="text-lg leading-label font-bold">{download.title}</h4>
+        {download.description && <p className="mt-1">{download.description}</p>}
+        <p className="type-small mt-1 font-semibold text-muted">{download.detailLabel}</p>
+      </div>
+      <a href={download.href} className={`${getButtonClassName({ size: "m", variant: "secondary" })} col-span-2 md:col-span-1`}>
+        <ButtonIcon aria-hidden size={ICON_SIZE.button} />
+        {download.buttonLabel}
+        <span className="sr-only">{`: ${download.title}`}</span>
+      </a>
+    </li>
+  );
+}
+
+function VideoSection({ videos }: { videos: HomeworkVideo[] }) {
+  if (videos.length === 0) return null;
+  return (
+    <Section labelledBy="videos-heading">
+      <Eyebrow>Watch</Eyebrow>
+      <h2 id="videos-heading" className="type-h2">Videos</h2>
+      <ul className="mt-6 grid gap-8 md:mt-10 lg:grid-cols-2">
+        {videos.map((video) => (
+          <VideoCard key={video.id} video={video} />
+        ))}
+      </ul>
+    </Section>
+  );
+}
+
+function GuideSection({ groups }: { groups: HomeworkContent["groups"] }) {
+  if (groups.length === 0) return null;
+  return (
+    <Section tone="soft" labelledBy="guides-heading">
+      <Eyebrow>Download</Eyebrow>
+      <h2 id="guides-heading" className="type-h2">Guides to read and keep</h2>
+      <p className="type-lead mt-4 max-w-prose">Each guide opens on your phone or computer. Print it, share it, or bring it to your first meeting with us.</p>
+      {groups.map((group) => (
+        <div key={group.key} lang={group.key === "spanish" ? SPANISH : undefined} className="mt-10">
+          <h3 className="type-h3 mb-2">{group.label}</h3>
+          <ul className="border-t-2 border-ink">
+            {group.downloads.map((download) => (
+              <DownloadRow key={download.id} download={download} />
+            ))}
+          </ul>
+        </div>
+      ))}
+    </Section>
+  );
+}
+
+function UpdatingNotice() {
+  return (
+    <Section labelledBy="updating-heading">
+      <h2 id="updating-heading" className="type-h3">Our videos and guides are being updated</h2>
+      <p className="mt-2 max-w-prose">Check back soon, or ask us below and we&apos;ll send you the guide you need.</p>
+    </Section>
+  );
+}
+
+function QuestionBox() {
+  return (
+    <Section labelledBy="question-heading">
+      <div className="flex flex-col gap-6 border-t-2 border-ink bg-surface-soft p-6 md:flex-row md:items-center md:justify-between md:p-10">
+        <div>
+          <h2 id="question-heading" className="type-h3">Have a question these don&apos;t answer?</h2>
+          <p className="mt-2 max-w-prose">Ask us. A real person on our team will get back to you.</p>
+        </div>
+        <ButtonLink href={CONTACT_PAGE_PATH} size="m" variant="main" isFullWidthOnMobile>
+          Ask us a question
+        </ButtonLink>
+      </div>
+    </Section>
+  );
+}
+
+export default async function ResourcesPage() {
+  const { videos, groups } = await fetchHomeworkOrEmpty();
   return (
     <>
       <PageIntro
         eyebrow="FAQs & Homework"
         title="Homework"
-        lead="Short guides that answer the questions buyers and sellers ask us most. Ask for any guide and we'll send it to you."
+        lead="Short videos and guides that answer the questions buyers and sellers ask us most. Watch online, or download a guide to read later."
       />
-      <Section labelledBy="topics-heading">
-        <h2 id="topics-heading" className="sr-only">Guides</h2>
-        <ul className="grid gap-8 md:grid-cols-2">
-          {TOPICS.map((topic) => (
-            <li key={topic.title} lang={topic.audience === "Para vendedores" ? "es" : undefined} className="border-t-2 border-ink bg-surface-soft p-6 md:p-10">
-              <Eyebrow>{topic.audience}</Eyebrow>
-              <h3 className="type-h3-card">{topic.title}</h3>
-              <p className="mt-3">{topic.body}</p>
-              <div className="mt-4">
-                <TextLink href={topic.href} hasArrow>{topic.linkLabel}</TextLink>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Section>
+      {videos.length === 0 && groups.length === 0 && <UpdatingNotice />}
+      <VideoSection videos={videos} />
+      <GuideSection groups={groups} />
+      <QuestionBox />
     </>
   );
 }
