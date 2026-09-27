@@ -216,3 +216,9 @@ Same list as round 1, plus: existing `cwr-media` bucket and photo pipeline behav
 ## Open items after round 2
 
 Captions for the TouchUp video and both Homework videos (staff can upload `.vtt` files in Admin once built); chatbot policy section for Property Management; production content import.
+
+## Link preview image (owner choice 2026-09-27)
+
+- Texted or posted links had no share image, so iMessage showed the Home hero photo alone. The owner chose Option B of 3: that hero photo with the CWR logo large in its gold ring (about 70% of the height), 1200×630 JPEG, 134 KB (under WhatsApp's 300 KB), logo safe in a square crop. File: `public/brand/cwr-share.jpg`.
+- `src/lib/site/share-image.ts` adds Open Graph and X (`summary_large_image`) tags from the root layout. The image address uses the requested host when it is a known one (www and bare charliewardrealty.com, the workers.dev address and its PR previews, localhost); anything else falls back to `SITE_URL`, so a forged Host header can't point previews elsewhere. Listing pages keep their own first photo.
+- Edge cases: phones cache a link's preview when it is first sent, so earlier messages keep the old picture; until go-live, `SITE_URL` is still the Wix site, which is why the host is used.
