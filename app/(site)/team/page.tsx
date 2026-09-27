@@ -16,7 +16,7 @@ export default async function TeamPage() {
     <>
       <PageIntro
         eyebrow="CWR team"
-        title="Meet the people behind CWR"
+        title="Meet the people behind Charlie Ward Realty"
         lead="A diverse team of professionals ready to help you buy, sell, or invest in real estate. Get to know them, then connect with the one who fits you best."
       />
       <Section labelledBy="team-heading">

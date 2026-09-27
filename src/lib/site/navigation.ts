@@ -7,6 +7,9 @@ export const NC_AGENCY_DISCLOSURE_URL = "https://www.ncrec.gov/Brochures/Print/W
 // The mobile Menu control links to the footer menu, so phones without JavaScript still reach every page.
 export const SITE_FOOTER_ID = "site-footer";
 
+// The home link leads the header menu (owner choice 2026-09-26); the footer reaches home through its logo.
+const HOME_PATH = "/";
+
 export type NavLink = { label: string; href: string };
 
 export type NavSection =
@@ -14,6 +17,7 @@ export type NavSection =
   | { kind: "group"; label: string; links: NavLink[] };
 
 export const MENU_SECTIONS: NavSection[] = [
+  { kind: "link", label: "Home", href: HOME_PATH },
   {
     kind: "group",
     label: "Listings",
@@ -25,7 +29,10 @@ export const MENU_SECTIONS: NavSection[] = [
   {
     kind: "group",
     label: "Services",
-    links: [{ label: "CWR TouchUp", href: "/services/cwr-touchup" }],
+    links: [
+      { label: "CWR TouchUp", href: "/services/cwr-touchup" },
+      { label: "Property management", href: "/services/property-management" },
+    ],
   },
   { kind: "link", label: "Team", href: "/team" },
   {
@@ -55,7 +62,9 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
   "/privacy-policy",
   "/resources",
   "/connections",
+  "/services",
   "/services/cwr-touchup",
+  "/services/property-management",
   "/property-search",
   "/listings",
   "/team",
@@ -66,7 +75,8 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
 export const UNLISTED_PAGE_PATHS: ReadonlySet<string> = new Set(["/services/seller-consulting"]);
 
 export function getFooterColumns(): { heading: string; links: NavLink[] }[] {
-  return MENU_SECTIONS.map((section) =>
+  const footerSections = MENU_SECTIONS.filter((section) => section.kind === "group" || section.href !== HOME_PATH);
+  return footerSections.map((section) =>
     section.kind === "link"
       ? { heading: section.label, links: [{ label: "CWR team", href: section.href }] }
       : { heading: section.label, links: section.links },

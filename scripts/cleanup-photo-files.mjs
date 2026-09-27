@@ -1,4 +1,4 @@
-// Removes photo files that no listing or team member uses any more (Admin §7: permanent
+// Removes photo files that no listing, team member, or connection uses any more (Admin §7: permanent
 // removal). The database's 30-day trash purge deletes rows but cannot reach storage, and an
 // interrupted upload can leave files behind. Folders younger than a day are left alone so
 // an upload in progress is never touched. Run nightly by .github/workflows/cleanup-photo-files.yml.
@@ -9,7 +9,7 @@ import { createClient } from "@supabase/supabase-js";
 
 import photoLayout from "../src/lib/content/photo-layout.json" with { type: "json" };
 
-const TOP_FOLDERS = ["listings", "team"];
+const TOP_FOLDERS = ["listings", "team", "connections"];
 const PAGE_SIZE = 1000;
 const MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
@@ -59,22 +59,24 @@ async function fetchAllRows(db, { table, column }) {
 }
 
 async function fetchReferencedFolders(db) {
-  const [photoPaths, portraitPaths] = await Promise.all([
+  const [photoPaths, portraitPaths, partnerPaths] = await Promise.all([
     fetchAllRows(db, { table: "listing_photos", column: "storage_path" }),
     fetchAllRows(db, { table: "team_members", column: "photo_path" }),
+    fetchAllRows(db, { table: "connections", column: "photo_path" }),
   ]);
-  return new Set([...photoPaths, ...portraitPaths]);
+  return new Set([...photoPaths, ...portraitPaths, ...partnerPaths]);
 }
 
 // A second, exact check right before deleting, so a list read at the wrong moment can
 // never remove files a record uses.
 async function isFolderInUse(db, folder) {
-  const [{ count: photoCount, error: photoError }, { count: portraitCount, error: portraitError }] = await Promise.all([
+  const results = await Promise.all([
     db.from("listing_photos").select("id", { count: "exact", head: true }).eq("storage_path", folder),
     db.from("team_members").select("id", { count: "exact", head: true }).eq("photo_path", folder),
+    db.from("connections").select("id", { count: "exact", head: true }).eq("photo_path", folder),
   ]);
-  if (photoError || portraitError) throw new CleanupError(`Could not check ${folder}`);
-  return (photoCount ?? 0) + (portraitCount ?? 0) > 0;
+  if (results.some(({ error }) => error)) throw new CleanupError(`Could not check ${folder}`);
+  return results.reduce((total, { count }) => total + (count ?? 0), 0) > 0;
 }
 
 async function removeIfOld(bucket, folder, nowMs) {

@@ -1,5 +1,6 @@
-// Imports the current live-site listings, photos, and team members (Phase 2, task 11).
-// Insert-only and safe to re-run: records that already exist (by slug) are skipped and
+// Imports the current live-site listings, photos, team members, and connections (Phase 2,
+// task 11; connections added 2026-09-26).
+// Insert-only and safe to re-run: records that already exist (by slug, or by name for connections) are skipped and
 // never changed, so edits made later in the admin portal are kept.
 //
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-live-site-content.mjs
@@ -106,6 +107,11 @@ async function fetchTenantId(db) {
   return tenant.id;
 }
 
+async function fetchExistingConnectionNames(db) {
+  const rows = getCheckedResult(await db.from("connections").select("full_name"), "read connections");
+  return new Set(rows.map((row) => row.full_name));
+}
+
 async function fetchExistingSlugs(db, table) {
   const rows = getCheckedResult(await db.from(table).select("slug"), `read ${table}`);
   return new Set(rows.map((row) => row.slug));
@@ -134,6 +140,26 @@ async function importTeamMember(client, { tenantId, member }) {
     photo_height: size?.height ?? null,
   };
   getCheckedResult(await client.from("team_members").insert(row), `insert team member ${member.slug}`);
+}
+
+async function importConnection(client, { tenantId, connection }) {
+  const connectionId = randomUUID();
+  const folder = `connections/${connectionId}/${randomUUID()}`;
+  const size = connection.photo ? await importPhoto(client.storage, { source: connection.photo.source, folder }) : null;
+  const row = {
+    id: connectionId,
+    tenant_id: tenantId,
+    full_name: connection.fullName,
+    category: connection.category,
+    title_line: connection.titleLine,
+    phone: connection.phone,
+    sort_order: connection.sortOrder,
+    photo_path: size ? folder : null,
+    photo_alt: size ? connection.photo.alt : null,
+    photo_width: size?.width ?? null,
+    photo_height: size?.height ?? null,
+  };
+  getCheckedResult(await client.from("connections").insert(row), `insert connection ${connection.fullName}`);
 }
 
 // All downloads and uploads happen before any listing row exists, so an interrupted
@@ -219,6 +245,12 @@ async function importAll(client, content) {
     if (existingListings.has(listing.slug)) continue;
     await importListing(client, { tenantId, listing });
     console.log(`Imported listing ${listing.slug}`);
+  }
+  const existingConnections = await fetchExistingConnectionNames(client);
+  for (const connection of content.connections ?? []) {
+    if (existingConnections.has(connection.fullName)) continue;
+    await importConnection(client, { tenantId, connection });
+    console.log(`Imported connection ${connection.fullName}`);
   }
 }
 

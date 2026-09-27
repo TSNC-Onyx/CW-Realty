@@ -2,12 +2,13 @@ import type { ReactNode } from "react";
 
 // Style §11.4: 96px section padding on desktop, 48px on mobile; 64/32/16px side margins.
 
-export type SectionTone = "page" | "soft" | "dark";
+export type SectionTone = "page" | "soft" | "dark" | "texture";
 
 const TONE_CLASSES: Record<SectionTone, string> = {
   page: "bg-page",
   soft: "bg-surface-soft",
   dark: "tone-dark",
+  texture: "tone-texture",
 };
 
 type ContainerProps = { children: ReactNode; className?: string };

@@ -18,6 +18,8 @@
   --container-form: 520px;
   --container-toast: 400px;
   --container-empty: 420px;
+  --container-video: 872px;
+  --container-hero-panel: 720px;
 
   /* §11.1 colors */
   --color-page: #faf8f3;
@@ -37,6 +39,9 @@
   --color-ink-hover: #3a3a3a;
   --color-ink-active: #000000;
   --color-on-dark-hover: rgb(255 255 255 / 0.1);
+  /* Home hero panel and pause button over photos only (owner choice 2026-09-26) */
+  --color-dark-translucent: rgb(18 18 18 / 0.65);
+  --color-dark-translucent-hover: rgb(18 18 18 / 0.85);
   --color-photo-placeholder: #dcd5c7;
   --color-photo-placeholder-dark: #2b2b2b;
   --color-divider-dark: #333333;
@@ -68,6 +73,7 @@
   --tracking-button: 0.01em;
   --tracking-tag: 0.06em;
   --tracking-eyebrow: 0.12em;
+  --font-weight-light: 300;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
@@ -78,6 +84,7 @@
   --aspect-hero-mobile: 4 / 3;
   --aspect-photo: 3 / 2;
   --aspect-portrait: 4 / 5;
+  --aspect-video: 16 / 9;
 
   /* §11.14 motion */
   --ease-out: cubic-bezier(0, 0, 0.2, 1);
@@ -155,6 +162,84 @@
     --focus-ring-color: var(--color-on-dark);
     background: var(--color-dark);
     color: var(--color-on-dark);
+  }
+
+  /* Texture band (owner choice 2026-09-26): dark with a fine #2a2a2a crosshatch, Property
+     Management only. White text stays at 14:1 or better on the lightest lines. */
+  .tone-texture {
+    --focus-ring-color: var(--color-on-dark);
+    background-color: var(--color-dark);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Cpath d='M0 8L8 0M-2 2L2 -2M6 10L10 6M0 0L8 8M-2 6L2 10M6 -2L10 2' stroke='%232A2A2A' stroke-width='1.2'/%3E%3C/svg%3E");
+    color: var(--color-on-dark);
+  }
+
+  /* Home hero (owner choice 2026-09-26): 4:3 phone, 16:9 tablet, full-width band on desktop.
+     Photos cross-fade over 1200ms; reduced motion turns the fade off (base layer). */
+  .home-hero-stage {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    background: var(--color-photo-placeholder-dark);
+    @media (width >= 768px) {
+      aspect-ratio: 16 / 9;
+    }
+    @media (width >= 1024px) {
+      aspect-ratio: auto;
+      height: max(640px, 42.86vw);
+    }
+  }
+  .home-hero-slide {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 1200ms ease-in-out;
+  }
+  .home-hero-slide[data-active="true"] {
+    opacity: 1;
+  }
+
+  /* Contact page (owner choice 2026-09-26): on desktop the "Reach us directly" panel starts
+     beside the title and floats 24px under the header until the form ends; on smaller
+     screens it follows the intro. It only floats when the window is tall enough to hold it. */
+  .contact-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "intro" "aside" "form";
+    @media (width >= 1024px) {
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      column-gap: 32px;
+      grid-template-areas:
+        "intro intro intro intro intro intro intro . aside aside aside aside"
+        "form form form form form form form . aside aside aside aside";
+    }
+  }
+  .contact-layout-intro {
+    grid-area: intro;
+  }
+  .contact-layout-form {
+    grid-area: form;
+  }
+  .contact-layout-aside {
+    grid-area: aside;
+    align-self: start;
+    @media (width >= 1024px) and (height >= 640px) {
+      position: sticky;
+      top: calc(var(--header-height) + 24px);
+    }
+  }
+
+  /* Header phone link: with six menu items (owner choice 2026-09-26) the full number no
+     longer fits between 1024px and 1279px, so those widths show "Call" beside the icon. */
+  .header-phone-short {
+    display: none;
+  }
+  @media (width >= 1024px) and (width < 1280px) {
+    .header-phone-number {
+      display: none;
+    }
+    .header-phone-short {
+      display: inline;
+    }
   }
 
   /* §11.5 buttons */
@@ -499,6 +584,30 @@
   font-size: 14px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
+}
+
+/* Customer quotes (owner choice 2026-09-26): Fraunces light so quotes read as the
+   customer's voice, not a heading. */
+@utility type-quote {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  font-size: 26px;
+  @media (width >= 768px) {
+    font-size: 32px;
+  }
+}
+
+@utility type-quote-review {
+  font-family: var(--font-display);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  font-size: 24px;
+  @media (width >= 768px) {
+    font-size: 28px;
+  }
 }
 
 @utility type-price {

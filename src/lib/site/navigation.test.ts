@@ -5,14 +5,15 @@ import {
   STATIC_PAGE_PATHS,
   UNLISTED_PAGE_PATHS,
   getAllMenuLinks,
+  getFooterColumns,
   isCurrentPath,
   isCurrentSection,
 } from "@/lib/site/navigation";
 
 describe("menu", () => {
-  it("has five or fewer top-level items (Style §4)", () => {
+  it("has six or fewer top-level items (Style §4)", () => {
     // Arrange
-    const maxTopLevelItems = 5;
+    const maxTopLevelItems = 6;
 
     // Act
     const count = MENU_SECTIONS.length;
@@ -23,13 +24,47 @@ describe("menu", () => {
 
   it("lists every page from the navigation reconciliation", () => {
     // Arrange
-    const expectedPaths = ["/listings", "/property-search", "/services/cwr-touchup", "/team", "/resources", "/connections", "/about", "/contact"];
+    const expectedPaths = [
+      "/listings",
+      "/property-search",
+      "/services/cwr-touchup",
+      "/services/property-management",
+      "/team",
+      "/resources",
+      "/connections",
+      "/about",
+      "/contact",
+    ];
 
     // Act
     const paths = getAllMenuLinks().map((link) => link.href);
 
     // Assert
     expect(paths).toEqual(expectedPaths);
+  });
+});
+
+describe("home link", () => {
+  it("leads the header menu", () => {
+    // Arrange
+    const expectedFirst = { kind: "link", label: "Home", href: "/" };
+
+    // Act
+    const first = MENU_SECTIONS[0];
+
+    // Assert
+    expect(first).toEqual(expectedFirst);
+  });
+
+  it("stays out of the footer, which links home through its logo", () => {
+    // Arrange
+    const homePath = "/";
+
+    // Act
+    const headings = getFooterColumns().filter((column) => column.links.some((link) => link.href === homePath));
+
+    // Assert
+    expect(headings).toEqual([]);
   });
 });
 

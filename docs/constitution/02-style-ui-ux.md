@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`).
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`).
 
 ## 1. Brand Identity
 
@@ -9,7 +9,7 @@
 - Serif display font for headings (matches logo), clean sans-serif for body text
 - Maximum two font families; use variable fonts to reduce load weight
 - Logo always has clear space equal to the height of the house icon
-- Imagery: real properties and people, warm natural light, no generic stock
+- Imagery: real properties and people, warm natural light, no generic stock. Exception (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): licensed stock photos on the Home hero, Home service cards, Home TouchUp band, Property Management service rows, and Services cards; licenses listed in `scripts/content/site-photos.json`
 
 ## 2. Readability (WCAG 2.2 AA)
 
@@ -31,7 +31,7 @@
 
 ## 4. Navigation (NN/g, WAI-ARIA APG)
 
-- Five or fewer top level items; keep primary links visible where possible
+- Six or fewer top level items (Home leads the menu, owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`); keep primary links visible where possible
 - Label menu items with words; icons alone are unclear to many users
 - Sticky, compact mobile header between 56px and 64px tall
 - Show the current page visually and with aria-current
@@ -106,6 +106,7 @@
 | `gold-hover` / `gold-active` | `#F0CD55` / `#C9A227` | Gold button hover / pressed | — |
 | `ink-hover` / `ink-active` | `#3A3A3A` / `#000000` | Black button hover / pressed | — |
 | `on-dark-hover` | White at 10% | Hover tint on `dark`: secondary buttons and menu links | — |
+| `dark-translucent` / hover | `dark` at 65% / 85% | Home hero headline panel and slideshow button, over photos only; white text stays at 5.8:1 or better over a white photo (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`) | Any surface that is not a photo |
 | `photo-placeholder` | `#DCD5C7` (light) / `#2B2B2B` (dark) | Image space before the photo loads | — |
 | `divider-dark` | `#333333` | Dividers on `dark` (`#2A2A2A` between mobile menu items) | — |
 
@@ -139,6 +140,7 @@ Status colors (always with an icon and words, never color alone):
 | Small | 15px | 15px | Manrope 400, `muted` | 1.5 | Helper text, captions, legal links |
 | Eyebrow | 14px | 14px | Manrope 600, uppercase, +0.12em | 1.4 | Label above a heading, after a 32×2px rule (`ink` on light, `gold` on dark), 12px gap |
 | Button | 17 / 16 / 15px (L/M/S) | same | Manrope 700, +0.01em | 1 | Buttons |
+| Quote | 32px (28px Home reviews) | 26px (24px Home reviews) | Fraunces **300** | 1.2 (1.25) | Customer quotes only (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`) |
 
 ### 11.3 Shape, borders, and elevation
 
@@ -180,7 +182,7 @@ Status colors (always with an icon and words, never color alone):
 | Disabled | Light: `#D6D6D6` fill, `#5E5E5E` text; dark: `#3A3A3A` fill, `#9A9A9A` text; `disabled` attribute |
 | Loading | 20px spinner plus a verb ("Sending…"); button keeps its width; `aria-busy="true"`; cannot be clicked twice |
 
-- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss, which carry `aria-label`)
+- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss and the Home hero pause/play button, 44×44px `dark-translucent`, which carry `aria-label`; the hero exception is an owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`)
 
 ### 11.6 Icons
 
@@ -204,7 +206,9 @@ Status colors (always with an icon and words, never color alone):
 | Hero, mobile | 4:3 | Edge to edge |
 | Listing card photo | 3:2 | Status tag at top left |
 | Feature photo (e.g., TouchUp band) | 3:2 | On a `dark` band |
-| Team portrait | 4:5 | Same size for all members |
+| Team portrait | 4:5 | Same size for all members; also partner portraits on Connections |
+| Video | 16:9 | CWR TouchUp video, max width 872px, loads on play (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`) |
+| Home hero slideshow | desktop `max(640px, 42.86vw)` tall, 16:9 tablet, 4:3 phone | Three photos cross-fade; the headline panel sits on the photo on desktop and below it on smaller screens (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`) |
 
 - Square corners, `object-fit: cover`, width and height set so space is reserved before loading
 - `photo-placeholder` background with the image-outline icon shows until the photo loads
@@ -216,6 +220,7 @@ Status colors (always with an icon and words, never color alone):
 
 - Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
 - Current page: 2px `gold` bar under the menu label plus `aria-current="page"`
+- With six menu items (owner choice 2026-09-26) the header phone link shows the gold icon plus "Call" from 1024px to 1279px, where the full number does not fit on one line; 1280px and wider show the number
 - Sub-menus (owner choice 2026-09-26, see §5): a mouse opens them by hovering after 150ms and they close 300ms after it leaves; moving straight to another menu name switches at once; one open at a time; a tap toggles on touch screens at any width; Escape, a link click, or focus leaving closes them
 - Menu hover (owner choice 2026-09-26): every link on `dark` — header menu, sub-page lists, header phone link, mobile menu, footer, admin sidebar and admin mobile menu — fades in an `on-dark-hover` tint over 200ms; mouse only (never sticks after a tap), same tint on keyboard focus, never on the current page, outline in high-contrast mode
 - Mobile header: 62px tall (meets Style §4 56–64px and Features §1 under 64px), `dark`, 16px side padding, sticky; 55px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px white border)
@@ -229,6 +234,8 @@ Status colors (always with an icon and words, never color alone):
 - **Listing card**: no box or background; 2px `ink` top rule; 3:2 photo; 16px gap below the photo; price, then address (Manrope 17px 600) and city (400, `muted`), then details row (Manrope 15px `muted`, 18px icons, 16px gaps): beds, baths, square feet; the whole card is one link; hover zooms the photo to 1.03 over 200ms and underlines the address
 - **Team card**: 4:5 portrait, name in Fraunces 24px (19px mobile), role in Manrope 16px `muted`; whole card is one link
 - **Resource card**: `surface-soft` fill, 2px `ink` top rule, 40px padding, eyebrow, H3 at 32px, body, "Read more" text link
+- **Service row** (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): 3:2 photo beside H3, bold 17px summary, and 18px check-icon points; desktop and tablet alternate the photo side, phones put the photo first; rows divided by 1px `line` (`divider-dark` on texture) under a 2px top rule
+- **Texture band** (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): `dark` with a tiled 8×8px crosshatch of `#2A2A2A` lines, Property Management only; white text 14:1 or better, no gradients
 - **Plan card** (owner approved 2026-09-26, seller consulting): cards side by side from 768px, stacked on phones; 24px padding (40px from 768px); eyebrow, H3, 15px summary, a bold "includes" line over a 1px divider, then items with 18px check icons and optional 15px detail lines; then an L "Ask for pricing" button, full width and pinned to the card bottom. Standard plan: `surface-soft` fill, 2px `ink` top rule, `ink` checks, L secondary button. Recommended plan: `dark` fill, 2px `gold` top rule, eyebrow with its gold rule, gold checks, `on-dark-muted` details, L gold main button. Add-ons follow as a 680px-wide list under a 2px `ink` rule: 18px icon, name, bold price, 1px `line` dividers
 
 ### 11.11 Forms
@@ -267,6 +274,7 @@ Status colors (always with an icon and words, never color alone):
 ### 11.14 Motion
 
 - 200ms ease-out for hover and color changes; 250ms for the mobile menu and chat panel opening; messages fade and slide 8px in 200ms
+- Home hero photos cross-fade over 1200ms every 6 seconds; reduced motion shows the first photo still until the visitor presses play (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`)
 - Animate only transform and opacity; with reduced motion turned on, changes happen instantly
 
 ### 11.15 Enforcement

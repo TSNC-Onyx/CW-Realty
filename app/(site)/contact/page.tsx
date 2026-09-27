@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 import { ContactForm } from "@/components/forms/contact-form";
-import { PageIntro } from "@/components/ui/page-intro";
-import { Section } from "@/components/ui/section";
+import { Eyebrow } from "@/components/ui/eyebrow";
+import { Container } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getContactLinks } from "@/lib/site/contact-links";
 import { fetchSiteSettings, type SiteSettings } from "@/lib/site/site-settings";
@@ -61,27 +61,32 @@ function ContactDetails({ settings }: { settings: SiteSettings | null }) {
   );
 }
 
+// Owner choice 2026-09-26: on desktop "Reach us directly" starts beside the title and floats
+// under the header while the form scrolls; on smaller screens it follows the intro.
 export default async function ContactPage() {
   const settings = await fetchSiteSettings();
   return (
-    <>
-      <PageIntro
-        eyebrow="Contact"
-        title="Contact us"
-        lead="Tell us what you're looking for and an agent will get back to you. Prefer to talk now? Call or text us."
-      />
-      <Section labelledBy="contact-form-heading">
-        <div className="grid gap-12 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <h2 id="contact-form-heading" className="type-h3 mb-6">Send us a message</h2>
-            <ContactForm contact={getContactLinks(settings)} />
-          </div>
-          <aside aria-labelledby="contact-details-heading" className="border-t-2 border-ink bg-surface-soft p-6 lg:col-span-4 lg:col-start-9 lg:p-10">
-            <h2 id="contact-details-heading" className="type-h3 mb-4">Reach us directly</h2>
-            <ContactDetails settings={settings} />
-          </aside>
+    <section aria-labelledby="contact-heading" className="bg-page pt-12 pb-12 lg:pt-24 lg:pb-24">
+      <Container className="contact-layout">
+        <div className="contact-layout-intro">
+          <Eyebrow>Contact</Eyebrow>
+          <h1 id="contact-heading" className="type-h1">Contact us</h1>
+          <p className="type-lead mt-4 max-w-prose">
+            Tell us what you&apos;re looking for and an agent will get back to you. Prefer to talk now? Call or text us.
+          </p>
         </div>
-      </Section>
-    </>
+        <aside
+          aria-labelledby="contact-details-heading"
+          className="contact-layout-aside mt-10 mb-12 border-t-2 border-ink bg-surface-soft p-6 lg:mt-0 lg:mb-0 lg:p-10"
+        >
+          <h2 id="contact-details-heading" className="type-h3 mb-4">Reach us directly</h2>
+          <ContactDetails settings={settings} />
+        </aside>
+        <div className="contact-layout-form lg:mt-12">
+          <h2 id="contact-form-heading" className="type-h3 mb-6">Send us a message</h2>
+          <ContactForm contact={getContactLinks(settings)} />
+        </div>
+      </Container>
+    </section>
   );
 }

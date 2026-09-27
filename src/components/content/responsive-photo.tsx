@@ -1,5 +1,6 @@
 import { PhotoPlaceholder, type PhotoRatio } from "@/components/ui/photo-placeholder";
-import { getPhotoSources } from "@/lib/content/media";
+import { getPhotoSources, getSitePhotoSources, type PhotoSources } from "@/lib/content/media";
+import type { SitePhoto } from "@/lib/content/site-photos";
 
 // Style §11.8: AVIF with WebP fallback, space reserved by the container ratio,
 // photo-placeholder background until the file loads, lazy unless it is the main photo.
@@ -11,19 +12,20 @@ const RATIO_CLASSES: Record<PhotoRatio, string> = {
   portrait: "aspect-portrait",
 };
 
-export type ResponsivePhotoProps = {
-  photo: { folder: string; alt: string; width: number; height: number } | null;
-  ratio: PhotoRatio;
+type PhotoFile = { alt: string; width: number; height: number };
+
+type PictureProps = {
+  photo: PhotoFile;
+  sources: PhotoSources;
   sizes: string;
-  isPriority?: boolean;
-  imageClassName?: string;
+  isPriority: boolean;
+  frameClassName: string;
+  imageClassName: string;
 };
 
-export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "" }: ResponsivePhotoProps) {
-  const sources = photo ? getPhotoSources({ folder: photo.folder, originalWidth: photo.width }) : null;
-  if (!photo || !sources) return <PhotoPlaceholder ratio={ratio} />;
+function Picture({ photo, sources, sizes, isPriority, frameClassName, imageClassName }: PictureProps) {
   return (
-    <picture className={`block overflow-hidden bg-photo-placeholder ${RATIO_CLASSES[ratio]}`}>
+    <picture className={`block overflow-hidden bg-photo-placeholder ${frameClassName}`}>
       <source type="image/avif" srcSet={sources.avifSrcSet} sizes={sizes} />
       <img
         src={sources.fallbackSrc}
@@ -38,5 +40,51 @@ export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, image
         className={`size-full object-cover ${imageClassName}`}
       />
     </picture>
+  );
+}
+
+export type ResponsivePhotoProps = {
+  photo: { folder: string; alt: string; width: number; height: number } | null;
+  ratio: PhotoRatio;
+  sizes: string;
+  isPriority?: boolean;
+  imageClassName?: string;
+};
+
+export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "" }: ResponsivePhotoProps) {
+  const sources = photo ? getPhotoSources({ folder: photo.folder, originalWidth: photo.width }) : null;
+  if (!photo || !sources) return <PhotoPlaceholder ratio={ratio} />;
+  return (
+    <Picture
+      photo={photo}
+      sources={sources}
+      sizes={sizes}
+      isPriority={isPriority}
+      frameClassName={RATIO_CLASSES[ratio]}
+      imageClassName={imageClassName}
+    />
+  );
+}
+
+export type SitePhotoImageProps = {
+  photo: SitePhoto;
+  sizes: string;
+  ratio?: PhotoRatio;
+  isPriority?: boolean;
+  frameClassName?: string;
+};
+
+/** A fixed-page photo this site serves; `frameClassName` replaces the ratio when the frame sets its own size. */
+export function SitePhotoImage({ photo, sizes, ratio = "photo", isPriority = false, frameClassName }: SitePhotoImageProps) {
+  const sources = getSitePhotoSources({ folder: photo.folder, originalWidth: photo.width });
+  return (
+    <Picture
+      photo={photo}
+      sources={sources}
+      sizes={sizes}
+      isPriority={isPriority}
+      frameClassName={frameClassName ?? RATIO_CLASSES[ratio]}
+      imageClassName=""
+    />
   );
 }

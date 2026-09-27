@@ -1,0 +1,18 @@
+{
+  "$comment": "Stock and brand photos shown on fixed pages (owner approval 2026-09-26, docs/cwr-site-review-round-plan.md). Unsplash photos are used under the Unsplash License (free commercial use, no attribution required); the TouchUp poster is CWR's own video frame. Run `npm run photos:site` to download and encode them into public/images/site. Optional \"aspect\" (width:height) crops a taller photo to its center band before encoding.",
+  "photos": [
+    { "name": "hero-farmhouse", "source": "https://images.unsplash.com/photo-1662505899914-1000c566477b?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Example of a white contemporary farmhouse on a suburban lot" },
+    { "name": "hero-living-room", "source": "https://images.unsplash.com/photo-1600210491892-03d54c0aaf87?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Example of a bright luxury living room with arched windows and a fireplace", "aspect": "4:3" },
+    { "name": "hero-patio", "source": "https://images.unsplash.com/photo-1783927409846-f5b0ab3bbf2e?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Example of a brick home with a timber-covered back patio", "aspect": "4:3" },
+    { "name": "home-porch", "source": "https://images.unsplash.com/photo-1604882234072-d5741489e0c0?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Front porch with wooden chairs and potted plants" },
+    { "name": "home-living-room", "source": "https://images.unsplash.com/photo-1656122381069-9ec666d95cf1?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Bright living room with large windows", "aspect": "3:2" },
+    { "name": "townhomes", "source": "https://images.unsplash.com/photo-1738796027443-b8d03fd07298?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Row of brick townhomes" },
+    { "name": "touchup-painter", "source": "https://images.unsplash.com/photo-1688372198189-de6a51777a81?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Professional painter in work coveralls painting an interior wall" },
+    { "name": "touchup-poster", "source": "https://static.wixstatic.com/media/aba887_27015a93973946a18effeb8abf7e4075f000.jpg", "license": "CWR", "alt": "Two-story home with a Charlie Ward Realty for-sale sign" },
+    { "name": "pm-family", "source": "https://images.unsplash.com/photo-1737649073335-6d0d683fae81?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Smiling family relaxing together on the couch at home" },
+    { "name": "pm-rent", "source": "https://images.unsplash.com/photo-1758526214018-a746f9554b8b?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Woman smiling as she pays with a card on her phone" },
+    { "name": "pm-repair", "source": "https://images.unsplash.com/photo-1676210134188-4c05dd172f89?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Repair technician tightening a pipe under a sink" },
+    { "name": "pm-swatches", "source": "https://images.unsplash.com/photo-1667400104764-a5fd01a919b0?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Hand holding paint and finish swatches over home plans", "aspect": "3:2" },
+    { "name": "pm-signing", "source": "https://images.unsplash.com/photo-1562564055-71e051d33c19?w=2400&q=90&fm=jpg", "license": "Unsplash", "alt": "Client signing paperwork beside an advisor at a table" }
+  ]
+}
