@@ -54,6 +54,9 @@
   --color-warning-tint: #fbf0d6;
   --color-info: #1f4e8c;
   --color-info-tint: #e6eef8;
+  /* Listing status dots on the dark status tag (owner choice 2026-09-27); Pending uses gold */
+  --color-status-active: #4caf6a;
+  --color-status-sold: #e5534b;
 
   /* §11.2 type: sizes (never under 14px), line heights, tracking, weights */
   --text-tag: 14px;
