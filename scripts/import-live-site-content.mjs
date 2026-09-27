@@ -1,6 +1,6 @@
-// Imports the current live-site listings, photos, team members, and connections (Phase 2,
-// task 11; connections added 2026-09-26).
-// Insert-only and safe to re-run: records that already exist (by slug, or by name for connections) are skipped and
+// Imports the current live-site listings, photos, team members, connections, and Homework
+// videos and guides (Phase 2, task 11; connections added 2026-09-26, Homework 2026-09-27).
+// Insert-only and safe to re-run: records that already exist (by slug, or by name or title for connections and Homework) are skipped and
 // never changed, so edits made later in the admin portal are kept.
 //
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/import-live-site-content.mjs
@@ -22,6 +22,18 @@ const QUALITY = { avif: 50, webp: 75 };
 // Removes solid frames that Wix graphics drew around some photos.
 const FRAME_TRIM_THRESHOLD = 80;
 const CONTENT_TYPES = { avif: "image/avif", webp: "image/webp" };
+// Homework files (src/lib/content/homework-rules.ts; supabase/config.toml cwr-files).
+const FILES_BUCKET = "cwr-files";
+// 50 MiB, the same limit as supabase/config.toml and the admin upload check.
+const FILES_BUCKET_LIMIT_BYTES = 50 * 1024 * 1024;
+const FILES_BUCKET_MIME_TYPES = [
+  "video/mp4",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/vtt",
+];
 
 class ImportError extends Error {
   constructor(message, context) {
@@ -52,7 +64,7 @@ function getCheckedResult({ data, error }, operation) {
 // ------------------------------------------------------------------ photos
 
 // Web addresses are downloaded; anything else is a file next to the content file.
-async function fetchSourceImage(sourceUrl) {
+async function fetchSourceBytes(sourceUrl) {
   if (!/^https?:\/\//.test(sourceUrl)) return readFile(new URL(sourceUrl, CONTENT_FILE));
   const response = await fetch(sourceUrl);
   if (!response.ok) throw new ImportError(`Download failed (${response.status})`, { sourceUrl });
@@ -79,7 +91,7 @@ async function uploadVariant(storage, { folder, width, format, body }) {
 
 /** Downloads one photo and stores every width/format variant; returns its original size. */
 async function importPhoto(storage, { source, crop, folder }) {
-  const image = await getPreparedImage(await fetchSourceImage(source), crop);
+  const image = await getPreparedImage(await fetchSourceBytes(source), crop);
   for (const width of photoLayout.widths) {
     for (const format of photoLayout.formats) {
       const body = await getVariant({ buffer: image.buffer, targetWidth: width, format });
@@ -102,9 +114,21 @@ async function ensureMediaBucket(storage) {
   getCheckedResult(result, "create bucket");
 }
 
+async function ensureFilesBucket(storage) {
+  const { data: bucket } = await storage.getBucket(FILES_BUCKET);
+  if (bucket) return;
+  const result = await storage.createBucket(FILES_BUCKET, { public: true, fileSizeLimit: FILES_BUCKET_LIMIT_BYTES, allowedMimeTypes: FILES_BUCKET_MIME_TYPES });
+  getCheckedResult(result, "create files bucket");
+}
+
 async function fetchTenantId(db) {
   const tenant = getCheckedResult(await db.from("tenants").select("id").eq("slug", TENANT_SLUG).single(), "find tenant");
   return tenant.id;
+}
+
+async function fetchExistingHomeworkTitles(db, tenantId) {
+  const rows = getCheckedResult(await db.from("homework_items").select("title").eq("tenant_id", tenantId), "read homework");
+  return new Set(rows.map((row) => row.title));
 }
 
 async function fetchExistingConnectionNames(db) {
@@ -160,6 +184,51 @@ async function importConnection(client, { tenantId, connection }) {
     photo_height: size?.height ?? null,
   };
   getCheckedResult(await client.from("connections").insert(row), `insert connection ${connection.fullName}`);
+}
+
+function getStorageFileName(fileName) {
+  const dot = fileName.lastIndexOf(".");
+  const base = fileName.slice(0, dot).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  return `${base || "file"}.${fileName.slice(dot + 1).toLowerCase()}`;
+}
+
+// Same layout as admin uploads: homework/<item id>/<upload id>/<file name> in cwr-files,
+// and cover pictures at homework/<item id>/<photo id> in cwr-media.
+async function importHomeworkFile(storage, { itemId, file }) {
+  const path = `homework/${itemId}/${randomUUID()}/${getStorageFileName(file.fileName)}`;
+  const body = await fetchSourceBytes(file.source);
+  const result = await storage.from(FILES_BUCKET).upload(path, body, { contentType: file.mime, upsert: false });
+  getCheckedResult(result, `upload ${path}`);
+  return { file_path: path, file_name: file.fileName, file_mime: file.mime, file_size_bytes: body.length };
+}
+
+async function importHomeworkCover(storage, { itemId, cover }) {
+  if (!cover) return {};
+  const folder = `homework/${itemId}/${randomUUID()}`;
+  const size = await importPhoto(storage, { source: cover.source, folder });
+  return { photo_path: folder, photo_alt: cover.alt, photo_width: size.width, photo_height: size.height };
+}
+
+async function importHomeworkItem(client, { tenantId, item }) {
+  const itemId = randomUUID();
+  const fileColumns = item.file ? await importHomeworkFile(client.storage, { itemId, file: item.file }) : {};
+  const coverColumns = await importHomeworkCover(client.storage, { itemId, cover: item.cover });
+  const row = {
+    id: itemId,
+    tenant_id: tenantId,
+    kind: item.kind,
+    group_key: item.group ?? null,
+    title: item.title,
+    description: item.description,
+    is_spanish: item.isSpanish ?? false,
+    duration_seconds: item.durationSeconds ?? null,
+    link_url: item.linkUrl ?? null,
+    sort_order: item.sortOrder,
+    is_visible: true,
+    ...fileColumns,
+    ...coverColumns,
+  };
+  getCheckedResult(await client.from("homework_items").insert(row), `insert homework ${item.title}`);
 }
 
 // All downloads and uploads happen before any listing row exists, so an interrupted
@@ -252,12 +321,19 @@ async function importAll(client, content) {
     await importConnection(client, { tenantId, connection });
     console.log(`Imported connection ${connection.fullName}`);
   }
+  const existingHomework = await fetchExistingHomeworkTitles(client, tenantId);
+  for (const item of content.homework ?? []) {
+    if (existingHomework.has(item.title)) continue;
+    await importHomeworkItem(client, { tenantId, item });
+    console.log(`Imported homework ${item.title}`);
+  }
 }
 
 async function main() {
   const content = JSON.parse(readFileSync(CONTENT_FILE, "utf8"));
   const client = getAdminClient();
   await ensureMediaBucket(client.storage);
+  await ensureFilesBucket(client.storage);
   await importAll(client, content);
   console.log("Content import finished.");
 }

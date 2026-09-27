@@ -123,6 +123,20 @@ public = true
 file_size_limit = "10MiB"
 allowed_mime_types = ["image/avif", "image/webp"]
 
+# Public Homework videos, guides, and captions (Round 2 of docs/cwr-site-review-round-plan.md).
+# Staff upload through one-time signed links issued by the server after checking their role.
+[storage.buckets.cwr-files]
+public = true
+file_size_limit = "50MiB"
+allowed_mime_types = [
+  "video/mp4",
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/vtt",
+]
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false

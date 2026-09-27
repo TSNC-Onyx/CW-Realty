@@ -61,6 +61,8 @@ export function getContentSecurityPolicy(options: ContentSecurityPolicyOptions):
     `style-src ${getStyleSources(options)}`,
     `img-src 'self' blob: data:${supabaseSource}${getTrackerSources(options, TRACKER_IMAGE_SOURCES)}`,
     "font-src 'self'",
+    // Homework videos and their captions play from the public cwr-files storage bucket.
+    `media-src 'self'${supabaseSource}`,
     `connect-src 'self'${supabaseSource}${getTrackerSources(options, TRACKER_CONNECT_SOURCES)}`,
     "worker-src 'self'",
     // Cloudflare Turnstile (bot check on forms) runs in a frame from this host.

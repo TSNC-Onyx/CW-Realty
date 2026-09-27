@@ -1,5 +1,5 @@
 {
-  "$comment": "Content from the current Wix site (charliewardrealty.com, read 2026-09-25; connections added 2026-09-26), lightly edited for spelling and plain language. Imported once by scripts/import-live-site-content.mjs; the owner corrects it in the admin portal.",
+  "$comment": "Content from the current Wix site (charliewardrealty.com, read 2026-09-25; connections added 2026-09-26; homework added 2026-09-27), lightly edited for spelling and plain language. Imported once by scripts/import-live-site-content.mjs; the owner corrects it in the admin portal.",
   "listings": [
     {
       "slug": "5423-pine-level-dr-browns-summit-nc",
@@ -291,6 +291,109 @@
         "source": "https://static.wixstatic.com/media/aba887_75f51075df4241d6b1d9cdcb3a7a0533~mv2.jpg",
         "alt": "Portrait of Matthew Young"
       }
+    }
+  ],
+  "homework": [
+    {
+      "kind": "video",
+      "title": "Do the math",
+      "description": "Charlie Ward on creating generational wealth with real estate.",
+      "sortOrder": 1,
+      "durationSeconds": 74,
+      "file": {
+        "source": "https://video.wixstatic.com/video/aba887_ed0966a7cc1d46b597efa4703d07c04c/480p/mp4/file.mp4",
+        "fileName": "Do the math.mp4",
+        "mime": "video/mp4"
+      },
+      "cover": {
+        "source": "https://static.wixstatic.com/media/aba887_ed0966a7cc1d46b597efa4703d07c04cf000.jpg",
+        "alt": "Title card: Creating generational wealth with real estate"
+      }
+    },
+    {
+      "kind": "video",
+      "title": "Buyers working with real estate agents",
+      "description": "What a buyer's agent does for you and how the relationship works in North Carolina.",
+      "sortOrder": 2,
+      "durationSeconds": 283,
+      "file": {
+        "source": "https://video.wixstatic.com/video/aba887_d64509a2fbc34dff8608b229b434e98e/480p/mp4/file.mp4",
+        "fileName": "Buyers working with real estate agents.mp4",
+        "mime": "video/mp4"
+      },
+      "cover": {
+        "source": "https://static.wixstatic.com/media/aba887_d64509a2fbc34dff8608b229b434e98ef000.jpg",
+        "alt": "Title card with the North Carolina Real Estate Commission seal"
+      }
+    },
+    {
+      "kind": "file",
+      "group": "buyers",
+      "title": "Four basic steps in buying a home",
+      "description": "The path from pre-approval to closing day, one step at a time.",
+      "sortOrder": 1,
+      "file": {
+        "source": "https://www.charliewardrealty.com/_files/ugd/aba887_07c9242380214547bed1fa65b99b3a99.pdf",
+        "fileName": "Four basic steps in buying a home.pdf",
+        "mime": "application/pdf"
+      }
+    },
+    {
+      "kind": "file",
+      "group": "sellers",
+      "title": "Listing with CWR",
+      "description": "How we price, market, and show your home, and what we ask of you along the way.",
+      "sortOrder": 1,
+      "file": {
+        "source": "https://www.charliewardrealty.com/_files/ugd/aba887_4d101331654047b4a56577572e402f02.pdf",
+        "fileName": "Listing with CWR.pdf",
+        "mime": "application/pdf"
+      }
+    },
+    {
+      "kind": "file",
+      "group": "sellers",
+      "title": "Video and showing prep",
+      "description": "Simple ways to get each room ready for photos, video, and showings.",
+      "sortOrder": 2,
+      "file": {
+        "source": "https://www.charliewardrealty.com/_files/ugd/aba887_46bce7ad9e2340c39712fac41734637d.pdf",
+        "fileName": "Video and showing prep.pdf",
+        "mime": "application/pdf"
+      }
+    },
+    {
+      "kind": "file",
+      "group": "sellers",
+      "title": "CWR TouchUp",
+      "description": "Small changes before you list that can raise your sale price, with nothing due up front.",
+      "sortOrder": 3,
+      "file": {
+        "source": "https://www.charliewardrealty.com/_files/ugd/aba887_29a739200c024640b0835968e54f464d.pdf",
+        "fileName": "CWR TouchUp.pdf",
+        "mime": "application/pdf"
+      }
+    },
+    {
+      "kind": "file",
+      "group": "spanish",
+      "title": "Vender su casa",
+      "description": "Información en español para vender su casa con CWR.",
+      "sortOrder": 1,
+      "isSpanish": true,
+      "file": {
+        "source": "https://www.charliewardrealty.com/_files/ugd/aba887_07d13f4390eb424a8875da2b90e3d85b.pptx",
+        "fileName": "Vender su casa.pptx",
+        "mime": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+      }
+    },
+    {
+      "kind": "link",
+      "group": "required",
+      "title": "Working with real estate agents",
+      "description": "The North Carolina Real Estate Commission's guide to how agents work for buyers and sellers.",
+      "sortOrder": 1,
+      "linkUrl": "https://www.ncrec.gov/Brochures/Print/WWREAPrint.pdf"
     }
   ]
 }

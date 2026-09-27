@@ -26,6 +26,7 @@ export const ADMIN_AREAS: AdminArea[] = [
   { key: "listings", label: "Listings", href: "/admin/listings", description: "Add, edit, reorder, and publish featured properties.", group: "website", roles: EDITOR_ROLES },
   { key: "team", label: "Team", href: "/admin/team", description: "Update profiles, photos, order, and who is shown.", group: "website", roles: EDITOR_ROLES },
   { key: "connections", label: "Connections", href: "/admin/connections", description: "Add, edit, reorder, and show or hide referral partners.", group: "website", roles: EDITOR_ROLES },
+  { key: "homework", label: "Homework", href: "/admin/homework", description: "Upload and arrange the videos and guides on the Homework page.", group: "website", roles: EDITOR_ROLES },
   { key: "contact", label: "Contact & footer", href: "/admin/contact", description: "Phone, email, contact names, office address, and footer text.", group: "website", roles: EDITOR_ROLES },
   { key: "notifications", label: "Notifications", href: "/admin/notifications", description: "Choose who gets email alerts, and check they arrive.", group: "settings", roles: EDITOR_ROLES },
   { key: "chat-policy", label: "Chatbot policy", href: "/admin/chat-policy", description: "Write, test, and publish what the chat assistant may answer.", group: "settings", roles: OWNER_ROLES },
