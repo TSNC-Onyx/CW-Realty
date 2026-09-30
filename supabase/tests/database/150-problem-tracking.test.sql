@@ -2,7 +2,7 @@
 -- flood and spike rules, alert digests, the status workflow, recipient guard, retention,
 -- and the database watchdog.
 begin;
-select plan(49);
+select plan(50);
 select cwr_test.create_fixture();
 
 -- Records one problem for tenant A as the server (service role) and returns the result.
@@ -291,6 +291,11 @@ select cwr.touch_health_check('photo_cleanup', true, null, cwr_test.id('tenant_a
 select isnt((select last_ok_at from cwr.health_checks where tenant_id = cwr_test.id('tenant_a') and name = 'photo_cleanup'), null, 'A successful clean-up clears the alarm, even when it never succeeded before');
 
 select is(cwr.get_scrubbed_text('Your code 123456 did not work', 300), 'Your code [number] did not work', 'Six-digit codes are scrubbed');
+
+select is_empty(
+  $$ select 1 from cwr.health_checks h join cwr.tenants t on t.id = h.tenant_id where t.slug = 'cwr' and h.name = 'problem_alerts' $$,
+  'While problem emails are paused, the paused sender is not watched (20260930000100)'
+);
 
 select * from finish();
 rollback;

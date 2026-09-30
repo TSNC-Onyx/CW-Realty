@@ -2,6 +2,7 @@ import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import { getHealthNotices, type HealthCheck } from "@/lib/admin/health/health-notices";
 import type { LoadResult } from "@/lib/admin/load-result";
+import { ARE_PROBLEM_EMAILS_PAUSED } from "@/lib/jobs/problem-alert-schedule";
 import type { LoadProblemNotice } from "@/lib/admin/report-page-load";
 
 // Owners only: a notice for each background check that has gone quiet or keeps failing.
@@ -10,6 +11,13 @@ type HealthNoticesProps = { checks: LoadResult<HealthCheck[]>; problemRecipientC
 
 // Owner decision D4: until an owner chooses someone, problems are recorded but no one is emailed.
 function NoProblemRecipientsNotice({ problemRecipientCount }: { problemRecipientCount: LoadResult<number> }) {
+  if (ARE_PROBLEM_EMAILS_PAUSED) {
+    return (
+      <Message tone="info" title="Problem emails are paused">
+        <p>Problems are still recorded. No one is emailed about them until emails resume.</p>
+      </Message>
+    );
+  }
   if (!problemRecipientCount.isLoaded || problemRecipientCount.data > 0) return null;
   return (
     <Message tone="warning" title="No one gets problem emails yet">

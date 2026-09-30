@@ -13,6 +13,7 @@ import { fetchRecentDeliveries, fetchRecipients, type Delivery, type Recipient }
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, OWNER_ROLES, hasRole, requireAdminPage } from "@/lib/admin/require-admin";
 import { isEmailConfigured } from "@/lib/email/send-email";
+import { ARE_PROBLEM_EMAILS_PAUSED } from "@/lib/jobs/problem-alert-schedule";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -25,6 +26,7 @@ const KIND_LABELS: Record<Delivery["kind"], string> = {
 };
 const OWNER_NO_PROBLEM_RECIPIENT = "No one gets problem emails yet — switch someone on below. Problems are still recorded.";
 const MANAGER_NO_PROBLEM_RECIPIENT = "No one gets problem emails yet — only an owner can switch someone on. Problems are still recorded.";
+const PROBLEM_EMAILS_PAUSED = "Problem emails are paused for now, so no one is emailed about them yet. Problems are still recorded, and the people switched on below will get them once emails resume.";
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
 function RecipientNotices({ recipients, isOwner }: { recipients: Recipient[]; isOwner: boolean }) {
@@ -37,7 +39,12 @@ function RecipientNotices({ recipients, isOwner }: { recipients: Recipient[]; is
           <p>Add at least one person so new requests aren&apos;t missed.</p>
         </Message>
       )}
-      {!hasProblemRecipient && (
+      {ARE_PROBLEM_EMAILS_PAUSED && (
+        <Message tone="info" title="Problem emails are paused">
+          <p>{PROBLEM_EMAILS_PAUSED}</p>
+        </Message>
+      )}
+      {!ARE_PROBLEM_EMAILS_PAUSED && !hasProblemRecipient && (
         <Message tone="warning" title="Problem emails are off">
           <p>{isOwner ? OWNER_NO_PROBLEM_RECIPIENT : MANAGER_NO_PROBLEM_RECIPIENT}</p>
         </Message>
