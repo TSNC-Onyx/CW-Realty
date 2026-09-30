@@ -58,21 +58,23 @@ function ConnectionRow({ connection, isFirst, isLast }: { connection: Connection
           Edit
           <span className="sr-only">{connection.fullName}</span>
         </Link>
-        <QuickActionButton label="Up" accessibleLabel={`Move ${connection.fullName} up`} icon={ArrowUp} isDisabled={isFirst} onRun={() => moveConnectionAction(connection.id, "up")} />
-        <QuickActionButton label="Down" accessibleLabel={`Move ${connection.fullName} down`} icon={ArrowDown} isDisabled={isLast} onRun={() => moveConnectionAction(connection.id, "down")} />
+        <QuickActionButton label="Up" accessibleLabel={`Move ${connection.fullName} up`} icon={ArrowUp} isDisabled={isFirst} problemAction="connections.move" onRun={() => moveConnectionAction(connection.id, "up")} />
+        <QuickActionButton label="Down" accessibleLabel={`Move ${connection.fullName} down`} icon={ArrowDown} isDisabled={isLast} problemAction="connections.move" onRun={() => moveConnectionAction(connection.id, "down")} />
         <QuickActionButton
           label={connection.isVisible ? "Hide" : "Show"}
           accessibleLabel={`${connection.isVisible ? "Hide" : "Show"} ${connection.fullName}`}
           icon={connection.isVisible ? EyeOff : Eye}
+          problemAction="connections.set_visibility"
           onRun={() => setConnectionVisibilityAction(connection.id, !connection.isVisible)}
-          undo={{ label: "Undo", onRun: () => setConnectionVisibilityAction(connection.id, connection.isVisible) }}
+          undo={{ label: "Undo", problemAction: "connections.set_visibility", onRun: () => setConnectionVisibilityAction(connection.id, connection.isVisible) }}
         />
         <QuickActionButton
           label="Trash"
           accessibleLabel={`Move ${connection.fullName} to trash`}
           icon={Trash2}
+          problemAction="trash.move_to_trash"
           onRun={() => moveToTrashAction(trashTarget)}
-          undo={{ label: "Undo", onRun: () => restoreFromTrashAction(trashTarget) }}
+          undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction(trashTarget) }}
         />
       </div>
     </li>

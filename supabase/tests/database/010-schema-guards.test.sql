@@ -11,7 +11,8 @@ select is_empty(
 select is_empty(
   $$ select c.relname from pg_class c
      where c.relnamespace = 'cwr'::regnamespace and c.relkind = 'r'
-       and c.relname not in ('audit_log', 'idempotency_keys')
+       -- Append-only logs, reference data, and system state are excluded on purpose.
+       and c.relname not in ('audit_log', 'idempotency_keys', 'problem_events', 'problem_catalog', 'problem_alert_runs', 'health_checks')
        and not exists (
          select 1 from pg_trigger t
          where t.tgrelid = c.oid and t.tgfoid = 'cwr.record_audit'::regproc
@@ -44,14 +45,14 @@ select ok(
 
 select is(
   (select count(*)::int from cwr.workflows w join cwr.tenants t on t.id = w.tenant_id where t.slug = 'cwr'),
-  4,
-  'The CWR tenant exists with its four workflows installed'
+  5,
+  'The CWR tenant exists with its five workflows installed'
 );
 
 select set_eq(
   $$ select jobname from cron.job where jobname like 'cwr\_%' $$,
-  array['cwr_purge_trash', 'cwr_purge_closed_conversations', 'cwr_purge_idempotency_keys', 'cwr_purge_audit_log'],
-  'Retention jobs are scheduled'
+  array['cwr_purge_trash', 'cwr_purge_closed_conversations', 'cwr_purge_idempotency_keys', 'cwr_purge_audit_log', 'cwr_check_scheduled_jobs', 'cwr_purge_problems'],
+  'Retention and watchdog jobs are scheduled'
 );
 
 select is_empty(

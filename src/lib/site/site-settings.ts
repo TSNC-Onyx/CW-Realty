@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { z } from "zod";
 
+import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supabase/public-client";
 import type { E164Phone } from "@/lib/site/phone";
 
@@ -85,3 +86,13 @@ export const fetchSiteSettings = cache(async (): Promise<SiteSettings | null> =>
     return null;
   }
 });
+
+/** For admin pages: a failed load is a failure to show and record, not "no settings". */
+export async function fetchSiteSettingsLoad(): Promise<LoadResult<SiteSettings | null>> {
+  try {
+    const row = await fetchSiteSettingsRow();
+    return getLoaded(row ? getSiteSettingsFromRow(row) : null);
+  } catch (error) {
+    return getLoadFailure("siteSettings", { message: error instanceof Error ? error.message : String(error) });
+  }
+}

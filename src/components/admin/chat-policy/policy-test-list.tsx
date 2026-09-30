@@ -23,8 +23,9 @@ export function PolicyTestList({ tests }: { tests: PolicyTestRow[] }) {
             label="Remove"
             accessibleLabel={`Remove test question: ${test.question}`}
             icon={Trash2}
+            problemAction="chat_policy.remove_test"
             onRun={() => removePolicyTestAction(test.id)}
-            undo={{ label: "Undo", onRun: () => restorePolicyTestAction({ question: test.question, expectedOutcome: test.expectedOutcome, expectedSection: test.expectedSection ?? "" }) }}
+            undo={{ label: "Undo", problemAction: "chat_policy.restore_test", onRun: () => restorePolicyTestAction({ question: test.question, expectedOutcome: test.expectedOutcome, expectedSection: test.expectedSection ?? "" }) }}
           />
         </li>
       ))}

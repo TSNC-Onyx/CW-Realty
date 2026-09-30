@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { LoadProblem } from "@/components/admin/load-problem";
 import { TextLink } from "@/components/ui/text-link";
 import { fetchChatSession, type ChatMessageRow } from "@/lib/admin/chats/queries";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
 export const metadata: Metadata = { title: "Chat" };
@@ -23,7 +25,18 @@ export default async function ChatPage({ params }: ChatPageProps) {
   const admin = await requireAdminPage(EDITOR_ROLES);
   const sessionId = z.uuid().safeParse(id);
   if (!sessionId.success) notFound();
-  const session = await fetchChatSession(admin, sessionId.data);
+  const sessionLoad = await fetchChatSession(admin, sessionId.data);
+  if (!sessionLoad.isLoaded) {
+    return (
+      <>
+        <TextLink href="/admin/chats">Back to chat history</TextLink>
+        <div className="mt-4 max-w-prose">
+          <LoadProblem notice={await reportPageLoad({ admin, action: "chats.load", results: [sessionLoad] })} title="This chat didn't load" />
+        </div>
+      </>
+    );
+  }
+  const session = sessionLoad.data;
   if (!session) notFound();
   return (
     <>

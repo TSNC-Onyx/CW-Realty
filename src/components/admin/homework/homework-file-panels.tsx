@@ -86,13 +86,14 @@ export function CoverPanel({ itemId, title, cover }: { itemId: string; title: st
               label="Remove cover picture"
               accessibleLabel={`Remove the cover picture of ${title}`}
               icon={ImageOff}
+              problemAction="homework.remove_cover"
               onRun={() => removeHomeworkCoverAction(itemId)}
-              undo={{ label: "Undo", onRun: () => setHomeworkCoverAction({ itemId, ...cover }) }}
+              undo={{ label: "Undo", problemAction: "homework.set_cover", onRun: () => setHomeworkCoverAction({ itemId, ...cover }) }}
             />
           </div>
         </div>
       )}
-      <PhotoPicker target={{ kind: "homework", recordId: itemId }} buttonLabel={cover ? "Replace cover picture" : "Add cover picture"} onUploaded={(uploaded, alt) => setHomeworkCoverAction({ itemId, ...uploaded, alt })} />
+      <PhotoPicker target={{ kind: "homework", recordId: itemId }} buttonLabel={cover ? "Replace cover picture" : "Add cover picture"} saveProblemAction="homework.set_cover" onUploaded={(uploaded, alt) => setHomeworkCoverAction({ itemId, ...uploaded, alt })} />
     </section>
   );
 }
@@ -104,7 +105,7 @@ export function CaptionsPanel({ itemId, title, hasCaptions }: { itemId: string; 
       {hasCaptions ? (
         <div className="flex max-w-form flex-wrap items-center gap-4">
           <CurrentFile icon={Captions} file={{ name: "Captions added", detail: "Visitors can turn them on in the video player." }} />
-          <QuickActionButton label="Remove captions" accessibleLabel={`Remove the captions of ${title}`} icon={Trash2} onRun={() => removeHomeworkCaptionsAction(itemId)} />
+          <QuickActionButton label="Remove captions" accessibleLabel={`Remove the captions of ${title}`} icon={Trash2} problemAction="homework.remove_captions" onRun={() => removeHomeworkCaptionsAction(itemId)} />
         </div>
       ) : (
         <div className="max-w-form">

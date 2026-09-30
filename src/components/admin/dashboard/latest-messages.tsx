@@ -3,9 +3,12 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { InboxStatusLabel } from "@/components/admin/inbox/inbox-status";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SOURCE_LABELS } from "@/lib/admin/inbox/inbox-labels";
 import type { InboxThreadSummary } from "@/lib/admin/inbox/queries";
+import type { LoadResult } from "@/lib/admin/load-result";
+import type { LoadProblemNotice } from "@/lib/admin/report-page-load";
 
 // The newest open requests, so the day starts from the dashboard (Admin §5).
 
@@ -27,7 +30,33 @@ function MessageRow({ thread }: { thread: InboxThreadSummary }) {
   );
 }
 
-export function LatestMessages({ threads, emptyAction }: { threads: InboxThreadSummary[]; emptyAction: ReactNode }) {
+type LatestMessagesProps = { threads: LoadResult<InboxThreadSummary[]>; emptyAction: ReactNode; notice: LoadProblemNotice | null };
+
+function LatestMessagesBody({ threads, emptyAction, notice }: LatestMessagesProps) {
+  if (!threads.isLoaded) {
+    return (
+      <div className="mt-6">
+        <LoadProblem notice={notice} />
+      </div>
+    );
+  }
+  if (threads.data.length === 0) {
+    return (
+      <div className="mt-6">
+        <EmptyState icon={Inbox} titleId="latest-empty" title="No open messages" description="Contact, TouchUp, and chat requests from the website appear here as they arrive." action={emptyAction} />
+      </div>
+    );
+  }
+  return (
+    <ul>
+      {threads.data.map((thread) => (
+        <MessageRow key={thread.id} thread={thread} />
+      ))}
+    </ul>
+  );
+}
+
+export function LatestMessages(props: LatestMessagesProps) {
   return (
     <section aria-labelledby="latest-heading">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 border-b-2 border-ink pb-2">
@@ -38,17 +67,7 @@ export function LatestMessages({ threads, emptyAction }: { threads: InboxThreadS
           Open inbox
         </Link>
       </div>
-      {threads.length === 0 ? (
-        <div className="mt-6">
-          <EmptyState icon={Inbox} titleId="latest-empty" title="No open messages" description="Contact, TouchUp, and chat requests from the website appear here as they arrive." action={emptyAction} />
-        </div>
-      ) : (
-        <ul>
-          {threads.map((thread) => (
-            <MessageRow key={thread.id} thread={thread} />
-          ))}
-        </ul>
-      )}
+      <LatestMessagesBody {...props} />
     </section>
   );
 }

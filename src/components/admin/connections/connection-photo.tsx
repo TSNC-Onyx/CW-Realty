@@ -22,14 +22,16 @@ export function ConnectionPhoto({ connectionId, fullName, photo }: ConnectionPho
             label="Remove photo"
             accessibleLabel={`Remove ${fullName}'s photo`}
             icon={ImageOff}
+            problemAction="connections.remove_photo"
             onRun={() => removeConnectionPhotoAction(connectionId)}
-            undo={{ label: "Undo", onRun: () => setConnectionPhotoAction({ connectionId, ...photo }) }}
+            undo={{ label: "Undo", problemAction: "connections.set_photo", onRun: () => setConnectionPhotoAction({ connectionId, ...photo }) }}
           />
         </div>
       )}
       <PhotoPicker
         target={{ kind: "connection", recordId: connectionId }}
         buttonLabel={photo ? "Replace photo" : "Add photo"}
+        saveProblemAction="connections.set_photo"
         onUploaded={(uploaded, alt) => setConnectionPhotoAction({ connectionId, ...uploaded, alt })}
       />
       <p className="type-small max-w-prose text-muted">A portrait works best, at least 800 × 1000 pixels. It is cropped to fit.</p>

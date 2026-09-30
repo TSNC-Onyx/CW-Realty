@@ -8,6 +8,8 @@ import { useUnsavedChanges } from "@/components/admin/use-unsaved-changes";
 import { getButtonClassName } from "@/components/ui/button-link";
 import type { QuickResult } from "@/lib/admin/quick-result";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { callQuickAction } from "@/lib/observability/call-server-action";
+import type { ProblemAction } from "@/lib/observability/problem-catalog";
 
 type ThreadComposerProps = {
   label: string;
@@ -15,11 +17,13 @@ type ThreadComposerProps = {
   buttonLabel: string;
   pendingLabel: string;
   kind: "reply" | "note";
+  /** Catalog name of the action, so a call that fails outright is recorded under it. */
+  problemAction: ProblemAction;
   onSend: (text: string) => Promise<QuickResult>;
 };
 
 // A reply or note box: keeps the text if sending fails, warns before leaving with a draft.
-export function ThreadComposer({ label, helperText, buttonLabel, pendingLabel, kind, onSend }: ThreadComposerProps) {
+export function ThreadComposer({ label, helperText, buttonLabel, pendingLabel, kind, problemAction, onSend }: ThreadComposerProps) {
   const Icon = kind === "reply" ? Send : NotebookPen;
   const textareaId = useId();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -30,7 +34,8 @@ export function ThreadComposer({ label, helperText, buttonLabel, pendingLabel, k
 
   const handleSend = () =>
     startTransition(async () => {
-      const result = await onSend(textareaRef.current?.value ?? "");
+      const text = textareaRef.current?.value ?? "";
+      const result = await callQuickAction(problemAction, () => onSend(text));
       showToast({ tone: result.status === "success" ? "success" : "error", title: result.message });
       if (result.status !== "success" || !textareaRef.current) return;
       textareaRef.current.value = "";

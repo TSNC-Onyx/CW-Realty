@@ -5,6 +5,13 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  // Admin, job, and Worker code records problems through the problem log, never bare console
+  // lines (docs/cwr-error-tracking-plan.md); only the recorder itself writes to the console.
+  {
+    files: ["src/lib/admin/**", "src/components/admin/**", "app/admin/**", "src/lib/jobs/**", "worker.ts"],
+    ignores: ["**/*.test.ts"],
+    rules: { "no-console": "error" },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

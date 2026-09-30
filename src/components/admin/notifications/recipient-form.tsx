@@ -14,7 +14,7 @@ const SOURCES = Object.keys(SOURCE_LABELS) as InboxSource[];
 
 export function RecipientForm() {
   const legendId = useId();
-  const { state, isPending, formRef, handleSubmit } = useAdminForm(addRecipientAction, { onSuccess: () => formRef.current?.reset() });
+  const { state, isPending, formRef, handleSubmit } = useAdminForm(addRecipientAction, { problemAction: "notifications.add_recipient", onSuccess: () => formRef.current?.reset() });
   return (
     <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid max-w-form gap-6">
       <AdminField name="fullName" label="Name" defaultValue={state.values.fullName} error={state.fieldErrors.fullName} />

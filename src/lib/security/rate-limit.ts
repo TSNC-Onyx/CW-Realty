@@ -8,6 +8,7 @@ import { getCloudflareBinding } from "@/lib/platform/cloudflare-bindings";
 
 const FORM_RATE_LIMITER = "FORM_RATE_LIMITER";
 const CHAT_RATE_LIMITER = "CHAT_RATE_LIMITER";
+const PROBLEM_REPORT_RATE_LIMITER = "PROBLEM_REPORT_RATE_LIMITER";
 
 type RateLimiter = { limit: (options: { key: string }) => Promise<{ success: boolean }> };
 
@@ -32,4 +33,8 @@ export async function isOverFormLimit(visitorKey: string | null): Promise<boolea
 
 export async function isOverChatLimit(visitorKey: string | null): Promise<boolean> {
   return isOverLimit({ bindingName: CHAT_RATE_LIMITER, keyPrefix: "chat", visitorKey });
+}
+
+export async function isOverProblemReportLimit(visitorKey: string | null): Promise<boolean> {
+  return isOverLimit({ bindingName: PROBLEM_REPORT_RATE_LIMITER, keyPrefix: "problem", visitorKey });
 }

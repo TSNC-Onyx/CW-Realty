@@ -95,3 +95,42 @@ export function getTestAlert(recipient: string): OutgoingEmail {
   const body = "This is a test alert from the CWR website. If you can read this, new requests will reach you.";
   return { to: { email: recipient }, subject: "Test alert from the CWR website", text: body, html: `<p>${getEscapedHtml(body)}</p>` };
 }
+
+export type ProblemDigestGroup = {
+  section: string;
+  label: string;
+  severity: "info" | "warning" | "error" | "critical";
+  count: number;
+  last_seen_at: string;
+  reference: string | null;
+};
+
+const PROBLEM_SEVERITY_LABELS: Record<ProblemDigestGroup["severity"], string> = { critical: "Urgent", error: "Problem", warning: "Warning", info: "Note" };
+
+function getEasternTime(isoTime: string): string {
+  return new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", dateStyle: "medium", timeStyle: "short" }).format(new Date(isoTime));
+}
+
+function getProblemLine(group: ProblemDigestGroup): string {
+  const times = group.count === 1 ? "once" : `${group.count} times`;
+  const reference = group.reference ? ` Reference: ${group.reference}.` : "";
+  return `${PROBLEM_SEVERITY_LABELS[group.severity]} — ${group.section}: ${group.label}. Happened ${times}, most recently ${getEasternTime(group.last_seen_at)}.${reference}`;
+}
+
+/**
+ * The problem-alert digest (docs/cwr-error-tracking-plan.md). Built only from catalog labels,
+ * counts, times, and reference codes — never text anyone typed — so no personal data or
+ * attacker-chosen words reach the inbox.
+ */
+export function getProblemDigest({ groups, recipient, adminUrl }: { groups: ProblemDigestGroup[]; recipient: string; adminUrl: string }): OutgoingEmail {
+  const isUrgent = groups.some((group) => group.severity === "critical");
+  const lines = groups.map(getProblemLine);
+  const intro = "Something on the CWR website isn't working as it should. These are problems people ran into in the admin portal:";
+  const footer = "Quote a reference code to your developer to find the details. The admin portal:";
+  return {
+    to: { email: recipient },
+    subject: `${isUrgent ? "Urgent: " : ""}CWR website problem${groups.length === 1 ? "" : "s"} need attention`,
+    text: [intro, "", ...lines, "", `${footer} ${adminUrl}`].join("\n"),
+    html: `<p>${getEscapedHtml(intro)}</p><ul>${lines.map((line) => `<li>${getEscapedHtml(line)}</li>`).join("")}</ul><p>${getEscapedHtml(footer)} <a href="${getEscapedHtml(adminUrl)}">${getEscapedHtml(adminUrl)}</a></p>`,
+  };
+}

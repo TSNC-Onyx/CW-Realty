@@ -2,24 +2,28 @@
 
 import { AdminField } from "@/components/admin/admin-field";
 import { AuthForm } from "@/components/admin/auth/auth-form";
-import { TurnstileField } from "@/components/forms/turnstile-field";
+import { SignInBotCheck } from "@/components/admin/auth/sign-in-bot-check";
 import { useAuthForm } from "@/components/admin/auth/use-auth-form";
 import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import { requestPasswordResetAction, setPasswordAction } from "@/lib/admin/auth-actions";
 import { MIN_PASSWORD_LENGTH } from "@/lib/admin/auth-schemas";
+import { withCallReporting } from "@/lib/observability/call-server-action";
+
+const reportedPasswordResetAction = withCallReporting("auth.request_password_reset", requestPasswordResetAction);
+const reportedSetPasswordAction = withCallReporting("auth.set_password", setPasswordAction);
 
 export function ForgotPasswordForm() {
-  const { state, isPending, handleSubmit } = useAuthForm(requestPasswordResetAction, IDLE_ACTION_STATE);
+  const { state, isPending, handleSubmit } = useAuthForm(reportedPasswordResetAction, IDLE_ACTION_STATE);
   return (
     <AuthForm state={state} isPending={isPending} submitLabel="Send reset link" pendingLabel="Sending…" onSubmit={handleSubmit}>
       <AdminField name="email" label="Email" type="email" autoComplete="username" defaultValue={state.values.email} error={state.fieldErrors.email} />
-      <TurnstileField action="admin-reset" resetKey={state.responseId} />
+      <SignInBotCheck action="admin-reset" resetKey={state.responseId} />
     </AuthForm>
   );
 }
 
 export function SetPasswordForm() {
-  const { state, isPending, handleSubmit } = useAuthForm(setPasswordAction, IDLE_ACTION_STATE);
+  const { state, isPending, handleSubmit } = useAuthForm(reportedSetPasswordAction, IDLE_ACTION_STATE);
   return (
     <AuthForm state={state} isPending={isPending} submitLabel="Save password" pendingLabel="Saving…" onSubmit={handleSubmit}>
       <AdminField

@@ -16,7 +16,8 @@ type VideoDetailsFormProps =
 
 export function VideoDetailsForm(props: VideoDetailsFormProps) {
   const action = props.mode === "create" ? createHomeworkVideoAction : updateHomeworkVideoAction;
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action);
+  const problemAction = props.mode === "create" ? "homework.create_video" : "homework.update_video";
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action, { problemAction });
   const idempotencyKey = useIdempotencyKey(props.mode === "create" ? props.idempotencyKey : "", state);
   const { defaults } = props;
   const errors = state.fieldErrors;

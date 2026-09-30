@@ -1,3 +1,4 @@
+import { ProblemReporter } from "@/components/admin/problem-reporter";
 import { Logo } from "@/components/layout/logo";
 
 // Sign-in steps: the dark header with the logo (Style §11.9), then a narrow, centered form.
@@ -13,6 +14,7 @@ export default function AuthLayout({ children }: Readonly<{ children: React.Reac
       <main id="main" className="mx-auto w-full max-w-form px-4 py-12">
         {children}
       </main>
+      <ProblemReporter userId={null} action="auth.browser_error" />
     </>
   );
 }

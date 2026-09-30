@@ -30,15 +30,16 @@ function PhotoCard({ photo, position, count }: PhotoCardProps) {
         <textarea id={altId} ref={altRef} rows={2} maxLength={MAX_ALT_TEXT_LENGTH} defaultValue={photo.alt} className="field-input" />
       </div>
       <div className="flex flex-wrap gap-2">
-        <QuickActionButton label="Save description" accessibleLabel={`Save the description of ${label}`} icon={Save} onRun={() => updatePhotoAltAction(photo.id, altRef.current?.value ?? "")} />
-        <QuickActionButton label="Up" accessibleLabel={`Move ${label} up`} icon={ArrowUp} isDisabled={position === 1} onRun={() => moveListingPhotoAction(photo.id, "up")} />
-        <QuickActionButton label="Down" accessibleLabel={`Move ${label} down`} icon={ArrowDown} isDisabled={position === count} onRun={() => moveListingPhotoAction(photo.id, "down")} />
+        <QuickActionButton label="Save description" accessibleLabel={`Save the description of ${label}`} icon={Save} problemAction="listings.update_photo_alt" onRun={() => updatePhotoAltAction(photo.id, altRef.current?.value ?? "")} />
+        <QuickActionButton label="Up" accessibleLabel={`Move ${label} up`} icon={ArrowUp} isDisabled={position === 1} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction(photo.id, "up")} />
+        <QuickActionButton label="Down" accessibleLabel={`Move ${label} down`} icon={ArrowDown} isDisabled={position === count} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction(photo.id, "down")} />
         <QuickActionButton
           label="Remove"
           accessibleLabel={`Remove ${label}`}
           icon={Trash2}
+          problemAction="trash.move_to_trash"
           onRun={() => moveToTrashAction(trashTarget)}
-          undo={{ label: "Undo", onRun: () => restoreFromTrashAction(trashTarget) }}
+          undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction(trashTarget) }}
         />
       </div>
     </li>
@@ -61,6 +62,7 @@ export function ListingPhotos({ listingId, photos }: { listingId: string; photos
       <PhotoPicker
         target={{ kind: "listing", recordId: listingId }}
         buttonLabel="Add photo"
+        saveProblemAction="listings.add_photo"
         onUploaded={(uploaded, alt) => addListingPhotoAction({ listingId, ...uploaded, alt })}
       />
     </div>

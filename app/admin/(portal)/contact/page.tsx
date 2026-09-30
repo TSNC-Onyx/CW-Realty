@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 
 import { ContactSettingsForm, type ContactSettingsDefaults } from "@/components/admin/contact/contact-settings-form";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { TextLink } from "@/components/ui/text-link";
-import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
+import { getQueryLoad } from "@/lib/admin/load-result";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
+import { EDITOR_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
 import { getDisplayPhone, type E164Phone } from "@/lib/site/phone";
 
 export const metadata: Metadata = { title: "Contact & footer" };
@@ -37,9 +40,15 @@ function getDefaults(row: SiteSettingsRow | null): ContactSettingsDefaults {
   };
 }
 
+async function fetchSiteSettings({ supabase, tenantId }: AdminContext) {
+  const result = await supabase.from("site_settings").select("*").eq("tenant_id", tenantId).maybeSingle<SiteSettingsRow>();
+  return getQueryLoad({ part: "contact settings", result, empty: null });
+}
+
 export default async function ContactSettingsPage() {
-  const { supabase, tenantId } = await requireAdminPage(EDITOR_ROLES);
-  const { data: row } = await supabase.from("site_settings").select("*").eq("tenant_id", tenantId).maybeSingle<SiteSettingsRow>();
+  const admin = await requireAdminPage(EDITOR_ROLES);
+  const settings = await fetchSiteSettings(admin);
+  const notice = await reportPageLoad({ admin, action: "contact.load", results: [settings] });
   return (
     <>
       <h1 className="type-h1 mb-2">Contact &amp; footer</h1>
@@ -47,7 +56,8 @@ export default async function ContactSettingsPage() {
       <div className="mb-10">
         <TextLink href="/contact" hasArrow>View the Contact page</TextLink>
       </div>
-      <ContactSettingsForm defaults={getDefaults(row)} />
+      {/* No form without the saved settings: saving blanks would overwrite the real ones. */}
+      {settings.isLoaded ? <ContactSettingsForm defaults={getDefaults(settings.data)} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
     </>
   );
 }

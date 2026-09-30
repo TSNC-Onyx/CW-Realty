@@ -1,9 +1,11 @@
 import "server-only";
 
+import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import type { ListingStatus } from "@/lib/content/listings";
 
-// Editors' view of listings: drafts included; trash excluded.
+// Editors' view of listings: drafts included; trash excluded. A failed query is a load
+// failure, never an empty list or a missing listing.
 
 const MAX_LISTING_ROWS = 500;
 
@@ -38,8 +40,8 @@ function getListingFromRow(row: AdminListingRow): AdminListing {
   return { ...row, bathrooms: row.bathrooms === null ? null : Number(row.bathrooms), listing_photos: photos };
 }
 
-export async function fetchAdminListings({ supabase, tenantId }: AdminContext): Promise<AdminListing[]> {
-  const { data } = await supabase
+export async function fetchAdminListings({ supabase, tenantId }: AdminContext): Promise<LoadResult<AdminListing[]>> {
+  const { data, error } = await supabase
     .from("listings")
     .select(LISTING_COLUMNS)
     .eq("tenant_id", tenantId)
@@ -48,10 +50,13 @@ export async function fetchAdminListings({ supabase, tenantId }: AdminContext): 
     .order("slug")
     .limit(MAX_LISTING_ROWS)
     .returns<AdminListingRow[]>();
-  return (data ?? []).map(getListingFromRow);
+  if (error) return getLoadFailure("listings", error);
+  return getLoaded((data ?? []).map(getListingFromRow));
 }
 
-export async function fetchAdminListing({ supabase, tenantId }: AdminContext, id: string): Promise<AdminListing | null> {
-  const { data } = await supabase.from("listings").select(LISTING_COLUMNS).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).maybeSingle<AdminListingRow>();
-  return data ? getListingFromRow(data) : null;
+/** Loaded null: the listing is missing or in the trash. */
+export async function fetchAdminListing({ supabase, tenantId }: AdminContext, id: string): Promise<LoadResult<AdminListing | null>> {
+  const { data, error } = await supabase.from("listings").select(LISTING_COLUMNS).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).maybeSingle<AdminListingRow>();
+  if (error) return getLoadFailure("listing", error);
+  return getLoaded(data ? getListingFromRow(data) : null);
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getEscapedHtml, getNewRequestAlert, getVisitorCopy } from "@/lib/email/messages";
+import { getEscapedHtml, getNewRequestAlert, getProblemDigest, getVisitorCopy } from "@/lib/email/messages";
 
 const OFFICE = { phoneDisplay: "(336) 708-0560", email: "charlie@charliewardrealty.com" };
 
@@ -68,5 +68,28 @@ describe("alert emails", () => {
 
     // Assert
     expect(escaped).toBe("&lt;a href=&quot;x&quot;&gt;&#39;&amp;&#39;&lt;/a&gt;");
+  });
+});
+
+describe("problem-alert digest", () => {
+  const groups = [
+    { section: "Homework", label: "Save an uploaded Homework file", severity: "critical" as const, count: 3, last_seen_at: "2026-09-27T20:00:00Z", reference: "CWR-AAA-BBB" },
+    { section: "Trash", label: "Delete forever", severity: "error" as const, count: 1, last_seen_at: "2026-09-27T19:00:00Z", reference: null },
+  ];
+
+  it("marks urgent problems in the subject", () => {
+    // Act
+    const email = getProblemDigest({ groups, recipient: "owner@example.com", adminUrl: "https://cwr.example/admin" });
+
+    // Assert
+    expect(email.subject).toBe("Urgent: CWR website problems need attention");
+  });
+
+  it("lists each problem with its count, time, and reference", () => {
+    // Act
+    const email = getProblemDigest({ groups, recipient: "owner@example.com", adminUrl: "https://cwr.example/admin" });
+
+    // Assert
+    expect(email.text).toContain("Urgent — Homework: Save an uploaded Homework file. Happened 3 times, most recently Sep 27, 2026, 4:00 PM. Reference: CWR-AAA-BBB.");
   });
 });

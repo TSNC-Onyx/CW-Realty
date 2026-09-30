@@ -16,7 +16,7 @@ import { trackingSettingsSchema } from "@/lib/admin/tracking/tracking-schema";
 const TRACKING_PATH = "/admin/tracking";
 
 export async function saveTrackingSettingsAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
+  return runAdminAction({ action: "tracking.save", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const values = getFormValues(formData);
     const parsed = trackingSettingsSchema.safeParse(values);
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields, then save again.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
@@ -29,7 +29,7 @@ export async function saveTrackingSettingsAction(_state: ActionState, formData: 
 }
 
 export async function markTagsReviewedAction(): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
+  return runQuickAction({ action: "tracking.mark_reviewed", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const { error } = await supabase.from("tracking_settings").upsert({ tenant_id: tenantId, tags_reviewed_at: new Date().toISOString() }, { onConflict: "tenant_id" });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(TRACKING_PATH);

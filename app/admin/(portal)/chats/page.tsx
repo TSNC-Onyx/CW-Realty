@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { LoadProblem } from "@/components/admin/load-problem";
 import { Pagination } from "@/components/content/pagination";
 import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CHATS_PAGE_SIZE, fetchChatPage, getChatFilter, type ChatFilter, type ChatSessionSummary } from "@/lib/admin/chats/queries";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getPageNumber, getTotalPages } from "@/lib/content/page-number";
 
@@ -33,6 +35,25 @@ function getPreview(session: ChatSessionSummary): string {
   return firstQuestion.length > PREVIEW_LENGTH ? `${firstQuestion.slice(0, PREVIEW_LENGTH)}…` : firstQuestion;
 }
 
+function ChatList({ sessions }: { sessions: ChatSessionSummary[] }) {
+  if (sessions.length === 0) {
+    return <EmptyState icon={MessagesSquare} titleId="chats-empty" title="No chats yet" description="Conversations visitors have with the chat assistant show up here." action={<ButtonLink href="/admin" size="m" variant="main">Back to dashboard</ButtonLink>} />;
+  }
+  return (
+    <ul className="border-b border-line">
+      {sessions.map((session) => (
+        <li key={session.id} className="border-t border-line">
+          <Link href={`/admin/chats/${session.id}`} className="group grid gap-1 py-4 md:grid-cols-12 md:items-center">
+            <span className="font-semibold underline-offset-4 group-hover:underline md:col-span-6">{getPreview(session)}</span>
+            <span className="type-small text-muted md:col-span-4">{getChatLine(session)}</span>
+            <span className="type-small text-muted md:col-span-2">{DATE_TIME.format(new Date(session.started_at))}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 type ChatsPageProps = { searchParams: Promise<{ show?: string; page?: string }> };
 
 export default async function ChatsPage({ searchParams }: ChatsPageProps) {
@@ -41,7 +62,8 @@ export default async function ChatsPage({ searchParams }: ChatsPageProps) {
   const filter = getChatFilter(params.show);
   const page = getPageNumber(params.page);
   if (page === null) notFound();
-  const { sessions, totalCount } = await fetchChatPage(admin, { filter, page });
+  const chatPage = await fetchChatPage(admin, { filter, page });
+  const notice = await reportPageLoad({ admin, action: "chats.load", results: [chatPage] });
   return (
     <>
       <h1 className="type-h1 mb-2">Chat history</h1>
@@ -57,22 +79,14 @@ export default async function ChatsPage({ searchParams }: ChatsPageProps) {
           ))}
         </ul>
       </nav>
-      {sessions.length === 0 ? (
-        <EmptyState icon={MessagesSquare} titleId="chats-empty" title="No chats yet" description="Conversations visitors have with the chat assistant show up here." action={<ButtonLink href="/admin" size="m" variant="main">Back to dashboard</ButtonLink>} />
+      {chatPage.isLoaded ? (
+        <>
+          <ChatList sessions={chatPage.data.sessions} />
+          <Pagination basePath={filter === "all" ? "/admin/chats" : "/admin/chats?show=handoffs"} currentPage={page} totalPages={getTotalPages(chatPage.data.totalCount, CHATS_PAGE_SIZE)} />
+        </>
       ) : (
-        <ul className="border-b border-line">
-          {sessions.map((session) => (
-            <li key={session.id} className="border-t border-line">
-              <Link href={`/admin/chats/${session.id}`} className="group grid gap-1 py-4 md:grid-cols-12 md:items-center">
-                <span className="font-semibold underline-offset-4 group-hover:underline md:col-span-6">{getPreview(session)}</span>
-                <span className="type-small text-muted md:col-span-4">{getChatLine(session)}</span>
-                <span className="type-small text-muted md:col-span-2">{DATE_TIME.format(new Date(session.started_at))}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <LoadProblem notice={notice} title="Chats didn't load" />
       )}
-      <Pagination basePath={filter === "all" ? "/admin/chats" : "/admin/chats?show=handoffs"} currentPage={page} totalPages={getTotalPages(totalCount, CHATS_PAGE_SIZE)} />
     </>
   );
 }

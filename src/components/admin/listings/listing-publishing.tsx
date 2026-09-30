@@ -20,8 +20,9 @@ function PublishButton({ listingId, publishState, photoCount }: Omit<ListingPubl
       accessibleLabel={isLive ? "Take this listing off the website" : "Publish this listing to the website"}
       icon={isLive ? EyeOff : Globe}
       isDisabled={!isLive && photoCount === 0}
+      problemAction="listings.change_state"
       onRun={() => transitionListingAction({ listingId, workflow: "listing_publish", toState })}
-      undo={{ label: "Undo", onRun: () => transitionListingAction({ listingId, workflow: "listing_publish", toState: publishState }) }}
+      undo={{ label: "Undo", problemAction: "listings.change_state", onRun: () => transitionListingAction({ listingId, workflow: "listing_publish", toState: publishState }) }}
     />
   );
 }
@@ -48,8 +49,9 @@ export function ListingPublishing({ listingId, status, publishState, photoCount 
             label={`Mark as ${STATUS_LABELS[toStatus].toLowerCase()}`}
             accessibleLabel={`Mark this listing as ${STATUS_LABELS[toStatus].toLowerCase()}`}
             icon={CircleCheck}
+            problemAction="listings.change_state"
             onRun={() => transitionListingAction({ listingId, workflow: "listing_status", toState: toStatus })}
-            undo={canUndoStatusMove(status, toStatus) ? { label: "Undo", onRun: () => transitionListingAction({ listingId, workflow: "listing_status", toState: status }) } : undefined}
+            undo={canUndoStatusMove(status, toStatus) ? { label: "Undo", problemAction: "listings.change_state", onRun: () => transitionListingAction({ listingId, workflow: "listing_status", toState: status }) } : undefined}
           />
         ))}
       </div>

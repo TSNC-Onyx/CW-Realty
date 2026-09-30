@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 
+import { LoadProblem } from "@/components/admin/load-problem";
 import { TeamMemberForm } from "@/components/admin/team/team-member-form";
 import { TeamPhoto } from "@/components/admin/team/team-photo";
 import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { fetchAdminTeamMember, type AdminTeamMember } from "@/lib/admin/team/queries";
 import { getDisplayPhone, type E164Phone } from "@/lib/site/phone";
@@ -19,11 +21,25 @@ function getPhoto(member: AdminTeamMember) {
   return { folder: member.photo_path, alt: member.photo_alt, width: member.photo_width, height: member.photo_height };
 }
 
+function MemberLoadProblem({ notice }: { notice: LoadProblemNotice | null }) {
+  return (
+    <>
+      <TextLink href="/admin/team">Back to team</TextLink>
+      <h1 className="type-h1 mt-4 mb-8">Edit team member</h1>
+      <LoadProblem notice={notice} />
+    </>
+  );
+}
+
 export default async function EditTeamMemberPage({ params, searchParams }: EditTeamMemberPageProps) {
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  const member = parsedId.success ? await fetchAdminTeamMember(admin, parsedId.data) : null;
+  if (!parsedId.success) notFound();
+  const memberLoad = await fetchAdminTeamMember(admin, parsedId.data);
+  const notice = await reportPageLoad({ admin, action: "team.load", results: [memberLoad] });
+  if (!memberLoad.isLoaded) return <MemberLoadProblem notice={notice} />;
+  const member = memberLoad.data;
   if (!member) notFound();
   return (
     <>

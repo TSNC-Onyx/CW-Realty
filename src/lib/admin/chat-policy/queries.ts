@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
+import { getLoaded, getLoadFailure, getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import type { ChatOutcome } from "@/lib/chat/assistant-reply";
 
@@ -17,41 +18,45 @@ export type WorkingPolicy = { draftId: string | null; draftVersion: number | nul
 
 export type PolicyTest = { id: string; question: string; expected_outcome: ChatOutcome; expected_section: string | null };
 
+type PolicyBody = { body: string; updated_at: string };
+
 export type PolicyTestRun = { is_passed: boolean; ran_at: string; results: PolicyTestResult[]; policy_updated_at: string | null; tests_updated_at: string | null };
 
-export async function fetchPolicyVersions({ supabase, tenantId }: AdminContext): Promise<PolicyVersion[]> {
-  const { data } = await supabase.from("chat_policies").select("id, version, status, published_at, updated_at").eq("tenant_id", tenantId).order("version", { ascending: false }).limit(HISTORY_LIMIT).returns<PolicyVersion[]>();
-  return data ?? [];
+export async function fetchPolicyVersions({ supabase, tenantId }: AdminContext): Promise<LoadResult<PolicyVersion[]>> {
+  const result = await supabase.from("chat_policies").select("id, version, status, published_at, updated_at").eq("tenant_id", tenantId).order("version", { ascending: false }).limit(HISTORY_LIMIT).returns<PolicyVersion[]>();
+  return getQueryLoad({ part: "policy versions", result, empty: [] });
 }
 
-async function fetchPolicyBody({ supabase, tenantId }: AdminContext, policyId: string): Promise<{ body: string; updated_at: string } | null> {
-  const { data } = await supabase.from("chat_policies").select("body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).maybeSingle<{ body: string; updated_at: string }>();
-  return data;
+async function fetchPolicyBody({ supabase, tenantId }: AdminContext, policyId: string): Promise<LoadResult<PolicyBody | null>> {
+  const result = await supabase.from("chat_policies").select("body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).maybeSingle<PolicyBody>();
+  return getQueryLoad({ part: "policy text", result, empty: null });
 }
 
 /** What the editor opens: the newest draft if it is the newest version, otherwise a new draft started from the newest text. */
-export async function fetchWorkingPolicy(admin: AdminContext, versions: PolicyVersion[]): Promise<WorkingPolicy> {
+export async function fetchWorkingPolicy(admin: AdminContext, versions: PolicyVersion[]): Promise<LoadResult<WorkingPolicy>> {
   const newest = versions[0];
-  if (!newest) return { draftId: null, draftVersion: null, body: "", updatedAt: null };
+  if (!newest) return getLoaded({ draftId: null, draftVersion: null, body: "", updatedAt: null });
   const policy = await fetchPolicyBody(admin, newest.id);
+  if (!policy.isLoaded) return policy;
   const isDraft = newest.status === "draft";
-  return { draftId: isDraft ? newest.id : null, draftVersion: isDraft ? newest.version : null, body: policy?.body ?? "", updatedAt: isDraft ? (policy?.updated_at ?? null) : null };
+  return getLoaded({ draftId: isDraft ? newest.id : null, draftVersion: isDraft ? newest.version : null, body: policy.data?.body ?? "", updatedAt: isDraft ? (policy.data?.updated_at ?? null) : null });
 }
 
-export async function fetchPolicyTests({ supabase, tenantId }: AdminContext): Promise<PolicyTest[]> {
-  const { data } = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
-  return data ?? [];
+export async function fetchPolicyTests({ supabase, tenantId }: AdminContext): Promise<LoadResult<PolicyTest[]>> {
+  const result = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
+  return getQueryLoad({ part: "test questions", result, empty: [] });
 }
 
-export async function fetchLatestTestRun({ supabase, tenantId }: AdminContext, policyId: string): Promise<PolicyTestRun | null> {
-  const { data } = await supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results, policy_updated_at, tests_updated_at").eq("tenant_id", tenantId).eq("policy_id", policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
-  return data;
+export async function fetchLatestTestRun({ supabase, tenantId }: AdminContext, policyId: string): Promise<LoadResult<PolicyTestRun | null>> {
+  const result = await supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results, policy_updated_at, tests_updated_at").eq("tenant_id", tenantId).eq("policy_id", policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
+  return getQueryLoad({ part: "latest test run", result, empty: null });
 }
 
 /** Newest change to any test question, active or not: the stamp a test run must match. */
-export async function fetchTestsChangedAt({ supabase, tenantId }: AdminContext): Promise<string | null> {
-  const { data } = await supabase.from("chat_policy_tests").select("updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(1).maybeSingle<{ updated_at: string }>();
-  return data?.updated_at ?? null;
+export async function fetchTestsChangedAt({ supabase, tenantId }: AdminContext): Promise<LoadResult<string | null>> {
+  const result = await supabase.from("chat_policy_tests").select("updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).limit(1).maybeSingle<{ updated_at: string }>();
+  if (result.error) return getLoadFailure("test question changes", result.error);
+  return getLoaded(result.data?.updated_at ?? null);
 }
 
 /** Same rule as cwr.publish_chat_policy: the run checked this exact save and this exact set of questions. */

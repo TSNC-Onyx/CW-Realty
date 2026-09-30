@@ -5,6 +5,12 @@ import { cache } from "react";
 
 import { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_MFA_SETUP_PATH } from "@/lib/admin/paths";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
+import { setActionActor } from "@/lib/observability/action-context";
+import { getAuthErrorCode, isAuthOutage } from "@/lib/observability/auth-outage";
+import type { ProblemStage } from "@/lib/observability/problem-types";
+import { getReferenceSuffix } from "@/lib/observability/reference";
+import { reportProblem } from "@/lib/observability/report-problem";
+import { ReportedProblemError } from "@/lib/observability/reported-problem-error";
 import { createSessionClient, type SessionClient } from "@/lib/supabase/server-client";
 import { CWR_TENANT_SLUG } from "@/lib/supabase/public-client";
 
@@ -29,27 +35,43 @@ export class AdminAccessError extends Error {
   }
 }
 
+const ACCESS_CHECK_MESSAGE = "We couldn't check your access right now. Try again in a moment.";
+
+// A failed check is never mistaken for "no access" or "set up your authenticator": it is
+// recorded as critical and shown with a reference code (docs/cwr-error-tracking-plan.md).
+async function throwAccessCheckProblem({ stage, code }: { stage: ProblemStage; code: string }): Promise<never> {
+  const result = await reportProblem({ action: "auth.access_check", stage, severity: "critical", code, shownMessage: ACCESS_CHECK_MESSAGE });
+  throw new ReportedProblemError(`${ACCESS_CHECK_MESSAGE}${getReferenceSuffix({ reference: result.reference, isStored: result.stored === true })}`, { reference: result.reference });
+}
+
 async function getMfaPath(supabase: SessionClient): Promise<string> {
-  const { data } = await supabase.auth.mfa.listFactors();
-  const hasVerifiedFactor = (data?.totp ?? []).some((factor) => factor.status === "verified");
+  const { data, error } = await supabase.auth.mfa.listFactors();
+  if (error) return throwAccessCheckProblem({ stage: "auth", code: getAuthErrorCode(error) });
+  const hasVerifiedFactor = data.totp.some((factor) => factor.status === "verified");
   return hasVerifiedFactor ? ADMIN_MFA_PATH : ADMIN_MFA_SETUP_PATH;
 }
 
 async function fetchMembership(supabase: SessionClient, userId: string) {
-  const { data: membership } = await supabase
+  const { data: membership, error } = await supabase
     .from("memberships")
     .select("role, tenant_id, tenants!inner(slug)")
     .eq("user_id", userId)
     .eq("tenants.slug", CWR_TENANT_SLUG)
     .maybeSingle<{ role: AdminRole; tenant_id: string }>();
+  if (error) return throwAccessCheckProblem({ stage: "load", code: error.code ?? "database" });
   return membership;
+}
+
+async function fetchClaims(supabase: SessionClient) {
+  const { data, error } = await supabase.auth.getClaims();
+  if (error && isAuthOutage(error)) return throwAccessCheckProblem({ stage: "auth", code: getAuthErrorCode(error) });
+  return data?.claims ?? null;
 }
 
 // Cached per request so a page and its layout share one check.
 const fetchAdminContext = cache(async (): Promise<AdminContext> => {
   const supabase = await createSessionClient();
-  const { data } = await supabase.auth.getClaims();
-  const claims = data?.claims;
+  const claims = await fetchClaims(supabase);
   if (!claims) redirect(ADMIN_LOGIN_PATH);
   if (claims.aal !== "aal2") redirect(await getMfaPath(supabase));
   const membership = await fetchMembership(supabase, claims.sub);
@@ -66,6 +88,7 @@ const fetchAdminContext = cache(async (): Promise<AdminContext> => {
 /** Redirects to sign-in or MFA when needed; throws AdminAccessError for the wrong role. */
 export async function requireAdmin(allowedRoles: AdminRole[]): Promise<AdminContext> {
   const context = await fetchAdminContext();
+  setActionActor({ tenantId: context.tenantId, actorId: context.userId, actorRole: context.role });
   if (!allowedRoles.includes(context.role)) {
     throw new AdminAccessError({ reason: "role", role: context.role, allowed: allowedRoles });
   }
@@ -75,8 +98,17 @@ export async function requireAdmin(allowedRoles: AdminRole[]): Promise<AdminCont
 /** For pages: the wrong role goes back to the dashboard with an explanation. */
 export async function requireAdminPage(allowedRoles: AdminRole[]): Promise<AdminContext> {
   const context = await fetchAdminContext();
-  if (!allowedRoles.includes(context.role)) redirect(`${ADMIN_HOME_PATH}?notice=role`);
-  return context;
+  if (allowedRoles.includes(context.role)) return context;
+  await reportProblem({
+    action: "portal.wrong_role",
+    stage: "access",
+    severity: "info",
+    code: context.role,
+    tenantId: context.tenantId,
+    actorId: context.userId,
+    actorRole: context.role,
+  });
+  redirect(`${ADMIN_HOME_PATH}?notice=role`);
 }
 
 export function hasRole(context: AdminContext, allowedRoles: AdminRole[]): boolean {

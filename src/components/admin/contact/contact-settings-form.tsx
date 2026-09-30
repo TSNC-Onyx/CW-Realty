@@ -21,7 +21,7 @@ export type ContactSettingsDefaults = {
 };
 
 export function ContactSettingsForm({ defaults }: { defaults: ContactSettingsDefaults }) {
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(saveSiteSettingsAction);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(saveSiteSettingsAction, { problemAction: "contact.save" });
   const errors = state.fieldErrors;
   return (
     <form ref={formRef} onSubmit={handleSubmit} onInput={handleInput} noValidate className="grid gap-12">

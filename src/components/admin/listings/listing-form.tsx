@@ -14,7 +14,7 @@ type ListingFormProps =
 
 export function ListingForm(props: ListingFormProps) {
   const action = props.mode === "create" ? createListingAction : updateListingAction;
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action, { problemAction: props.mode === "create" ? "listings.create" : "listings.update" });
   const idempotencyKey = useIdempotencyKey(props.mode === "create" ? props.idempotencyKey : "", state);
   const { defaults } = props;
   const errors = state.fieldErrors;

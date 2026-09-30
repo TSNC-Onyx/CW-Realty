@@ -13,8 +13,8 @@ type PolicyPublishingProps = { draftId: string; isReadyToPublish: boolean };
 export function PolicyPublishing({ draftId, isReadyToPublish }: PolicyPublishingProps) {
   return (
     <div className="flex flex-wrap gap-3">
-      <QuickActionButton label="Run the tests" accessibleLabel="Run the tests on the saved draft" icon={FlaskConical} onRun={() => runPolicyTestsAction(draftId)} />
-      <QuickActionButton label="Publish this draft" accessibleLabel="Publish this draft to the website chat" icon={Rocket} onRun={() => publishPolicyAction(draftId)} isDisabled={!isReadyToPublish} />
+      <QuickActionButton label="Run the tests" accessibleLabel="Run the tests on the saved draft" icon={FlaskConical} problemAction="chat_policy.run_tests" onRun={() => runPolicyTestsAction(draftId)} />
+      <QuickActionButton label="Publish this draft" accessibleLabel="Publish this draft to the website chat" icon={Rocket} problemAction="chat_policy.publish" onRun={() => publishPolicyAction(draftId)} isDisabled={!isReadyToPublish} />
     </div>
   );
 }

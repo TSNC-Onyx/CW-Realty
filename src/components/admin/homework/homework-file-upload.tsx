@@ -53,7 +53,7 @@ export function HomeworkFileUpload({ itemId, purpose, chooseLabel, buttonLabel, 
   const handleUpload = async () => {
     if (!file) return;
     const result = await uploadFile(file);
-    if (!result || result.status === "error") return;
+    if (result.status === "error") return;
     showToast({ tone: "success", title: result.message });
     setFile(null);
     setPickerKey((key) => key + 1);

@@ -5,9 +5,12 @@ import { AuthForm } from "@/components/admin/auth/auth-form";
 import { useAuthForm } from "@/components/admin/auth/use-auth-form";
 import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import { verifyMfaAction } from "@/lib/admin/auth-actions";
+import { withCallReporting } from "@/lib/observability/call-server-action";
+
+const reportedVerifyMfaAction = withCallReporting("auth.verify_code", verifyMfaAction);
 
 export function MfaForm({ next }: { next: string }) {
-  const { state, isPending, handleSubmit } = useAuthForm(verifyMfaAction, IDLE_ACTION_STATE);
+  const { state, isPending, handleSubmit } = useAuthForm(reportedVerifyMfaAction, IDLE_ACTION_STATE);
   return (
     <AuthForm state={state} isPending={isPending} submitLabel="Verify code" pendingLabel="Checking…" onSubmit={handleSubmit}>
       <input type="hidden" name="next" value={next} />

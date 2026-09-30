@@ -15,7 +15,7 @@ export const OUTCOME_OPTIONS = [
 ];
 
 export function PolicyTestForm() {
-  const { state, isPending, formRef, handleSubmit } = useAdminForm(addPolicyTestAction, { onSuccess: () => formRef.current?.reset() });
+  const { state, isPending, formRef, handleSubmit } = useAdminForm(addPolicyTestAction, { problemAction: "chat_policy.add_test", onSuccess: () => formRef.current?.reset() });
   return (
     <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid max-w-form gap-6">
       <AdminField name="question" label="Question a visitor might ask" isMultiline defaultValue={state.values.question} error={state.fieldErrors.question} maxLength={2000} />

@@ -4,10 +4,12 @@ import { z } from "zod";
 
 import { ConnectionForm } from "@/components/admin/connections/connection-form";
 import { ConnectionPhoto } from "@/components/admin/connections/connection-photo";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getConnectionPhoto } from "@/lib/admin/connections/connection-photo";
 import { fetchAdminConnection } from "@/lib/admin/connections/queries";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getDisplayPhone, type E164Phone } from "@/lib/site/phone";
 
@@ -15,11 +17,25 @@ export const metadata: Metadata = { title: "Edit connection" };
 
 type EditConnectionPageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> };
 
+function ConnectionLoadProblem({ notice }: { notice: LoadProblemNotice | null }) {
+  return (
+    <>
+      <TextLink href="/admin/connections">Back to connections</TextLink>
+      <h1 className="type-h1 mt-4 mb-8">Edit connection</h1>
+      <LoadProblem notice={notice} />
+    </>
+  );
+}
+
 export default async function EditConnectionPage({ params, searchParams }: EditConnectionPageProps) {
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  const connection = parsedId.success ? await fetchAdminConnection(admin, parsedId.data) : null;
+  if (!parsedId.success) notFound();
+  const connectionLoad = await fetchAdminConnection(admin, parsedId.data);
+  const notice = await reportPageLoad({ admin, action: "connections.load", results: [connectionLoad] });
+  if (!connectionLoad.isLoaded) return <ConnectionLoadProblem notice={notice} />;
+  const connection = connectionLoad.data;
   if (!connection) notFound();
   return (
     <>
