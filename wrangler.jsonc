@@ -39,8 +39,10 @@
   ],
   // Which deployed version recorded a problem (shown as "release" on problem records).
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
-  // Problem-alert digests and the sender's heartbeat, every 5 minutes.
-  "triggers": { "crons": ["*/5 * * * *"] },
+  // Problem-alert digests are PAUSED (owner decision 2026-09-30): the account's Workers Free
+  // plan allows 5 Cron Triggers and all are in use. To resume, set crons to ["*/5 * * * *"]
+  // and ARE_PROBLEM_EMAILS_PAUSED to false (src/lib/jobs/problem-alert-schedule.ts).
+  "triggers": { "crons": [] },
   // Alert emails: retried with backoff, then parked in a dead-letter queue (Infra §3).
   // Both queues must exist in the Cloudflare account before deploying (runbook).
   "queues": {

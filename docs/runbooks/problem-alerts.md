@@ -17,6 +17,8 @@ People see that code on screen for anything worse than a typing mistake, for exa
 
 ## Who gets the emails
 
+**Problem emails are paused** (owner decision 2026-09-30): the Cloudflare account's Workers Free plan allows 5 Cron Triggers and all are in use, so the 5-minute sender has no schedule. Problems are still recorded; the dashboard and Notifications page say emails are paused. To resume: free a Cron Trigger or move to Workers Paid, set `"triggers": { "crons": ["*/5 * * * *"] }` in `wrangler.jsonc` and `ARE_PROBLEM_EMAILS_PAUSED = false` in `src/lib/jobs/problem-alert-schedule.ts`, then deploy (the sender's first run recreates its heartbeat, removed by migration `20260930000100`).
+
 An owner switches people on with **Send problem emails** on Admin → Notifications (owner decision D4, 2026-09-27; build plan open item 10).
 
 Until someone is switched on, problems are still recorded but no one is emailed, and the Notifications page says so.

@@ -163,6 +163,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 8 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 | 9 | Choose the Triad MLS search provider (IDX feed or embed, e.g. through Triad MLS or the brokerage's IDX vendor) and get its approval/credentials; then add live home search to Property Search (`/property-search`, now a "Home search is on the way" placeholder) in a sandboxed, lazy-loaded frame, with a CSP entry for the provider (developer) | Owner decision, then `app/(site)/property-search/page.tsx` |
 | 10 | Choose who gets problem-alert emails: once error tracking is built (`docs/cwr-error-tracking-plan.md`, owner decision D4 2026-09-27), switch people on with "Send problem emails" on the Notifications page (owners only). Until then problems are still recorded on the Problems page, but no one is emailed | Admin → Notifications |
+| 11 | **Problem emails are paused** (owner decision 2026-09-30): the account's Workers Free plan has no free Cron Trigger (5 per account, all used). To resume, free one or move to Workers Paid, then follow `docs/runbooks/problem-alerts.md` → Who gets the emails | Cloudflare, then developer |
 
 ## DO NOT TOUCH
 
