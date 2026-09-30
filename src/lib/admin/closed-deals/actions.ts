@@ -13,7 +13,7 @@ import { runQuickAction } from "@/lib/admin/run-quick-action";
 // also brings back one that was moved to the trash (one deal per conversation).
 
 export async function saveClosedDealAction(threadId: string, input: ClosedDealInput): Promise<QuickResult> {
-  return runQuickAction(EDITOR_ROLES, async ({ supabase, tenantId, userId }) => {
+  return runQuickAction({ action: "closed_deals.save", roles: EDITOR_ROLES }, async ({ supabase, tenantId, userId }) => {
     const id = z.uuid().parse(threadId);
     const parsed = getClosedDealSchema(new Date()).safeParse(input);
     if (!parsed.success) return getQuickError(parsed.error.issues[0]?.message ?? "Check the closing date and price");

@@ -85,21 +85,23 @@ function ItemRow({ item, isFirst, isLast }: { item: HomeworkListItem; isFirst: b
           Edit
           <span className="sr-only">{item.title}</span>
         </Link>
-        <QuickActionButton label="Up" accessibleLabel={`Move ${item.title} up`} icon={ArrowUp} isDisabled={isFirst} onRun={() => moveHomeworkItemAction(item.id, "up")} />
-        <QuickActionButton label="Down" accessibleLabel={`Move ${item.title} down`} icon={ArrowDown} isDisabled={isLast} onRun={() => moveHomeworkItemAction(item.id, "down")} />
+        <QuickActionButton label="Up" accessibleLabel={`Move ${item.title} up`} icon={ArrowUp} isDisabled={isFirst} problemAction="homework.move" onRun={() => moveHomeworkItemAction(item.id, "up")} />
+        <QuickActionButton label="Down" accessibleLabel={`Move ${item.title} down`} icon={ArrowDown} isDisabled={isLast} problemAction="homework.move" onRun={() => moveHomeworkItemAction(item.id, "down")} />
         <QuickActionButton
           label={item.isVisible ? "Hide" : "Show"}
           accessibleLabel={`${item.isVisible ? "Hide" : "Show"} ${item.title}`}
           icon={item.isVisible ? EyeOff : Eye}
+          problemAction="homework.set_visibility"
           onRun={() => setHomeworkVisibilityAction(item.id, !item.isVisible)}
-          undo={{ label: "Undo", onRun: () => setHomeworkVisibilityAction(item.id, item.isVisible) }}
+          undo={{ label: "Undo", problemAction: "homework.set_visibility", onRun: () => setHomeworkVisibilityAction(item.id, item.isVisible) }}
         />
         <QuickActionButton
           label="Trash"
           accessibleLabel={`Move ${item.title} to trash`}
           icon={Trash2}
+          problemAction="trash.move_to_trash"
           onRun={() => moveToTrashAction(trashTarget)}
-          undo={{ label: "Undo", onRun: () => restoreFromTrashAction(trashTarget) }}
+          undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction(trashTarget) }}
         />
       </div>
     </li>

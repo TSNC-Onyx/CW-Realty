@@ -24,7 +24,7 @@ type TeamMemberFormProps =
 
 export function TeamMemberForm(props: TeamMemberFormProps) {
   const action = props.mode === "create" ? createTeamMemberAction : updateTeamMemberAction;
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action, { problemAction: props.mode === "create" ? "team.create" : "team.update" });
   const idempotencyKey = useIdempotencyKey(props.mode === "create" ? props.idempotencyKey : "", state);
   const { defaults } = props;
   const errors = state.fieldErrors;

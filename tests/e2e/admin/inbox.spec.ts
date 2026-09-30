@@ -35,7 +35,8 @@ test("a manager assigns, notes, and replies to a new request", async ({ page }) 
   await page.getByRole("button", { name: "Send reply" }).click();
 
   // Assert
-  await expect(page.getByRole("status").filter({ hasText: "Reply sent." })).toBeVisible();
+  // Test runs have no email service, so the reply is saved and honestly reported as not emailed.
+  await expect(page.getByRole("status").filter({ hasText: /Reply sent\.|Reply saved\. Email sending isn't set up yet/ })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Team note — not sent")).toBeVisible();
   await expect(page.getByText("Reply sent by email")).toBeVisible();

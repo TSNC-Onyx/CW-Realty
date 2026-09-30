@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { getEditorToday, getGreeting, getStaffToday, getWaitingText, type EditorCounts } from "@/lib/admin/dashboard-figures";
+import { getAreaStats, getEditorToday, getGreeting, getStaffToday, getWaitingText, MISSING_FIGURE, type EditorCounts } from "@/lib/admin/dashboard-figures";
+import { getLoaded, getLoadFailure } from "@/lib/admin/load-result";
 
 const EDITOR_COUNTS: EditorCounts = {
   unread: 3,
-  oldestNewAt: "2026-09-25T16:00:00Z",
+  oldestNewAt: getLoaded("2026-09-25T16:00:00Z"),
   activeRecipients: 2,
   liveListings: 6,
   draftListings: 1,
@@ -87,6 +88,52 @@ describe("getEditorToday", () => {
 
     // Assert
     expect(figures.find((figure) => figure.key === "notifications")).toMatchObject({ isActionNeeded: true, detail: "Nobody gets alerts yet" });
+  });
+
+  it("shows no number and no flag for a count that didn't load", () => {
+    // Arrange
+    const now = new Date("2026-09-25T18:30:00Z");
+
+    // Act
+    const figures = getEditorToday({ counts: { ...EDITOR_COUNTS, activeRecipients: null }, now });
+
+    // Assert
+    expect(figures.find((figure) => figure.key === "notifications")).toMatchObject({ value: null, isActionNeeded: false });
+  });
+
+  it("says the wait time didn't load instead of claiming nothing is waiting", () => {
+    // Arrange
+    const now = new Date("2026-09-25T18:30:00Z");
+
+    // Act
+    const figures = getEditorToday({ counts: { ...EDITOR_COUNTS, oldestNewAt: getLoadFailure("oldest waiting request", { message: "timeout" }) }, now });
+
+    // Assert
+    expect(figures.find((figure) => figure.key === "inbox")?.detail).toBe("Wait time didn't load");
+  });
+});
+
+describe("getAreaStats", () => {
+  it("shows a dash, not zero, when a card's count didn't load", () => {
+    // Arrange
+    const counts = { ...EDITOR_COUNTS, trashItems: null };
+
+    // Act
+    const stats = getAreaStats(counts);
+
+    // Assert
+    expect(stats.trash).toBe(MISSING_FIGURE);
+  });
+
+  it("shows a dash when either half of a two-part line didn't load", () => {
+    // Arrange
+    const counts = { ...EDITOR_COUNTS, draftListings: null };
+
+    // Act
+    const stats = getAreaStats(counts);
+
+    // Assert
+    expect(stats.listings).toBe(MISSING_FIGURE);
   });
 });
 

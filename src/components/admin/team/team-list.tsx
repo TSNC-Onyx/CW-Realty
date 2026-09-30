@@ -27,21 +27,23 @@ function TeamRow({ member, isFirst, isLast }: { member: TeamListItem; isFirst: b
           Edit
           <span className="sr-only">{member.fullName}</span>
         </Link>
-        <QuickActionButton label="Up" accessibleLabel={`Move ${member.fullName} up`} icon={ArrowUp} isDisabled={isFirst} onRun={() => moveTeamMemberAction(member.id, "up")} />
-        <QuickActionButton label="Down" accessibleLabel={`Move ${member.fullName} down`} icon={ArrowDown} isDisabled={isLast} onRun={() => moveTeamMemberAction(member.id, "down")} />
+        <QuickActionButton label="Up" accessibleLabel={`Move ${member.fullName} up`} icon={ArrowUp} isDisabled={isFirst} problemAction="team.move" onRun={() => moveTeamMemberAction(member.id, "up")} />
+        <QuickActionButton label="Down" accessibleLabel={`Move ${member.fullName} down`} icon={ArrowDown} isDisabled={isLast} problemAction="team.move" onRun={() => moveTeamMemberAction(member.id, "down")} />
         <QuickActionButton
           label={member.isVisible ? "Hide" : "Show"}
           accessibleLabel={`${member.isVisible ? "Hide" : "Show"} ${member.fullName}`}
           icon={member.isVisible ? EyeOff : Eye}
+          problemAction="team.set_visibility"
           onRun={() => setTeamMemberVisibilityAction(member.id, !member.isVisible)}
-          undo={{ label: "Undo", onRun: () => setTeamMemberVisibilityAction(member.id, member.isVisible) }}
+          undo={{ label: "Undo", problemAction: "team.set_visibility", onRun: () => setTeamMemberVisibilityAction(member.id, member.isVisible) }}
         />
         <QuickActionButton
           label="Trash"
           accessibleLabel={`Move ${member.fullName} to trash`}
           icon={Trash2}
+          problemAction="trash.move_to_trash"
           onRun={() => moveToTrashAction(trashTarget)}
-          undo={{ label: "Undo", onRun: () => restoreFromTrashAction(trashTarget) }}
+          undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction(trashTarget) }}
         />
       </div>
     </li>

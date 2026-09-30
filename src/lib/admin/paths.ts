@@ -8,11 +8,13 @@ export const ADMIN_SET_PASSWORD_PATH = "/admin/set-password";
 export const ADMIN_FORGOT_PASSWORD_PATH = "/admin/forgot-password";
 export const ADMIN_CONFIRM_PATH = "/admin/auth/confirm";
 export const ADMIN_LOGOUT_PATH = "/admin/logout";
+// Browsers report problems here, including from the sign-in pages (it checks the caller itself).
+export const ADMIN_PROBLEM_REPORT_PATH = "/admin/problems/report";
 
 export type SignOutReason = "timeout" | "signed-out" | "no-access";
 
 // Pages reachable without a session (they start or finish signing in).
-const PUBLIC_ADMIN_PATHS = new Set([ADMIN_LOGIN_PATH, ADMIN_FORGOT_PASSWORD_PATH, ADMIN_CONFIRM_PATH, ADMIN_LOGOUT_PATH]);
+const PUBLIC_ADMIN_PATHS = new Set([ADMIN_LOGIN_PATH, ADMIN_FORGOT_PASSWORD_PATH, ADMIN_CONFIRM_PATH, ADMIN_LOGOUT_PATH, ADMIN_PROBLEM_REPORT_PATH]);
 
 export function isAdminPath(pathname: string): boolean {
   return pathname === ADMIN_HOME_PATH || pathname.startsWith(`${ADMIN_HOME_PATH}/`);

@@ -1,4 +1,5 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import type { JwtPayload } from "@supabase/supabase-js";
 import type { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -10,19 +11,28 @@ import {
   isSessionExpired,
   type AuthMethodStamp,
 } from "@/lib/admin/session-timing";
+import { getAuthErrorCode, isAuthOutage } from "@/lib/observability/auth-outage";
 
 // Refreshes the admin session cookies on every /admin request (the @supabase/ssr
-// middleware pattern) and applies the idle and maximum session limits.
+// middleware pattern) and applies the idle and maximum session limits. A sign-in service
+// outage is reported as such instead of silently signing everyone out; an unreadable
+// session is signed out as before (docs/cwr-error-tracking-plan.md).
 
 type PendingCookie = { name: string; value: string; options: CookieOptions };
+
+/** outage: the sign-in service failed. invalid: the session could not be read at all. */
+export type SessionProblem = { kind: "outage" | "invalid"; code: string };
 
 export type AdminSessionCheck = {
   isSignedIn: boolean;
   isExpired: boolean;
+  problem: SessionProblem | null;
   applyCookies: (response: NextResponse) => void;
 };
 
-const SIGNED_OUT_CHECK: AdminSessionCheck = { isSignedIn: false, isExpired: false, applyCookies: () => undefined };
+type ClaimsCheck = { claims: JwtPayload | null; problem: SessionProblem | null };
+
+const SIGNED_OUT_CHECK: AdminSessionCheck = { isSignedIn: false, isExpired: false, problem: null, applyCookies: () => undefined };
 
 function getActivityCookieOptions(): CookieOptions {
   return {
@@ -35,10 +45,22 @@ function getActivityCookieOptions(): CookieOptions {
   };
 }
 
-async function fetchClaims(request: NextRequest, pendingCookies: PendingCookie[]) {
+async function readClaims(supabase: ReturnType<typeof createServerClient>): Promise<ClaimsCheck> {
+  try {
+    const { data, error } = await supabase.auth.getClaims();
+    if (error && isAuthOutage(error)) return { claims: null, problem: { kind: "outage", code: getAuthErrorCode(error) } };
+    return { claims: data?.claims ?? null, problem: null };
+  } catch (error) {
+    if (isAuthOutage(error)) return { claims: null, problem: { kind: "outage", code: getAuthErrorCode(error) } };
+    // auth-js throws (instead of returning) for tokens it cannot even verify, such as a forged one.
+    return { claims: null, problem: { kind: "invalid", code: getAuthErrorCode(error) } };
+  }
+}
+
+async function fetchClaims(request: NextRequest, pendingCookies: PendingCookie[]): Promise<ClaimsCheck> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !publishableKey) return null;
+  if (!url || !publishableKey) return { claims: null, problem: null };
   const supabase = createServerClient(url, publishableKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
@@ -48,13 +70,15 @@ async function fetchClaims(request: NextRequest, pendingCookies: PendingCookie[]
       },
     },
   });
-  const { data } = await supabase.auth.getClaims();
-  return data?.claims ?? null;
+  return readClaims(supabase);
 }
 
 export async function checkAdminSession(request: NextRequest, nowMs: number): Promise<AdminSessionCheck> {
   const pendingCookies: PendingCookie[] = [];
-  const claims = await fetchClaims(request, pendingCookies);
+  const { claims, problem } = await fetchClaims(request, pendingCookies);
+  // During an outage the session is kept as it is, so people stay signed in once it passes.
+  if (problem?.kind === "outage") return { ...SIGNED_OUT_CHECK, problem };
+  if (problem) return { ...SIGNED_OUT_CHECK, problem, applyCookies: (response) => clearSessionCookies(request, response) };
   if (!claims) return { ...SIGNED_OUT_CHECK, applyCookies: (response) => setCookies(response, pendingCookies) };
   const authMethods = claims.amr as AuthMethodStamp[] | undefined;
   const isExpired = isSessionExpired({
@@ -63,8 +87,8 @@ export async function checkAdminSession(request: NextRequest, nowMs: number): Pr
     nowMs,
   });
   const activityCookie = { name: ACTIVITY_COOKIE, value: String(nowMs), options: getActivityCookieOptions() };
-  if (isExpired) return { isSignedIn: true, isExpired, applyCookies: (response) => clearSessionCookies(request, response) };
-  return { isSignedIn: true, isExpired, applyCookies: (response) => setCookies(response, [...pendingCookies, activityCookie]) };
+  if (isExpired) return { isSignedIn: true, isExpired, problem: null, applyCookies: (response) => clearSessionCookies(request, response) };
+  return { isSignedIn: true, isExpired, problem: null, applyCookies: (response) => setCookies(response, [...pendingCookies, activityCookie]) };
 }
 
 function setCookies(response: NextResponse, cookies: PendingCookie[]): void {

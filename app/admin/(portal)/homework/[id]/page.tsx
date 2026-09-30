@@ -5,10 +5,12 @@ import { z } from "zod";
 import { DownloadDetailsForm } from "@/components/admin/homework/download-details-form";
 import { CaptionsPanel, CoverPanel, DocumentFilePanel, VideoFilePanel, type StoredFile } from "@/components/admin/homework/homework-file-panels";
 import { VideoDetailsForm } from "@/components/admin/homework/video-details-form";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getItemCover, getStoredFileDetail } from "@/lib/admin/homework/item-labels";
 import { fetchAdminHomeworkItem, type AdminHomeworkItem } from "@/lib/admin/homework/queries";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
 export const metadata: Metadata = { title: "Edit Homework item" };
@@ -59,11 +61,26 @@ function getCreatedMessage(item: AdminHomeworkItem): string {
   return "The link is saved. Change anything below, or go back to the list.";
 }
 
+function ItemLoadProblem({ notice }: { notice: LoadProblemNotice | null }) {
+  return (
+    <>
+      <TextLink href="/admin/homework">Back to Homework</TextLink>
+      <div className="mt-4 max-w-prose">
+        <LoadProblem notice={notice} />
+      </div>
+    </>
+  );
+}
+
 export default async function EditHomeworkItemPage({ params, searchParams }: EditHomeworkPageProps) {
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  const item = parsedId.success ? await fetchAdminHomeworkItem(admin, parsedId.data) : null;
+  if (!parsedId.success) notFound();
+  const loaded = await fetchAdminHomeworkItem(admin, parsedId.data);
+  const notice = await reportPageLoad({ admin, action: "homework.load", results: [loaded] });
+  if (!loaded.isLoaded) return <ItemLoadProblem notice={notice} />;
+  const item = loaded.data;
   if (!item) notFound();
   return (
     <>

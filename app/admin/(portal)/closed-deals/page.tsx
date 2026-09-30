@@ -2,9 +2,11 @@ import { Download, Handshake } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { LoadProblem } from "@/components/admin/load-problem";
 import { ButtonLink, getButtonClassName } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { fetchClosedDeals, type ClosedDeal } from "@/lib/admin/closed-deals/queries";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { GOOGLE_CONVERSION_NAME, getExportableCount } from "@/lib/tracking/offline-export";
@@ -46,7 +48,17 @@ function DealList({ deals }: { deals: ClosedDeal[] }) {
 
 export default async function ClosedDealsPage() {
   const admin = await requireAdminPage(EDITOR_ROLES);
-  const deals = await fetchClosedDeals(admin);
+  const dealsLoad = await fetchClosedDeals(admin);
+  const notice = await reportPageLoad({ admin, action: "closed_deals.load", results: [dealsLoad] });
+  if (!dealsLoad.isLoaded) {
+    return (
+      <>
+        <h1 className="type-h1 mb-8">Closed deals</h1>
+        <LoadProblem notice={notice} title="Closed deals didn't load" />
+      </>
+    );
+  }
+  const deals = dealsLoad.data;
   if (deals.length === 0) {
     return (
       <>

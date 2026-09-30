@@ -25,14 +25,16 @@ export function TeamPhoto({ memberId, fullName, photo }: TeamPhotoProps) {
             label="Remove photo"
             accessibleLabel={`Remove ${fullName}'s photo`}
             icon={ImageOff}
+            problemAction="team.remove_photo"
             onRun={() => removeTeamPhotoAction(memberId)}
-            undo={{ label: "Undo", onRun: () => setTeamPhotoAction({ memberId, ...photo }) }}
+            undo={{ label: "Undo", problemAction: "team.set_photo", onRun: () => setTeamPhotoAction({ memberId, ...photo }) }}
           />
         </div>
       )}
       <PhotoPicker
         target={{ kind: "team", recordId: memberId }}
         buttonLabel={photo ? "Replace photo" : "Add photo"}
+        saveProblemAction="team.set_photo"
         onUploaded={(uploaded, alt) => setTeamPhotoAction({ memberId, ...uploaded, alt })}
       />
     </div>

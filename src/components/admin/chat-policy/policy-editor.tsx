@@ -22,7 +22,7 @@ type PolicyEditorProps = { draftId: string | null; initialBody: string };
 export function PolicyEditor({ draftId, initialBody }: PolicyEditorProps) {
   const [body, setBody] = useState(initialBody);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(savePolicyDraftAction);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(savePolicyDraftAction, { problemAction: "chat_policy.save_draft" });
   const error = state.fieldErrors.body ?? uploadError;
 
   const handleBodyChange = (event: ChangeEvent<HTMLTextAreaElement>) => {

@@ -19,6 +19,8 @@
     "db:test": "supabase test db",
     "db:lint": "supabase db lint --local --schema cwr --level warning --fail-on warning",
     "db:check": "node scripts/check-migrations.mjs",
+    "db:catalog": "node scripts/check-problem-catalog.mts",
+    "errors:check": "node scripts/check-error-handling.mts",
     "design:check": "node scripts/check-design-tokens.mjs",
     "admin:invite": "node scripts/invite-admin.mjs",
     "content:import": "node scripts/import-live-site-content.mjs",

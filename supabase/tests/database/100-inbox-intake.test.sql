@@ -1,6 +1,6 @@
 -- Inbox intake (cwr.create_inbox_thread) and the alert delivery log.
 begin;
-select plan(9);
+select plan(11);
 select cwr_test.create_fixture();
 
 select isnt(
@@ -62,6 +62,16 @@ select throws_ok(
 select lives_ok(
   $$ select cwr.transition('inbox_status', cwr_test.id('staff_thread'), 'replied') $$,
   'Staff can still move their assigned thread through the workflow'
+);
+
+reset role;
+select lives_ok(
+  $$ insert into cwr.alert_deliveries (tenant_id, kind, recipient_email, job_run_id) values (cwr_test.id('tenant_a'), 'problem', 'owner@example.com', gen_random_uuid()) $$,
+  'A problem-alert digest is logged by run, without a thread (alert_deliveries_thread_required)'
+);
+select throws_ok(
+  $$ insert into cwr.alert_deliveries (tenant_id, kind, recipient_email) values (cwr_test.id('tenant_a'), 'problem', 'owner@example.com') $$,
+  '23514', null, 'A problem-alert digest always belongs to a run (alert_deliveries_run_id_required)'
 );
 
 select * from finish();

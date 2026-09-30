@@ -23,7 +23,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 - Repo: `TSNC-Onyx/CW-Realty` (**public**); docs and Phase 0 code on `build1`.
 - Domain: DNS hosted at Wix (`ns6/ns7.wixdns.net`); email on Google Workspace (MX `aspmx.l.google.com`).
 - Supabase `egadvqpatnlkvgiiszzx` (Postgres 17, us-east-2): legacy property-management schema in `public` with demo data; no versioned migrations; 4 tables with RLS off (`app_settings`, `chat_leads`, `chat_rate_limits`, `ref_counters`); 1 storage bucket, 0 files.
-- Production Worker is missing the `SUPABASE_SERVICE_ROLE_KEY` secret (Supabase edge logs, 2026-09-26): public form intake, chat logs, invites, uploads, and teammate emails fail until the owner adds it; admin pages degrade instead of crashing.
+- Production Worker secret `SUPABASE_SERVICE_ROLE_KEY` added by the owner 2026-09-27 (it was missing on 2026-09-26, breaking form intake, chat logs, invites, and uploads).
 - Local tooling: Node 25.9, npm 11.12, gh 2.92; Supabase CLI pinned in `package.json` (run via `npx supabase`); local Supabase uses ports 553xx because another project holds the defaults.
 
 ## Architecture
@@ -43,7 +43,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | Email (alerts, inbox replies) | MailerSend (owner choice) sending from the CWR domain | Admin §5 |
 | Bot/abuse protection | Cloudflare Turnstile + rate-limit rules on every public endpoint | Infra §2 |
 | Analytics | GTM (web + server-side container), GA4, Meta Pixel + Conversions API, Google Enhanced Conversions; Consent Mode v2 banner honoring GPC | Features §3, §4 |
-| Observability | Cloudflare Workers Observability (errors, logs, OpenTelemetry traces with request ID), Cloudflare Web Analytics (real-user Core Web Vitals), hosted status page — no Sentry (owner decision) | Infra §7 |
+| Observability | Cloudflare Workers Observability (errors, logs, OpenTelemetry traces with request ID), Cloudflare Web Analytics (real-user Core Web Vitals), hosted status page — no Sentry (owner decision); every admin-facing problem also lands in the `cwr.problem_events` log with a reference code (`docs/cwr-error-tracking-plan.md`) | Infra §7 |
 | CI | GitHub Actions: lint, type check, unit tests, migration check, Playwright + axe accessibility, Lighthouse budgets, dependency scan, secret scan | Infra §1, §6 |
 | Property Search | Placeholder page; MLS embed added later in a sandboxed, lazy-loaded frame | Owner decision |
 
@@ -125,7 +125,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 
 **Phase 7 — Launch**
 22. Performance budgets, load test, keyboard + screen-reader pass, device matrix (320/375/768/1440).
-23. SLOs, alerts, runbooks (`docs/runbooks/`), status page, restore test.
+23. SLOs, alerts, runbooks (`docs/runbooks/`), status page, restore test. (Problem alerts and `docs/runbooks/problem-alerts.md` exist already, from error tracking.)
 24. Connect the domain (method undetermined — see Owner approvals item 4); Google Workspace mail records must be preserved either way.
 
 ## Assumptions
@@ -153,7 +153,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 
 | # | Item | Where |
 |---|---|---|
-| 1 | **Urgent:** add the Supabase service_role key as Worker secret `SUPABASE_SERVICE_ROLE_KEY` — until then contact/TouchUp forms can't save requests, and invites, photo uploads, and chat logs fail (the admin dashboard shows a red notice). Copy it from Supabase → Project Settings → API Keys, then Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets → Add → Secret | Supabase and Cloudflare |
+| 1 | **Done 2026-09-27** (Production): Worker secret `SUPABASE_SERVICE_ROLE_KEY`. Add it to the **Previews Base** environment too if preview deployments should save forms, uploads, and problems | Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets |
 | 2 | **Urgent:** set up the bot check (Turnstile) — until then every chat message and form is refused with "We couldn't confirm you're a person". In Cloudflare → Turnstile, add `cw-realty.onyxventuresnc.workers.dev` (and the final domain at launch) to the widget's hostnames; add its secret as Worker secret `TURNSTILE_SECRET_KEY`; keep its site key as build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (already present on the live build) | Cloudflare |
 | 3 | Log every bot check refusal (forms and chat) with the reason Cloudflare gives, and log loudly when `TURNSTILE_SECRET_KEY` is missing in production, so a setup problem that blocks every visitor shows up in Workers Observability instead of looking like normal bot filtering (Infra §7) (developer) | `src/lib/security/turnstile.ts`, `src/lib/forms/submit-actions.ts`, `src/lib/chat/send-chat-message.ts` |
 | 4 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
@@ -162,6 +162,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 7 | Mark every campaign as Housing (Special Ad Category) | Google Ads and Meta |
 | 8 | Set every Google Ads and Meta tag to require advertising (`ad_storage`) consent; Meta Pixel tag sends `event_id` as its event ID (agency) | Google Tag Manager — steps in `docs/cwr-phase-6-analytics-consent-plan.md` Launch notes |
 | 9 | Choose the Triad MLS search provider (IDX feed or embed, e.g. through Triad MLS or the brokerage's IDX vendor) and get its approval/credentials; then add live home search to Property Search (`/property-search`, now a "Home search is on the way" placeholder) in a sandboxed, lazy-loaded frame, with a CSP entry for the provider (developer) | Owner decision, then `app/(site)/property-search/page.tsx` |
+| 10 | Choose who gets problem-alert emails: once error tracking is built (`docs/cwr-error-tracking-plan.md`, owner decision D4 2026-09-27), switch people on with "Send problem emails" on the Notifications page (owners only). Until then problems are still recorded on the Problems page, but no one is emailed | Admin → Notifications |
 
 ## DO NOT TOUCH
 

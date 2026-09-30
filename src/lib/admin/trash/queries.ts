@@ -1,9 +1,11 @@
 import "server-only";
 
+import { getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import type { TrashTarget } from "@/lib/admin/trash/actions";
 
 // Everything soft-deleted in the last 30 days (cwr.trash view, the viewer's own access rules).
+// A failed query is returned as a failure, never as an empty trash.
 
 const MAX_TRASH_ROWS = 200;
 
@@ -15,13 +17,13 @@ export type TrashItem = {
   purge_after: string;
 };
 
-export async function fetchTrash({ supabase, tenantId }: AdminContext): Promise<TrashItem[]> {
-  const { data } = await supabase
+export async function fetchTrash({ supabase, tenantId }: AdminContext): Promise<LoadResult<TrashItem[]>> {
+  const result = await supabase
     .from("trash")
     .select("item_type, id, label, deleted_at, purge_after")
     .eq("tenant_id", tenantId)
     .order("deleted_at", { ascending: false })
     .limit(MAX_TRASH_ROWS)
     .returns<TrashItem[]>();
-  return data ?? [];
+  return getQueryLoad<TrashItem[]>({ part: "Trash", result, empty: [] });
 }

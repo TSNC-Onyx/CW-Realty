@@ -35,6 +35,8 @@ jobs:
       - name: Design token check (Style §11.15)
         run: npm run design:check
       - run: npm run typecheck
+      - name: Error-handling check (every Supabase error is read; admin actions are in the problem catalog)
+        run: npm run errors:check
       - run: npm test
       - name: Dependency scan (fails on critical vulnerabilities)
         run: npm audit --audit-level=critical
@@ -62,6 +64,8 @@ jobs:
         run: npx supabase db lint --local --schema cwr --level warning --fail-on warning
       - name: RLS and workflow tests (pgTAP)
         run: npx supabase test db
+      - name: Problem catalog matches the code
+        run: npm run db:catalog
 
   browser:
     name: Build, browser tests, accessibility, performance budgets

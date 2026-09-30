@@ -8,15 +8,28 @@ import { AuthForm } from "@/components/admin/auth/auth-form";
 import { useAuthForm } from "@/components/admin/auth/use-auth-form";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
-import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
+import { IDLE_ACTION_STATE, type ActionState } from "@/lib/admin/action-state";
 import { confirmMfaSetupAction, startMfaSetupAction, type MfaSetupState } from "@/lib/admin/auth-actions";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { withCallReporting } from "@/lib/observability/call-server-action";
 
 const EMPTY_SETUP: MfaSetupState = { ...IDLE_ACTION_STATE, factorId: "", qrCode: "", secret: "" };
 const QR_SIZE_PX = 200;
 
+// A call that never reached the server (site updated, connection lost) comes back as a
+// plain message; the setup details are laid back over it so the steps keep working.
+const reportedStartAction = withCallReporting("auth.start_code_setup", (state) => startMfaSetupAction({ ...EMPTY_SETUP, ...state }));
+
+async function startReportedSetup(state: MfaSetupState, formData: FormData): Promise<MfaSetupState> {
+  return { ...EMPTY_SETUP, ...(await reportedStartAction(state, formData)) };
+}
+
+function getReportedConfirmAction(setup: MfaSetupState): (state: ActionState, formData: FormData) => Promise<ActionState> {
+  return withCallReporting("auth.confirm_code_setup", (state, formData) => confirmMfaSetupAction({ ...setup, ...state }, formData));
+}
+
 function ConfirmCode({ setup, next }: { setup: MfaSetupState; next: string }) {
-  const { state, isPending, handleSubmit } = useAuthForm(confirmMfaSetupAction, setup);
+  const { state, isPending, handleSubmit } = useAuthForm<ActionState>(getReportedConfirmAction(setup), setup);
   return (
     <div className="grid gap-6">
       <div className="grid justify-items-start gap-3">
@@ -39,7 +52,7 @@ function ConfirmCode({ setup, next }: { setup: MfaSetupState; next: string }) {
 
 // Authenticator setup: every admin role signs in with a password plus an app code.
 export function MfaSetup({ next }: { next: string }) {
-  const [setup, startSetup, isStarting] = useActionState(startMfaSetupAction, EMPTY_SETUP);
+  const [setup, startSetup, isStarting] = useActionState(startReportedSetup, EMPTY_SETUP);
   if (setup.factorId) return <ConfirmCode setup={setup} next={next} />;
   return (
     <div className="grid gap-6">
@@ -49,7 +62,7 @@ export function MfaSetup({ next }: { next: string }) {
         <li>Press the button below, then scan the code with the app.</li>
         <li>Type the 6-digit code the app shows.</li>
       </ol>
-      <button type="button" aria-busy={isStarting} onClick={() => startTransition(() => startSetup())} className={`${getButtonClassName({ size: "l", variant: "main" })} w-full`}>
+      <button type="button" aria-busy={isStarting} onClick={() => startTransition(() => startSetup(new FormData()))} className={`${getButtonClassName({ size: "l", variant: "main" })} w-full`}>
         {isStarting && <LoaderCircle aria-hidden size={ICON_SIZE.button} className="animate-spin" />}
         {isStarting ? "Preparing…" : "Show my setup code"}
       </button>

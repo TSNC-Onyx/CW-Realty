@@ -37,14 +37,15 @@ function ListingRow({ listing, isFirst, isLast }: { listing: ListingListItem; is
           Edit
           <span className="sr-only">{listing.streetAddress}</span>
         </Link>
-        <QuickActionButton label="Up" accessibleLabel={`Move ${listing.streetAddress} up`} icon={ArrowUp} isDisabled={isFirst} onRun={() => moveListingAction(listing.id, "up")} />
-        <QuickActionButton label="Down" accessibleLabel={`Move ${listing.streetAddress} down`} icon={ArrowDown} isDisabled={isLast} onRun={() => moveListingAction(listing.id, "down")} />
+        <QuickActionButton label="Up" accessibleLabel={`Move ${listing.streetAddress} up`} icon={ArrowUp} isDisabled={isFirst} problemAction="listings.move" onRun={() => moveListingAction(listing.id, "up")} />
+        <QuickActionButton label="Down" accessibleLabel={`Move ${listing.streetAddress} down`} icon={ArrowDown} isDisabled={isLast} problemAction="listings.move" onRun={() => moveListingAction(listing.id, "down")} />
         <QuickActionButton
           label="Trash"
           accessibleLabel={`Move ${listing.streetAddress} to trash`}
           icon={Trash2}
+          problemAction="trash.move_to_trash"
           onRun={() => moveToTrashAction(trashTarget)}
-          undo={{ label: "Undo", onRun: () => restoreFromTrashAction(trashTarget) }}
+          undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction(trashTarget) }}
         />
       </div>
     </li>

@@ -18,9 +18,9 @@ export function TrashList({ items, canDeleteForever }: { items: TrashListItem[];
             <p className="type-small text-muted">{`${item.typeLabel} · deleted ${item.deletedOn} · removed for good on ${item.purgeOn}`}</p>
           </div>
           <div className="flex flex-wrap gap-2 md:col-span-5 md:justify-end">
-            <QuickActionButton label="Restore" accessibleLabel={`Restore ${item.label}`} icon={RotateCcw} onRun={() => restoreFromTrashAction({ table: item.table, id: item.id })} />
+            <QuickActionButton label="Restore" accessibleLabel={`Restore ${item.label}`} icon={RotateCcw} problemAction="trash.restore" onRun={() => restoreFromTrashAction({ table: item.table, id: item.id })} />
             {canDeleteForever && (
-              <QuickActionButton label="Delete forever" accessibleLabel={`Delete ${item.label} forever`} icon={Trash2} onRun={() => deleteForeverAction({ table: item.table, id: item.id })} />
+              <QuickActionButton label="Delete forever" accessibleLabel={`Delete ${item.label} forever`} icon={Trash2} problemAction="trash.delete_forever" onRun={() => deleteForeverAction({ table: item.table, id: item.id })} />
             )}
           </div>
         </li>

@@ -9,7 +9,7 @@ import { saveTrackingSettingsAction } from "@/lib/admin/tracking/actions";
 export type TrackingSettingsDefaults = { gtmContainerId: string; metaPixelId: string };
 
 export function TrackingSettingsForm({ defaults }: { defaults: TrackingSettingsDefaults }) {
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(saveTrackingSettingsAction);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(saveTrackingSettingsAction, { problemAction: "tracking.save" });
   const errors = state.fieldErrors;
   return (
     <form ref={formRef} onSubmit={handleSubmit} onInput={handleInput} noValidate className="grid gap-12">

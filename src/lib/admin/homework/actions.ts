@@ -8,20 +8,21 @@ import { getErrorState, getFormValues, getSuccessState, type ActionState } from 
 import { getFieldErrorsFromZod } from "@/lib/admin/auth-schemas";
 import { getDatabaseErrorMessage } from "@/lib/admin/database-errors";
 import { downloadDetailsSchema, getDownloadRow, getVideoRow, videoDetailsSchema } from "@/lib/admin/homework/homework-schema";
+import { ITEM_NOT_FOUND_MESSAGE, fetchStoredItem, getItemLoadErrorMessage } from "@/lib/admin/homework/stored-item";
 import { runOnce } from "@/lib/admin/idempotency";
-import { hasAllPhotoFiles } from "@/lib/admin/photos/photo-storage";
+import { fetchPhotoFilesCheck, getPhotoFilesMessage } from "@/lib/admin/photos/photo-storage";
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
 import { EDITOR_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
+import { noteProblemCause } from "@/lib/observability/action-context";
 
 // Admin → Homework details, order, visibility, and cover pictures (owner approval
 // 2026-09-27). File uploads live in upload-actions.ts.
 
 const HOMEWORK_ADMIN_PATH = "/admin/homework";
 const HOMEWORK_PAGE_PATH = "/resources";
-const NOT_FOUND_MESSAGE = "That item no longer exists. It may have been moved to the trash.";
 const NEEDS_FILE_MESSAGE = "Upload the file first. Visitors only see items they can open.";
 // New items start at the end of their list; cwr.move_homework_item renumbers on the first move.
 const NEW_ITEM_SORT_ORDER = 9999;
@@ -36,16 +37,15 @@ const coverSchema = z.object({
 
 type CreateResult = { id: string } | { error: { code?: string; message: string } };
 
-type StoredState = { kind: string; file_path: string | null };
-
 function refreshHomeworkPages(): void {
   revalidatePath(HOMEWORK_ADMIN_PATH, "layout");
   revalidatePath(HOMEWORK_PAGE_PATH);
 }
 
-async function fetchStoredState({ supabase, tenantId }: AdminContext, itemId: string): Promise<StoredState | null> {
-  const { data } = await supabase.from("homework_items").select("kind, file_path").eq("id", itemId).eq("tenant_id", tenantId).is("deleted_at", null).maybeSingle<StoredState>();
-  return data;
+// A malformed item id can only come from a stale page or a tampered request.
+function getStaleItemState(): ActionState {
+  noteProblemCause({ stage: "validate", severity: "warning", code: "item_id", detail: null });
+  return getErrorState({ message: ITEM_NOT_FOUND_MESSAGE });
 }
 
 async function insertItem(admin: AdminContext, { key, row }: { key: string; row: Record<string, unknown> }): Promise<CreateResult> {
@@ -63,7 +63,7 @@ async function insertItem(admin: AdminContext, { key, row }: { key: string; row:
 
 // New videos and file downloads stay hidden until their file is uploaded (the upload shows them).
 export async function createHomeworkVideoAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(EDITOR_ROLES, async (admin) => {
+  return runAdminAction({ action: "homework.create_video", roles: EDITOR_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const parsed = videoDetailsSchema.safeParse(values);
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
@@ -75,7 +75,7 @@ export async function createHomeworkVideoAction(_state: ActionState, formData: F
 }
 
 export async function createHomeworkDownloadAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(EDITOR_ROLES, async (admin) => {
+  return runAdminAction({ action: "homework.create_download", roles: EDITOR_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const parsed = downloadDetailsSchema.safeParse(values);
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
@@ -89,14 +89,15 @@ export async function createHomeworkDownloadAction(_state: ActionState, formData
 }
 
 export async function updateHomeworkVideoAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(EDITOR_ROLES, async (admin) => {
+  return runAdminAction({ action: "homework.update_video", roles: EDITOR_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const itemId = z.uuid().safeParse(values.itemId);
     const parsed = videoDetailsSchema.safeParse(values);
-    if (!itemId.success) return getErrorState({ message: NOT_FOUND_MESSAGE });
+    if (!itemId.success) return getStaleItemState();
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
-    const stored = await fetchStoredState(admin, itemId.data);
-    if (!stored) return getErrorState({ message: NOT_FOUND_MESSAGE, values });
+    const { item: stored, error: readError } = await fetchStoredItem(admin, itemId.data);
+    if (readError) return getErrorState({ message: getItemLoadErrorMessage(readError), values });
+    if (!stored) return getErrorState({ message: ITEM_NOT_FOUND_MESSAGE, values });
     if (parsed.data.isVisible && !stored.file_path) return getErrorState({ message: NEEDS_FILE_MESSAGE, values });
     const { error } = await admin.supabase.from("homework_items").update({ ...getVideoRow(parsed.data), is_visible: parsed.data.isVisible }).eq("id", itemId.data).eq("tenant_id", admin.tenantId);
     if (error) return getErrorState({ message: getDatabaseErrorMessage(error), values });
@@ -108,14 +109,15 @@ export async function updateHomeworkVideoAction(_state: ActionState, formData: F
 // Switching a download to a link drops its file (the nightly cleanup removes the stored copy);
 // switching a link to a file hides it until a file is uploaded.
 export async function updateHomeworkDownloadAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(EDITOR_ROLES, async (admin) => {
+  return runAdminAction({ action: "homework.update_download", roles: EDITOR_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const itemId = z.uuid().safeParse(values.itemId);
     const parsed = downloadDetailsSchema.safeParse(values);
-    if (!itemId.success) return getErrorState({ message: NOT_FOUND_MESSAGE });
+    if (!itemId.success) return getStaleItemState();
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
-    const stored = await fetchStoredState(admin, itemId.data);
-    if (!stored || stored.kind === "video") return getErrorState({ message: NOT_FOUND_MESSAGE, values });
+    const { item: stored, error: readError } = await fetchStoredItem(admin, itemId.data);
+    if (readError) return getErrorState({ message: getItemLoadErrorMessage(readError), values });
+    if (!stored || stored.kind === "video") return getErrorState({ message: ITEM_NOT_FOUND_MESSAGE, values });
     const isLink = parsed.data.delivery === "link";
     const hasFile = !isLink && stored.kind === "file" && stored.file_path !== null;
     if (parsed.data.isVisible && !isLink && !hasFile) return getErrorState({ message: NEEDS_FILE_MESSAGE, values });
@@ -129,7 +131,7 @@ export async function updateHomeworkDownloadAction(_state: ActionState, formData
 }
 
 export async function moveHomeworkItemAction(itemId: string, direction: "up" | "down"): Promise<QuickResult> {
-  return runQuickAction(EDITOR_ROLES, async ({ supabase }) => {
+  return runQuickAction({ action: "homework.move", roles: EDITOR_ROLES }, async ({ supabase }) => {
     const { error } = await supabase.rpc("move_homework_item", { p_id: z.uuid().parse(itemId), p_direction: direction });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     refreshHomeworkPages();
@@ -138,10 +140,11 @@ export async function moveHomeworkItemAction(itemId: string, direction: "up" | "
 }
 
 export async function setHomeworkVisibilityAction(itemId: string, isVisible: boolean): Promise<QuickResult> {
-  return runQuickAction(EDITOR_ROLES, async (admin) => {
+  return runQuickAction({ action: "homework.set_visibility", roles: EDITOR_ROLES }, async (admin) => {
     const id = z.uuid().parse(itemId);
-    const stored = await fetchStoredState(admin, id);
-    if (!stored) return getQuickError(NOT_FOUND_MESSAGE);
+    const { item: stored, error: readError } = await fetchStoredItem(admin, id);
+    if (readError) return getQuickError(getItemLoadErrorMessage(readError));
+    if (!stored) return getQuickError(ITEM_NOT_FOUND_MESSAGE);
     if (isVisible && stored.kind !== "link" && !stored.file_path) return getQuickError(NEEDS_FILE_MESSAGE);
     const { error } = await admin.supabase.from("homework_items").update({ is_visible: isVisible }).eq("id", id).eq("tenant_id", admin.tenantId);
     if (error) return getQuickError(getDatabaseErrorMessage(error));
@@ -151,11 +154,12 @@ export async function setHomeworkVisibilityAction(itemId: string, isVisible: boo
 }
 
 export async function setHomeworkCoverAction(input: z.input<typeof coverSchema>): Promise<QuickResult> {
-  return runQuickAction(EDITOR_ROLES, async ({ supabase, tenantId }) => {
+  return runQuickAction({ action: "homework.set_cover", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const parsed = coverSchema.safeParse(input);
     if (!parsed.success) return getQuickError(parsed.error.issues[0]?.message ?? "Check the picture details.");
     if (!parsed.data.folder.startsWith(`homework/${parsed.data.itemId}/`)) return getQuickError("That picture belongs to another item.");
-    if (!(await hasAllPhotoFiles(parsed.data.folder))) return getQuickError("The picture didn't finish uploading. Try again.");
+    const filesCheck = await fetchPhotoFilesCheck(parsed.data.folder);
+    if (filesCheck !== "complete") return getQuickError(getPhotoFilesMessage(filesCheck));
     const { data: updated, error } = await supabase
       .from("homework_items")
       .update({ photo_path: parsed.data.folder, photo_alt: parsed.data.alt, photo_width: parsed.data.width, photo_height: parsed.data.height })
@@ -163,14 +167,14 @@ export async function setHomeworkCoverAction(input: z.input<typeof coverSchema>)
       .eq("tenant_id", tenantId)
       .select("id");
     if (error) return getQuickError(getDatabaseErrorMessage(error));
-    if (!updated?.length) return getQuickError(NOT_FOUND_MESSAGE);
+    if (!updated?.length) return getQuickError(ITEM_NOT_FOUND_MESSAGE);
     refreshHomeworkPages();
     return getQuickSuccess("Cover picture saved.");
   });
 }
 
 export async function removeHomeworkCoverAction(itemId: string): Promise<QuickResult> {
-  return runQuickAction(EDITOR_ROLES, async ({ supabase, tenantId }) => {
+  return runQuickAction({ action: "homework.remove_cover", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const { data: updated, error } = await supabase
       .from("homework_items")
       .update({ photo_path: null, photo_alt: null, photo_width: null, photo_height: null })
@@ -178,7 +182,7 @@ export async function removeHomeworkCoverAction(itemId: string): Promise<QuickRe
       .eq("tenant_id", tenantId)
       .select("id");
     if (error) return getQuickError(getDatabaseErrorMessage(error));
-    if (!updated?.length) return getQuickError(NOT_FOUND_MESSAGE);
+    if (!updated?.length) return getQuickError(ITEM_NOT_FOUND_MESSAGE);
     refreshHomeworkPages();
     return getQuickSuccess("Cover picture removed. Visitors see the video's first frame.");
   });

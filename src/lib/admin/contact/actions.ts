@@ -26,7 +26,7 @@ function getSiteSettingsRow(input: SiteSettingsInput) {
 }
 
 export async function saveSiteSettingsAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(EDITOR_ROLES, async ({ supabase, tenantId }) => {
+  return runAdminAction({ action: "contact.save", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const values = getFormValues(formData);
     const parsed = siteSettingsSchema.safeParse(values);
     if (!parsed.success) return getErrorState({ message: "Fix the highlighted fields, then save again.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });

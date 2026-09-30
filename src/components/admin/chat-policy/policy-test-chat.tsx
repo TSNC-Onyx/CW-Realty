@@ -1,18 +1,35 @@
 "use client";
 
 import { LoaderCircle, RotateCcw, SendHorizontal } from "lucide-react";
+import { unstable_rethrow } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
-import { sendTestChatAction } from "@/lib/admin/chat-policy/test-chat-actions";
+import { sendTestChatAction, type TestChatInput, type TestChatResult } from "@/lib/admin/chat-policy/test-chat-actions";
 import type { ChatTurn } from "@/lib/chat/answer-question";
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat/chat-schemas";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { getCallFailure } from "@/lib/observability/call-server-action";
+import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
 // Live test chat (Admin §6): asks the assistant using the text currently in the editor.
+// A call that fails outright (stale page, dropped connection) becomes a message and is
+// recorded, so the chat never stays stuck on "Asking…".
 
 type TestTurn = ChatTurn & { id: string; citedSections: string[] };
+
+async function fetchTestChatResult(input: TestChatInput): Promise<TestChatResult> {
+  try {
+    return await sendTestChatAction(input);
+  } catch (error) {
+    unstable_rethrow(error);
+    const failure = getCallFailure(error);
+    const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const reference = await reportClientProblem({ action: "chat_policy.test_chat", stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail });
+    return { status: "error", message: reference ? `${failure.message} (Ref ${reference})` : failure.message };
+  }
+}
 
 export function PolicyTestChat({ policyBody }: { policyBody: string }) {
   const [turns, setTurns] = useState<TestTurn[]>([]);
@@ -27,7 +44,7 @@ export function PolicyTestChat({ policyBody }: { policyBody: string }) {
     setIsPending(true);
     setError(null);
     const history = turns.map(({ role, body }) => ({ role, body }));
-    const result = await sendTestChatAction({ policyBody, turns: [...history, { role: "visitor", body: question }] });
+    const result = await fetchTestChatResult({ policyBody, turns: [...history, { role: "visitor", body: question }] });
     setIsPending(false);
     if (result.status === "error") {
       setError(result.message);

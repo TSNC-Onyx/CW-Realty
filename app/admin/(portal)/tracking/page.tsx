@@ -1,10 +1,13 @@
 import { CircleAlert, CircleCheck } from "lucide-react";
 import type { Metadata } from "next";
 
+import { LoadProblem } from "@/components/admin/load-problem";
 import { TagReviewButton } from "@/components/admin/tracking/tag-review-button";
 import { TrackingSettingsForm } from "@/components/admin/tracking/tracking-settings-form";
 import { TextLink } from "@/components/ui/text-link";
-import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
+import { getQueryLoad } from "@/lib/admin/load-result";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
+import { OWNER_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getTagServerOrigin } from "@/lib/tracking/tag-server";
@@ -39,16 +42,14 @@ function getReviewText(reviewedAt: string | null): string {
   return isTagReviewDue({ reviewedAt, now: new Date() }) ? `${lastReview} A review is due.` : lastReview;
 }
 
-export default async function TrackingPage() {
-  const { supabase, tenantId } = await requireAdminPage(OWNER_ROLES);
-  const { data: row } = await supabase.from("tracking_settings").select("gtm_container_id, meta_pixel_id, tags_reviewed_at").eq("tenant_id", tenantId).maybeSingle<TrackingSettingsRow>();
+async function fetchTrackingSettings({ supabase, tenantId }: AdminContext) {
+  const result = await supabase.from("tracking_settings").select("gtm_container_id, meta_pixel_id, tags_reviewed_at").eq("tenant_id", tenantId).maybeSingle<TrackingSettingsRow>();
+  return getQueryLoad({ part: "tracking settings", result, empty: null });
+}
+
+function TrackingSettings({ row }: { row: TrackingSettingsRow | null }) {
   return (
     <>
-      <h1 className="type-h1 mb-2">Ads &amp; analytics</h1>
-      <p className="type-lead mb-2 max-w-prose text-muted">Nothing tracks a visitor until they say yes in the cookie banner.</p>
-      <div className="mb-8">
-        <TextLink href="/privacy-policy#cookies" hasArrow>See what the privacy policy tells visitors</TextLink>
-      </div>
       <ul className="mb-10 grid max-w-prose gap-2">
         {getStatusLines(row).map((line) => (
           <li key={line.label} className="flex items-start gap-2">
@@ -63,6 +64,23 @@ export default async function TrackingPage() {
         <TagReviewButton />
       </section>
       <TrackingSettingsForm defaults={{ gtmContainerId: row?.gtm_container_id ?? "", metaPixelId: row?.meta_pixel_id ?? "" }} />
+    </>
+  );
+}
+
+export default async function TrackingPage() {
+  const admin = await requireAdminPage(OWNER_ROLES);
+  const settings = await fetchTrackingSettings(admin);
+  const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings] });
+  return (
+    <>
+      <h1 className="type-h1 mb-2">Ads &amp; analytics</h1>
+      <p className="type-lead mb-2 max-w-prose text-muted">Nothing tracks a visitor until they say yes in the cookie banner.</p>
+      <div className="mb-8">
+        <TextLink href="/privacy-policy#cookies" hasArrow>See what the privacy policy tells visitors</TextLink>
+      </div>
+      {/* No form without the saved settings: saving blanks would switch tracking off. */}
+      {settings.isLoaded ? <TrackingSettings row={settings.data} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
     </>
   );
 }

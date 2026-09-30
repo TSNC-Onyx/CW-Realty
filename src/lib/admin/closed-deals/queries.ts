@@ -1,8 +1,10 @@
 import "server-only";
 
+import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 
 // Closed deals with the lead's contact details and ad attribution (owners and managers by RLS).
+// A failed read is a LoadResult failure, never an empty list or an empty download file.
 
 // Read in pages so the list and the downloads always include every deal (Infra §5).
 const PAGE_SIZE = 500;
@@ -59,9 +61,9 @@ function getClosedDeal(row: ClosedDealRow): ClosedDeal {
   };
 }
 
-async function fetchClosedDealPage({ supabase, tenantId }: AdminContext, pageIndex: number): Promise<ClosedDealRow[]> {
+async function fetchClosedDealPage({ supabase, tenantId }: AdminContext, pageIndex: number): Promise<LoadResult<ClosedDealRow[]>> {
   const from = pageIndex * PAGE_SIZE;
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("closed_deals")
     .select(CLOSED_DEAL_COLUMNS)
     .eq("tenant_id", tenantId)
@@ -70,27 +72,31 @@ async function fetchClosedDealPage({ supabase, tenantId }: AdminContext, pageInd
     .order("id")
     .range(from, from + PAGE_SIZE - 1)
     .returns<ClosedDealRow[]>();
-  return data ?? [];
+  if (error) return getLoadFailure("closed deals", error);
+  return getLoaded(data ?? []);
 }
 
-export async function fetchClosedDeals(admin: AdminContext): Promise<ClosedDeal[]> {
+export async function fetchClosedDeals(admin: AdminContext): Promise<LoadResult<ClosedDeal[]>> {
   const rows: ClosedDealRow[] = [];
   for (let pageIndex = 0; ; pageIndex += 1) {
     const page = await fetchClosedDealPage(admin, pageIndex);
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) return rows.map(getClosedDeal);
+    if (!page.isLoaded) return page;
+    rows.push(...page.data);
+    if (page.data.length < PAGE_SIZE) return getLoaded(rows.map(getClosedDeal));
   }
 }
 
 export type ThreadClosedDeal = { id: string; closedOn: string; valueCents: number | null };
 
-export async function fetchThreadClosedDeal({ supabase, tenantId }: AdminContext, threadId: string): Promise<ThreadClosedDeal | null> {
-  const { data } = await supabase
+/** null data: no deal recorded on this conversation. */
+export async function fetchThreadClosedDeal({ supabase, tenantId }: AdminContext, threadId: string): Promise<LoadResult<ThreadClosedDeal | null>> {
+  const { data, error } = await supabase
     .from("closed_deals")
     .select("id, closed_on, value_cents")
     .eq("tenant_id", tenantId)
     .eq("thread_id", threadId)
     .is("deleted_at", null)
     .maybeSingle<{ id: string; closed_on: string; value_cents: number | null }>();
-  return data ? { id: data.id, closedOn: data.closed_on, valueCents: data.value_cents } : null;
+  if (error) return getLoadFailure("closed deal", error);
+  return getLoaded(data ? { id: data.id, closedOn: data.closed_on, valueCents: data.value_cents } : null);
 }

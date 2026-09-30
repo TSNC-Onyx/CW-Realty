@@ -13,18 +13,30 @@ import { OWNER_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
+import { noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
 import { createServiceClient } from "@/lib/supabase/service-client";
 
 // Chatbot policy (Admin §6): owners only, checked here, in the page, and by RLS.
 
 const POLICY_PATH = "/admin/chat-policy";
 const NO_MODEL_MESSAGE = "The chat assistant isn't connected yet (no Anthropic API key), so tests can't run. The site owner adds the key at launch.";
+const NO_MODEL_CAUSE: ProblemCause = { stage: "setup", severity: "warning", code: "no_api_key", detail: null };
 
 type DraftRow = { id: string; version: number };
 
-async function updateDraft({ supabase, tenantId }: AdminContext, { draftId, body }: { draftId: string; body: string }): Promise<DraftRow | null> {
-  const { data } = await supabase.from("chat_policies").update({ body }).eq("tenant_id", tenantId).eq("id", draftId).eq("status", "draft").select("id, version").maybeSingle<DraftRow>();
-  return data;
+type DatabaseError = { code?: string; message: string };
+
+/** updated is null when no open draft matched (none, or it was published meanwhile). */
+type DraftUpdate = { updated: DraftRow | null; error: DatabaseError | null };
+
+// A read failed: never reported as "no longer exists" or "add a question first".
+function noteLoadCause(error: DatabaseError): void {
+  noteProblemCause({ stage: "load", severity: "error", code: error.code ?? "database", detail: error.message });
+}
+
+async function updateDraft({ supabase, tenantId }: AdminContext, { draftId, body }: { draftId: string; body: string }): Promise<DraftUpdate> {
+  const result = await supabase.from("chat_policies").update({ body }).eq("tenant_id", tenantId).eq("id", draftId).eq("status", "draft").select("id, version").maybeSingle<DraftRow>();
+  return { updated: result.data, error: result.error };
 }
 
 async function insertDraft({ supabase, tenantId }: AdminContext, body: string) {
@@ -33,12 +45,13 @@ async function insertDraft({ supabase, tenantId }: AdminContext, body: string) {
 
 /** Saves over the open draft, or starts a new version when there is none (or it was published meanwhile). */
 export async function savePolicyDraftAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(OWNER_ROLES, async (admin) => {
+  return runAdminAction({ action: "chat_policy.save_draft", roles: OWNER_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const parsed = policyBodySchema.safeParse(values.body ?? "");
     if (!parsed.success) return getErrorState({ message: "Fix the policy text.", fieldErrors: { body: parsed.error.issues[0]?.message ?? "Check the policy text" }, values });
     const draftId = z.uuid().safeParse(values.draftId).data;
-    const updated = draftId ? await updateDraft(admin, { draftId, body: parsed.data }) : null;
+    const { updated, error: updateError } = draftId ? await updateDraft(admin, { draftId, body: parsed.data }) : { updated: null, error: null };
+    if (updateError) return getErrorState({ message: getDatabaseErrorMessage(updateError), values });
     if (updated) {
       revalidatePath(POLICY_PATH);
       return getSuccessState(`Draft version ${updated.version} saved. Run the tests before publishing.`);
@@ -51,8 +64,12 @@ export async function savePolicyDraftAction(_state: ActionState, formData: FormD
 }
 
 export async function restorePolicyVersionAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async (admin) => {
-    const { data: source } = await admin.supabase.from("chat_policies").select("body, version").eq("tenant_id", admin.tenantId).eq("id", z.uuid().parse(policyId)).maybeSingle<{ body: string; version: number }>();
+  return runQuickAction({ action: "chat_policy.restore_version", roles: OWNER_ROLES }, async (admin) => {
+    const { data: source, error: readError } = await admin.supabase.from("chat_policies").select("body, version").eq("tenant_id", admin.tenantId).eq("id", z.uuid().parse(policyId)).maybeSingle<{ body: string; version: number }>();
+    if (readError) {
+      noteLoadCause(readError);
+      return getQuickError("We couldn't load that version. Try again in a moment.");
+    }
     if (!source) return getQuickError("That version no longer exists.");
     const { data, error } = await insertDraft(admin, source.body);
     if (error || !data) return getQuickError(error ? getDatabaseErrorMessage(error) : "The version was not restored.");
@@ -62,7 +79,7 @@ export async function restorePolicyVersionAction(policyId: string): Promise<Quic
 }
 
 export async function publishPolicyAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async ({ supabase }) => {
+  return runQuickAction({ action: "chat_policy.publish", roles: OWNER_ROLES }, async ({ supabase }) => {
     const { error } = await supabase.rpc("transition", { p_workflow_key: "chat_policy_status", p_record_id: z.uuid().parse(policyId), p_to_state: "published" });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(POLICY_PATH);
@@ -77,7 +94,7 @@ function getTestRow(input: z.infer<typeof policyTestSchema>) {
 }
 
 export async function addPolicyTestAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
+  return runAdminAction({ action: "chat_policy.add_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const values = getFormValues(formData);
     const parsed = policyTestSchema.safeParse({ question: values.question ?? "", expectedOutcome: values.expectedOutcome, expectedSection: values.expectedSection ?? "" });
     if (!parsed.success) {
@@ -92,7 +109,7 @@ export async function addPolicyTestAction(_state: ActionState, formData: FormDat
 }
 
 export async function restorePolicyTestAction(input: PolicyTestInput): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
+  return runQuickAction({ action: "chat_policy.restore_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const { error } = await supabase.from("chat_policy_tests").insert({ tenant_id: tenantId, ...getTestRow(policyTestSchema.parse(input)) });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(POLICY_PATH);
@@ -101,7 +118,7 @@ export async function restorePolicyTestAction(input: PolicyTestInput): Promise<Q
 }
 
 export async function removePolicyTestAction(testId: string): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async ({ supabase, tenantId }) => {
+  return runQuickAction({ action: "chat_policy.remove_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const { data, error } = await supabase.from("chat_policy_tests").delete().eq("tenant_id", tenantId).eq("id", z.uuid().parse(testId)).select("id");
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     if (!data?.length) return getQuickError("That question was already removed.");
@@ -114,18 +131,32 @@ export async function removePolicyTestAction(testId: string): Promise<QuickResul
 
 type DraftToTest = { id: string; body: string; updated_at: string };
 type TestRow = { question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null; is_active: boolean; updated_at: string };
+type TestCaseSet = { testCases: PolicyTestCase[]; changedAt: string | null };
 
-async function fetchDraftToTest({ supabase, tenantId }: AdminContext, policyId: string): Promise<DraftToTest | null> {
-  const { data } = await supabase.from("chat_policies").select("id, body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).eq("status", "draft").maybeSingle<DraftToTest>();
-  return data;
+/** A message when the draft can't be tested (read failed, or it isn't a saved draft). */
+async function fetchDraftToTest({ supabase, tenantId }: AdminContext, policyId: string): Promise<DraftToTest | { error: string }> {
+  const { data, error } = await supabase.from("chat_policies").select("id, body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).eq("status", "draft").maybeSingle<DraftToTest>();
+  if (error) {
+    noteLoadCause(error);
+    return { error: "We couldn't load the draft to test. Try again in a moment." };
+  }
+  return data ?? { error: "Only a saved draft can be tested. Save your changes first." };
+}
+
+function getTestCaseSet(rows: TestRow[]): TestCaseSet {
+  const testCases = rows.filter((row) => row.is_active).map((row) => ({ question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false }));
+  return { testCases, changedAt: rows[0]?.updated_at ?? null };
 }
 
 /** One read, so the questions asked and the "changed at" stamp always describe the same set. */
-async function fetchTestCases({ supabase, tenantId }: AdminContext): Promise<{ testCases: PolicyTestCase[]; changedAt: string | null }> {
-  const { data } = await supabase.from("chat_policy_tests").select("question, expected_outcome, expected_section, is_active, updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).returns<TestRow[]>();
-  const rows = data ?? [];
-  const testCases = rows.filter((row) => row.is_active).map((row) => ({ question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false }));
-  return { testCases, changedAt: rows[0]?.updated_at ?? null };
+async function fetchTestCases({ supabase, tenantId }: AdminContext): Promise<TestCaseSet | { error: string }> {
+  const { data, error } = await supabase.from("chat_policy_tests").select("question, expected_outcome, expected_section, is_active, updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).returns<TestRow[]>();
+  if (error) {
+    noteLoadCause(error);
+    return { error: "We couldn't load the test questions. Try again in a moment." };
+  }
+  const testCaseSet = getTestCaseSet(data ?? []);
+  return testCaseSet.testCases.length > 0 ? testCaseSet : { error: "Add at least one test question first." };
 }
 
 async function saveTestRun({ draft, changedAt, results, userId }: { draft: DraftToTest; changedAt: string | null; results: PolicyTestResult[]; userId: string }) {
@@ -140,15 +171,18 @@ async function saveTestRun({ draft, changedAt, results, userId }: { draft: Draft
 }
 
 export async function runPolicyTestsAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction(OWNER_ROLES, async (admin) => {
+  return runQuickAction({ action: "chat_policy.run_tests", roles: OWNER_ROLES }, async (admin) => {
     const draft = await fetchDraftToTest(admin, z.uuid().parse(policyId));
-    if (!draft) return getQuickError("Only a saved draft can be tested. Save your changes first.");
-    const { testCases, changedAt } = await fetchTestCases(admin);
-    if (testCases.length === 0) return getQuickError("Add at least one test question first.");
+    if ("error" in draft) return getQuickError(draft.error);
+    const testCaseSet = await fetchTestCases(admin);
+    if ("error" in testCaseSet) return getQuickError(testCaseSet.error);
     const model = getClaudeAnswerModel();
-    if (!model) return getQuickError(NO_MODEL_MESSAGE);
-    const results = await fetchTestResults({ policyBody: draft.body, testCases: [...BUILT_IN_TEST_CASES, ...testCases], model });
-    const { error } = await saveTestRun({ draft, changedAt, results, userId: admin.userId });
+    if (!model) {
+      noteProblemCause(NO_MODEL_CAUSE);
+      return getQuickError(NO_MODEL_MESSAGE);
+    }
+    const results = await fetchTestResults({ policyBody: draft.body, testCases: [...BUILT_IN_TEST_CASES, ...testCaseSet.testCases], model });
+    const { error } = await saveTestRun({ draft, changedAt: testCaseSet.changedAt, results, userId: admin.userId });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(POLICY_PATH);
     return results.every((result) => result.isPassed) ? getQuickSuccess(getRunSummary(results)) : getQuickError(getRunSummary(results));

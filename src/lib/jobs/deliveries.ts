@@ -5,7 +5,7 @@ import { TransientJobError, type JobDependencies } from "@/lib/jobs/alert-jobs";
 // ('sending') with a conditional update before it goes out, so a retried job, a duplicate
 // queue delivery, or a Retry click can never send it twice.
 
-export type DeliveryKind = "new_request" | "visitor_copy" | "reply" | "test";
+export type DeliveryKind = "new_request" | "visitor_copy" | "reply" | "test" | "problem";
 
 export type DeliveryRequest = {
   tenantId: string;
@@ -27,7 +27,8 @@ const ROW_COLUMNS = "id, status, attempts";
 function getScopedLookup({ db }: JobDependencies, request: DeliveryRequest) {
   const query = db.from("alert_deliveries").select(ROW_COLUMNS).eq("kind", request.kind).eq("recipient_email", request.email.to.email.toLowerCase());
   if (request.kind === "reply") return query.eq("message_id", request.messageId ?? "");
-  if (request.kind === "test") return query.eq("job_run_id", request.jobRunId ?? "");
+  // Test alerts and problem digests are grouped by run.
+  if (request.kind === "test" || request.kind === "problem") return query.eq("job_run_id", request.jobRunId ?? "");
   return query.eq("thread_id", request.threadId ?? "");
 }
 

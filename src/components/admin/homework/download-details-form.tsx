@@ -54,7 +54,8 @@ function DeliveryChoice({ delivery, onChange }: { delivery: Delivery; onChange: 
 
 export function DownloadDetailsForm(props: DownloadDetailsFormProps) {
   const action = props.mode === "create" ? createHomeworkDownloadAction : updateHomeworkDownloadAction;
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action);
+  const problemAction = props.mode === "create" ? "homework.create_download" : "homework.update_download";
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action, { problemAction });
   const idempotencyKey = useIdempotencyKey(props.mode === "create" ? props.idempotencyKey : "", state);
   const { defaults } = props;
   const [delivery, setDelivery] = useState<Delivery>(defaults.delivery);

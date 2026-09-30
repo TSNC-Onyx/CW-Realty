@@ -1,13 +1,16 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState, type FormEvent } from "react";
+import { startTransition, useActionState, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/admin/toast-provider";
 import { useUnsavedChanges } from "@/components/admin/use-unsaved-changes";
 import { IDLE_ACTION_STATE, type ActionState } from "@/lib/admin/action-state";
+import { withCallReporting } from "@/lib/observability/call-server-action";
+import type { ProblemAction } from "@/lib/observability/problem-catalog";
 
 // Admin form behavior: submit without the browser's automatic form reset (so nothing
 // typed is lost), toast each result, focus the first field to fix, and track unsaved changes.
+// A call that fails outright (stale page, dropped connection) is recorded and shown plainly.
 
 export type AdminAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -15,8 +18,11 @@ function focusFirstInvalidField(form: HTMLFormElement | null): void {
   form?.querySelector<HTMLElement>("[aria-invalid='true']")?.focus();
 }
 
-export function useAdminForm(action: AdminAction, { onSuccess }: { onSuccess?: (state: ActionState) => void } = {}) {
-  const [state, dispatch, isPending] = useActionState(action, IDLE_ACTION_STATE);
+type AdminFormOptions = { problemAction: ProblemAction; onSuccess?: (state: ActionState) => void };
+
+export function useAdminForm(action: AdminAction, { problemAction, onSuccess }: AdminFormOptions) {
+  const reportingAction = useMemo(() => withCallReporting(problemAction, action), [problemAction, action]);
+  const [state, dispatch, isPending] = useActionState(reportingAction, IDLE_ACTION_STATE);
   const [isDirty, setIsDirty] = useState(false);
   const [handledResponseId, setHandledResponseId] = useState(state.responseId);
   const formRef = useRef<HTMLFormElement>(null);

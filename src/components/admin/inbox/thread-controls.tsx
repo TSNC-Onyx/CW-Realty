@@ -31,7 +31,7 @@ function AssignControl({ threadId, assigneeId, teammates }: { threadId: string; 
           ))}
         </select>
       </div>
-      <QuickActionButton label="Assign" accessibleLabel="Assign this message" icon={UserCheck} onRun={() => assignThreadAction(threadId, selectRef.current?.value ?? "")} />
+      <QuickActionButton label="Assign" accessibleLabel="Assign this message" icon={UserCheck} problemAction="inbox.assign" onRun={() => assignThreadAction(threadId, selectRef.current?.value ?? "")} />
     </div>
   );
 }
@@ -44,14 +44,15 @@ export function ThreadControls({ threadId, status, assigneeId, teammates }: Thre
       {teammates && <AssignControl threadId={threadId} assigneeId={assigneeId} teammates={teammates} />}
       <div>
         {isClosed ? (
-          assigneeId && <QuickActionButton label="Reopen" accessibleLabel="Reopen this conversation" icon={RotateCcw} onRun={() => setThreadStatusAction(threadId, "assigned")} />
+          assigneeId && <QuickActionButton label="Reopen" accessibleLabel="Reopen this conversation" icon={RotateCcw} problemAction="inbox.set_status" onRun={() => setThreadStatusAction(threadId, "assigned")} />
         ) : (
           <QuickActionButton
             label="Close"
             accessibleLabel="Close this conversation"
             icon={CircleCheck}
+            problemAction="inbox.set_status"
             onRun={() => setThreadStatusAction(threadId, "closed")}
-            undo={assigneeId ? { label: "Undo", onRun: () => setThreadStatusAction(threadId, "assigned") } : undefined}
+            undo={assigneeId ? { label: "Undo", problemAction: "inbox.set_status", onRun: () => setThreadStatusAction(threadId, "assigned") } : undefined}
           />
         )}
       </div>

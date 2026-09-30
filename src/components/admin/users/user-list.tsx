@@ -13,6 +13,7 @@ const SIGN_IN_CODE_LABELS: Record<SignInCodeStatus, string> = {
   on: "Sign-in codes on",
   "not-set-up": "Hasn't finished setting up sign-in codes",
   unknown: "Sign-in code status unavailable right now",
+  "not-loaded": "Couldn't load sign-in status",
 };
 
 export type UserListItem = { userId: string; email: string; role: AdminRole; signInCodes: SignInCodeStatus; isCurrentUser: boolean };
@@ -42,15 +43,16 @@ function UserRow({ user }: { user: UserListItem }) {
         </select>
       </div>
       <div className="flex flex-wrap gap-2 md:col-span-5 md:justify-end">
-        <QuickActionButton label="Save role" accessibleLabel={`Save the role for ${user.email}`} icon={Save} onRun={() => changeRoleAction(user.userId, roleRef.current?.value ?? user.role)} />
-        <QuickActionButton label="Reset sign-in codes" accessibleLabel={`Reset sign-in codes for ${user.email}`} icon={KeyRound} onRun={() => resetSignInCodesAction(user.userId)} />
+        <QuickActionButton label="Save role" accessibleLabel={`Save the role for ${user.email}`} icon={Save} problemAction="users.change_role" onRun={() => changeRoleAction(user.userId, roleRef.current?.value ?? user.role)} />
+        <QuickActionButton label="Reset sign-in codes" accessibleLabel={`Reset sign-in codes for ${user.email}`} icon={KeyRound} problemAction="users.reset_sign_in_codes" onRun={() => resetSignInCodesAction(user.userId)} />
         {!user.isCurrentUser && (
           <QuickActionButton
             label="Remove access"
             accessibleLabel={`Remove access for ${user.email}`}
             icon={UserX}
+            problemAction="users.remove_access"
             onRun={() => removeAccessAction(user.userId)}
-            undo={{ label: "Undo", onRun: () => restoreAccessAction(user.userId, user.role) }}
+            undo={{ label: "Undo", problemAction: "users.restore_access", onRun: () => restoreAccessAction(user.userId, user.role) }}
           />
         )}
       </div>

@@ -116,6 +116,8 @@ async function getRetryEmail(deps: JobDependencies, job: AlertJob & { kind: "ret
     "fetchDelivery",
   );
   if (!delivery) throw new JobDataError("Delivery not found", { job });
+  // Problem digests are re-sent by the scheduled problem-alert run, never by Retry.
+  if (delivery.kind === "problem") throw new JobDataError("Problem alerts are re-sent automatically", { job });
   if (delivery.status !== "failed") return null;
   const candidates =
     delivery.kind === "reply" && delivery.message_id

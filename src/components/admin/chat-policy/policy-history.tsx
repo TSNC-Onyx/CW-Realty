@@ -19,7 +19,7 @@ export function PolicyHistory({ versions }: { versions: PolicyVersionRow[] }) {
             <span className="font-semibold">{`Version ${version.version}`}</span>
             <span className="type-small text-muted">{` · ${version.statusLabel} · ${version.when}`}</span>
           </p>
-          <QuickActionButton label="Restore" accessibleLabel={`Restore version ${version.version} as a new draft`} icon={History} onRun={() => restorePolicyVersionAction(version.id)} />
+          <QuickActionButton label="Restore" accessibleLabel={`Restore version ${version.version} as a new draft`} icon={History} problemAction="chat_policy.restore_version" onRun={() => restorePolicyVersionAction(version.id)} />
         </li>
       ))}
     </ul>

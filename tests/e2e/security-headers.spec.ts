@@ -74,3 +74,14 @@ test("page loads with no CSP violations", async ({ page }) => {
   // Assert
   expect(violations).toEqual([]);
 });
+
+test("admin requests always get a request ID made by the server", async ({ request }) => {
+  // Arrange
+  const forgedRequestId = "forged-request-id-123";
+
+  // Act
+  const response = await request.get("/admin/login", { headers: { "x-request-id": forgedRequestId }, maxRedirects: 0 });
+
+  // Assert
+  expect(response.headers()["x-request-id"]).not.toBe(forgedRequestId);
+});

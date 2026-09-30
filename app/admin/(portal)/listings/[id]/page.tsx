@@ -5,21 +5,37 @@ import { z } from "zod";
 import { ListingForm } from "@/components/admin/listings/listing-form";
 import { ListingPhotos } from "@/components/admin/listings/listing-photos";
 import { ListingPublishing } from "@/components/admin/listings/listing-publishing";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getListingDefaults } from "@/lib/admin/listings/mappers";
 import { fetchAdminListing } from "@/lib/admin/listings/queries";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
 export const metadata: Metadata = { title: "Edit listing" };
 
 type EditListingPageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> };
 
+function ListingLoadProblem({ notice }: { notice: LoadProblemNotice | null }) {
+  return (
+    <>
+      <TextLink href="/admin/listings">Back to listings</TextLink>
+      <h1 className="type-h1 mt-4 mb-8">Edit listing</h1>
+      <LoadProblem notice={notice} />
+    </>
+  );
+}
+
 export default async function EditListingPage({ params, searchParams }: EditListingPageProps) {
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  const listing = parsedId.success ? await fetchAdminListing(admin, parsedId.data) : null;
+  if (!parsedId.success) notFound();
+  const listingLoad = await fetchAdminListing(admin, parsedId.data);
+  const notice = await reportPageLoad({ admin, action: "listings.load", results: [listingLoad] });
+  if (!listingLoad.isLoaded) return <ListingLoadProblem notice={notice} />;
+  const listing = listingLoad.data;
   if (!listing) notFound();
   return (
     <>

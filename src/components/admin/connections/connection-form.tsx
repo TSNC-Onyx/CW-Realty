@@ -28,7 +28,7 @@ const CATEGORY_OPTIONS = CONNECTION_CATEGORIES.map((category) => ({ value: categ
 
 export function ConnectionForm(props: ConnectionFormProps) {
   const action = props.mode === "create" ? createConnectionAction : updateConnectionAction;
-  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action);
+  const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(action, { problemAction: props.mode === "create" ? "connections.create" : "connections.update" });
   const idempotencyKey = useIdempotencyKey(props.mode === "create" ? props.idempotencyKey : "", state);
   const { defaults } = props;
   const errors = state.fieldErrors;

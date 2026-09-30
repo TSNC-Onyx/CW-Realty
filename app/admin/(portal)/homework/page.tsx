@@ -2,11 +2,13 @@ import { GraduationCap, Plus } from "lucide-react";
 import type { Metadata } from "next";
 
 import { HomeworkList, type HomeworkListItem } from "@/components/admin/homework/homework-list";
+import { LoadProblem } from "@/components/admin/load-problem";
 import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { TextLink } from "@/components/ui/text-link";
 import { getItemCover, getItemDetail } from "@/lib/admin/homework/item-labels";
 import { fetchAdminHomework, type AdminHomeworkItem } from "@/lib/admin/homework/queries";
+import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { HOMEWORK_GROUPS } from "@/lib/content/homework-rules";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -49,7 +51,17 @@ function PageHeader() {
 
 export default async function AdminHomeworkPage() {
   const admin = await requireAdminPage(EDITOR_ROLES);
-  const items = await fetchAdminHomework(admin);
+  const homework = await fetchAdminHomework(admin);
+  const notice = await reportPageLoad({ admin, action: "homework.load", results: [homework] });
+  if (!homework.isLoaded) {
+    return (
+      <>
+        <PageHeader />
+        <LoadProblem notice={notice} />
+      </>
+    );
+  }
+  const items = homework.data;
   if (items.length === 0) {
     return (
       <>

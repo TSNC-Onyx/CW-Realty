@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 import { useToast } from "@/components/admin/toast-provider";
 import { getLogoutPath } from "@/lib/admin/paths";
 import { IDLE_LIMIT_MS, IDLE_WARNING_MS } from "@/lib/admin/session-timing";
+import { getHttpProblemCode, type BrowserProblemCode } from "@/lib/observability/client-problem";
+import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
 // Admin §7: sessions end after 30 minutes without activity. While someone types or
 // clicks, the tab tells the server every few minutes; when they stop, a warning shows
-// at 28 minutes and the tab signs out at 30.
+// at 28 minutes and the tab signs out at 30. Three keep-alive failures in a row are
+// recorded once, since a single missed ping is harmless.
 
 const KEEP_ALIVE_PATH = "/admin/keep-alive";
 const KEEP_ALIVE_EVERY_MS = 5 * 60 * 1000;
@@ -16,6 +19,9 @@ const CHECK_EVERY_MS = 15 * 1000;
 const ACTIVITY_EVENTS = ["pointerdown", "keydown", "scroll", "input"] as const;
 // Shared by every open admin tab, so an idle tab never signs out the one in use.
 const SHARED_ACTIVITY_KEY = "cwr-admin-last-activity";
+const KEEP_ALIVE_FAILURE_LIMIT = 3;
+
+type KeepAliveFailure = { code: BrowserProblemCode; detail: string };
 
 function readSharedActivity(): number {
   try {
@@ -42,8 +48,28 @@ function submitSignOut(): void {
   form.submit();
 }
 
-function sendKeepAlive(): void {
-  void fetch(KEEP_ALIVE_PATH, { method: "POST", credentials: "same-origin" }).catch(() => undefined);
+async function fetchKeepAliveFailure(): Promise<KeepAliveFailure | null> {
+  try {
+    const response = await fetch(KEEP_ALIVE_PATH, { method: "POST", credentials: "same-origin" });
+    return response.ok ? null : { code: getHttpProblemCode(response.status), detail: `HTTP ${response.status}` };
+  } catch (error) {
+    return { code: "network", detail: error instanceof Error ? `${error.name}: ${error.message}` : String(error) };
+  }
+}
+
+// Counts failures in a row; reports only when the count reaches the limit, and a success resets it.
+function handleKeepAliveResult({ failure, failureCountRef }: { failure: KeepAliveFailure | null; failureCountRef: RefObject<number> }): void {
+  if (!failure) {
+    failureCountRef.current = 0;
+    return;
+  }
+  failureCountRef.current += 1;
+  if (failureCountRef.current !== KEEP_ALIVE_FAILURE_LIMIT) return;
+  void reportClientProblem({ action: "portal.keep_alive", stage: "network", severity: "warning", code: failure.code, detail: failure.detail });
+}
+
+function sendKeepAlive(failureCountRef: RefObject<number>): void {
+  void fetchKeepAliveFailure().then((failure) => handleKeepAliveResult({ failure, failureCountRef }));
 }
 
 export function IdleTimer() {
@@ -51,6 +77,7 @@ export function IdleTimer() {
   const lastActivityRef = useRef(0);
   const lastKeepAliveRef = useRef(0);
   const hasWarnedRef = useRef(false);
+  const keepAliveFailureCountRef = useRef(0);
 
   useEffect(() => {
     lastActivityRef.current = Date.now();
@@ -61,7 +88,7 @@ export function IdleTimer() {
       hasWarnedRef.current = false;
       if (Date.now() - lastKeepAliveRef.current < KEEP_ALIVE_EVERY_MS) return;
       lastKeepAliveRef.current = Date.now();
-      sendKeepAlive();
+      sendKeepAlive(keepAliveFailureCountRef);
     };
     const checkIdle = () => {
       const idleMs = Date.now() - Math.max(lastActivityRef.current, readSharedActivity());

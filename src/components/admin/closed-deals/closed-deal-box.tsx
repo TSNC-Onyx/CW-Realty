@@ -11,6 +11,7 @@ import { saveClosedDealAction } from "@/lib/admin/closed-deals/actions";
 import type { ThreadClosedDeal } from "@/lib/admin/closed-deals/queries";
 import { moveToTrashAction, restoreFromTrashAction } from "@/lib/admin/trash/actions";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { callQuickAction } from "@/lib/observability/call-server-action";
 
 // "Closed deal" on a conversation (plan decision 11): record or correct the closing date and
 // price; removing it goes to the trash with Undo (Admin §1, §7).
@@ -30,7 +31,7 @@ export function ClosedDealBox({ threadId, deal }: { threadId: string; deal: Thre
     const formData = new FormData(event.currentTarget);
     const input = { closedOn: String(formData.get("closedOn") ?? ""), salePrice: String(formData.get("salePrice") ?? "") };
     startTransition(async () => {
-      const result = await saveClosedDealAction(threadId, input);
+      const result = await callQuickAction("closed_deals.save", () => saveClosedDealAction(threadId, input));
       showToast({ tone: result.status === "success" ? "success" : "error", title: result.message });
     });
   };
@@ -51,8 +52,9 @@ export function ClosedDealBox({ threadId, deal }: { threadId: string; deal: Thre
               label="Remove"
               accessibleLabel="Move this closed deal to the trash"
               icon={Trash2}
+              problemAction="trash.move_to_trash"
               onRun={() => moveToTrashAction({ table: "closed_deals", id: deal.id })}
-              undo={{ label: "Undo", onRun: () => restoreFromTrashAction({ table: "closed_deals", id: deal.id }) }}
+              undo={{ label: "Undo", problemAction: "trash.restore", onRun: () => restoreFromTrashAction({ table: "closed_deals", id: deal.id }) }}
             />
           )}
         </div>

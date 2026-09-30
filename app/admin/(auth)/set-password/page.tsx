@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { SetPasswordForm } from "@/components/admin/auth/password-forms";
-import { fetchHasVerifiedFactor, fetchSignInStage } from "@/lib/admin/auth-pages";
+import { fetchHasVerifiedFactor, fetchSignInStage, requireAvailableStage } from "@/lib/admin/auth-pages";
 import { ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_SET_PASSWORD_PATH } from "@/lib/admin/paths";
 
 export const metadata: Metadata = { title: "Choose a password" };
@@ -11,6 +11,7 @@ export const metadata: Metadata = { title: "Choose a password" };
 // codes confirms a code first, so a stolen email link alone cannot change the password.
 export default async function SetPasswordPage() {
   const stage = await fetchSignInStage();
+  requireAvailableStage(stage);
   if (stage === "signed-out") redirect(ADMIN_LOGIN_PATH);
   if (stage === "password-only" && (await fetchHasVerifiedFactor())) redirect(`${ADMIN_MFA_PATH}?next=${encodeURIComponent(ADMIN_SET_PASSWORD_PATH)}`);
   return (

@@ -4,6 +4,10 @@
 // interrupted upload can leave files behind. Folders younger than a day are left alone so
 // an upload in progress is never touched. Run nightly by .github/workflows/cleanup-photo-files.yml.
 //
+// Each run is recorded for the owner's problem log (docs/cwr-error-tracking-plan.md): success
+// refreshes the "photo_cleanup" health check (the database raises a problem if it goes 36 hours
+// without one), and a failure is recorded as a problem.
+//
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/cleanup-photo-files.mjs
 
 import { createClient } from "@supabase/supabase-js";
@@ -132,8 +136,16 @@ async function cleanHomeworkFiles(client, nowMs) {
   console.log(`Homework file cleanup: ${folders.length} folders, ${unused.length} unused, ${removedCount} removed.`);
 }
 
-async function main() {
-  const client = getClient();
+// Reporting must never fail the clean-up itself; the Actions log keeps a line either way.
+async function recordRunOutcome(client, error) {
+  const call = error
+    ? client.rpc("record_problem", { p: { origin: "github", action: "jobs.photo_cleanup", stage: "job", severity: "error", code: error.name, detail: error.message.slice(0, 500) } })
+    : client.rpc("touch_health_check", { p_name: "photo_cleanup", p_is_ok: true });
+  const { error: reportError } = await call.then((result) => result, (failure) => ({ error: failure }));
+  if (reportError) console.error(`Could not record the clean-up outcome: ${reportError.message ?? reportError}`);
+}
+
+async function runCleanup(client) {
   const bucket = client.storage.from(photoLayout.bucket);
   const [folders, referenced] = await Promise.all([fetchUploadFolders(bucket, TOP_FOLDERS), fetchReferencedFolders(client)]);
   const unused = folders.filter((folder) => !referenced.has(folder));
@@ -145,6 +157,17 @@ async function main() {
   }
   console.log(`Photo cleanup: ${folders.length} folders, ${unused.length} unused, ${removedCount} removed.`);
   await cleanHomeworkFiles(client, nowMs);
+}
+
+async function main() {
+  const client = getClient();
+  try {
+    await runCleanup(client);
+    await recordRunOutcome(client, null);
+  } catch (error) {
+    await recordRunOutcome(client, error);
+    throw error;
+  }
 }
 
 main().catch((error) => {

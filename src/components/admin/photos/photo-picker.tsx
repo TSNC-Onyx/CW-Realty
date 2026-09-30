@@ -12,6 +12,8 @@ import type { PhotoTarget } from "@/lib/admin/photos/actions";
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
 import type { QuickResult } from "@/lib/admin/quick-result";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { callQuickAction } from "@/lib/observability/call-server-action";
+import type { ProblemAction } from "@/lib/observability/problem-catalog";
 
 // Choose a photo, describe it (alt text is required, Admin §2), then upload. The photo is
 // resized and converted in this browser before it is sent.
@@ -23,6 +25,8 @@ const PREVIEW_HEIGHT = 160;
 type PhotoPickerProps = {
   target: PhotoTarget;
   buttonLabel: string;
+  /** Catalog name of the action that saves the uploaded photo, so a failed call is recorded under it. */
+  saveProblemAction: ProblemAction;
   onUploaded: (photo: UploadedPhoto, alt: string) => Promise<QuickResult>;
 };
 
@@ -32,7 +36,7 @@ function getStageText(stage: "idle" | "preparing" | "uploading", share: number):
   return "";
 }
 
-export function PhotoPicker({ target, buttonLabel, onUploaded }: PhotoPickerProps) {
+export function PhotoPicker({ target, buttonLabel, saveProblemAction, onUploaded }: PhotoPickerProps) {
   const inputId = useId();
   const { showToast } = useToast();
   const { progress, uploadPhoto, clearError } = usePhotoUpload(target);
@@ -61,7 +65,7 @@ export function PhotoPicker({ target, buttonLabel, onUploaded }: PhotoPickerProp
     setAltError(null);
     const uploaded = await uploadPhoto(file);
     if (!uploaded) return;
-    const result = await onUploaded(uploaded, alt);
+    const result = await callQuickAction(saveProblemAction, () => onUploaded(uploaded, alt));
     showToast({ tone: result.status === "success" ? "success" : "error", title: result.message });
     if (result.status === "success") {
       setFile(null);

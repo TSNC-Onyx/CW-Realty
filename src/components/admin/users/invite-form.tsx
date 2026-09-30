@@ -13,6 +13,7 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 export function InviteForm({ idempotencyKey }: { idempotencyKey: string }) {
   const { state, isPending, formRef, handleSubmit } = useAdminForm(inviteUserAction, {
+    problemAction: "users.invite",
     onSuccess: () => formRef.current?.reset(),
   });
   const key = useIdempotencyKey(idempotencyKey, state);

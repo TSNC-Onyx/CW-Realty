@@ -1,8 +1,10 @@
 import "server-only";
 
+import { getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 
-// Editors' view of the team: includes hidden members; excludes the trash.
+// Editors' view of the team: includes hidden members; excludes the trash. A failed query is
+// a load failure, never an empty list or a missing member.
 
 const MAX_TEAM_ROWS = 200;
 
@@ -23,8 +25,8 @@ export type AdminTeamMember = {
 
 const TEAM_COLUMNS = "id, slug, full_name, job_title, bio, email, phone, photo_path, photo_alt, photo_width, photo_height, is_visible";
 
-export async function fetchAdminTeam({ supabase, tenantId }: AdminContext): Promise<AdminTeamMember[]> {
-  const { data } = await supabase
+export async function fetchAdminTeam({ supabase, tenantId }: AdminContext): Promise<LoadResult<AdminTeamMember[]>> {
+  const result = await supabase
     .from("team_members")
     .select(TEAM_COLUMNS)
     .eq("tenant_id", tenantId)
@@ -33,10 +35,11 @@ export async function fetchAdminTeam({ supabase, tenantId }: AdminContext): Prom
     .order("full_name")
     .limit(MAX_TEAM_ROWS)
     .returns<AdminTeamMember[]>();
-  return data ?? [];
+  return getQueryLoad({ part: "team members", result, empty: [] });
 }
 
-export async function fetchAdminTeamMember({ supabase, tenantId }: AdminContext, id: string): Promise<AdminTeamMember | null> {
-  const { data } = await supabase.from("team_members").select(TEAM_COLUMNS).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).maybeSingle<AdminTeamMember>();
-  return data;
+/** Loaded null: the member is missing or in the trash. */
+export async function fetchAdminTeamMember({ supabase, tenantId }: AdminContext, id: string): Promise<LoadResult<AdminTeamMember | null>> {
+  const result = await supabase.from("team_members").select(TEAM_COLUMNS).eq("tenant_id", tenantId).eq("id", id).is("deleted_at", null).maybeSingle<AdminTeamMember>();
+  return getQueryLoad({ part: "team member", result, empty: null });
 }
