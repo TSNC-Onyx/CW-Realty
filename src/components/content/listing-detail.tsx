@@ -10,6 +10,7 @@ import { Container, Section } from "@/components/ui/section";
 import { TextLink } from "@/components/ui/text-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getDisplayPrice, getParagraphs } from "@/lib/content/format";
+import type { ListingStatus } from "@/lib/content/listing-statuses";
 import type { Listing } from "@/lib/content/listings";
 import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
 
@@ -17,6 +18,15 @@ import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
 
 const MAIN_PHOTO_SIZES = "(min-width: 1312px) 860px, (min-width: 1024px) 66vw, 100vw";
 const EXTRA_PHOTO_SIZES = "(min-width: 1024px) 420px, 50vw";
+
+const SHOWING_COPY = { heading: "Interested in this property?", body: "Schedule a showing or ask a question. We answer the phone." };
+// Coming Soon homes are not shown yet, so visitors ask to hear when they are (owner choice 2026-10-02).
+const CONTACT_PANEL_COPY: Record<ListingStatus, { heading: string; body: string }> = {
+  coming_soon: { heading: "Coming soon", body: "This home isn't ready for showings yet. Ask us to let you know when it is." },
+  for_sale: SHOWING_COPY,
+  under_contract: SHOWING_COPY,
+  sold: { heading: "This property has sold", body: "Looking for something similar? Tell us what you want and we'll keep an eye out." },
+};
 
 function ListingGallery({ listing }: { listing: Listing }) {
   const [mainPhoto, ...extraPhotos] = listing.photos;
@@ -40,11 +50,7 @@ function ListingGallery({ listing }: { listing: Listing }) {
 }
 
 function ListingContactPanel({ listing, contact }: { listing: Listing; contact: ContactLinks | null }) {
-  const heading = listing.status === "sold" ? "This property has sold" : "Interested in this property?";
-  const body =
-    listing.status === "sold"
-      ? "Looking for something similar? Tell us what you want and we'll keep an eye out."
-      : "Schedule a showing or ask a question. We answer the phone.";
+  const { heading, body } = CONTACT_PANEL_COPY[listing.status];
   return (
     <div className="mt-8 border-t-2 border-ink bg-surface-soft p-6">
       <h2 className="type-h3">{heading}</h2>

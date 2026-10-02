@@ -18,6 +18,9 @@ import photoLayout from "../src/lib/content/photo-layout.json" with { type: "jso
 // CONTENT_FILE lets CI import small test content (tests/fixtures/test-content.json) instead.
 const CONTENT_FILE = process.env.CONTENT_FILE ? new URL(process.env.CONTENT_FILE, `file://${process.cwd()}/`) : new URL("./content/live-site-content.json", import.meta.url);
 const TENANT_SLUG = "cwr";
+// New listings start as Coming Soon (supabase/migrations/20261002000200); a listing in the
+// content file moves from there to its own status.
+const STARTING_LISTING_STATUS = "coming_soon";
 const QUALITY = { avif: 50, webp: 75 };
 // Removes solid frames that Wix graphics drew around some photos.
 const FRAME_TRIM_THRESHOLD = 80;
@@ -244,7 +247,7 @@ async function importListingPhotoFiles(storage, { listing, listingId }) {
 }
 
 async function publishListing(client, { listing, listingId }) {
-  if (listing.status !== "active") {
+  if (listing.status !== STARTING_LISTING_STATUS) {
     getCheckedResult(
       await client.rpc("transition", { p_workflow_key: "listing_status", p_record_id: listingId, p_to_state: listing.status }),
       `set status ${listing.slug}`,

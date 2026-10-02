@@ -8,6 +8,8 @@ import { VIEWPORTS } from "./pages";
 
 const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 const LISTING_PATH = "/listings/5423-pine-level-dr-browns-summit-nc";
+// Coming Soon in the test content (tests/fixtures/test-content.json).
+const COMING_SOON_LISTING_PATH = "/listings/3826-burlington-rd-greensboro-nc";
 const MEMBER_PATH = "/team/charlie-ward";
 
 test.skip(!process.env.NEXT_PUBLIC_SUPABASE_URL, "Needs a database with imported content");
@@ -55,6 +57,30 @@ test("the listings page shows sold homes with a Sold label", async ({ page }) =>
 
   // Assert
   await expect(soldCard).toContainText("Sold");
+});
+
+test("the listings page shows statuses in the owner's order", async ({ page }) => {
+  // Arrange: other tests may publish more listings while this runs
+  const statusOrder = ["Coming Soon", "For Sale", "Under Contract", "Sold"];
+  await page.goto("/listings");
+
+  // Act
+  const tagTexts = await page.locator("main .type-tag").allTextContents();
+  const ranks = tagTexts.map((text) => statusOrder.indexOf(text));
+
+  // Assert
+  expect(ranks).toEqual([...ranks].sort((first, second) => first - second));
+});
+
+test("a Coming Soon listing asks visitors to hear when it can be shown", async ({ page }) => {
+  // Arrange
+  await page.goto(COMING_SOON_LISTING_PATH);
+
+  // Act
+  const panelHeading = page.getByRole("heading", { level: 2, name: "Coming soon" });
+
+  // Assert
+  await expect(panelHeading).toBeVisible();
 });
 
 test("an old Wix listing link moves permanently to the new page", async ({ request }) => {
