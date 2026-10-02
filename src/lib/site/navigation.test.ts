@@ -27,6 +27,7 @@ describe("menu", () => {
     const expectedPaths = [
       "/listings",
       "/property-search",
+      "/services/selected-services",
       "/services/cwr-touchup",
       "/services/property-management",
       "/team",
