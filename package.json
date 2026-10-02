@@ -60,7 +60,7 @@
     "sharp": "0.35.4",
     "supabase": "2.118.0",
     "tailwindcss": "4.3.3",
-    "typescript": "6.0.3",
+    "typescript": "7.0.2",
     "vitest": "5.0.2",
     "wrangler": "4.140.0"
   }
