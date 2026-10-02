@@ -9,6 +9,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The middleware removes trailing slashes itself so every redirect is one 301 hop.
   skipTrailingSlashRedirect: true,
+  // The link-only seller consulting page became Selected services (owner choice 2026-10-02).
+  async redirects() {
+    return [{ source: "/services/seller-consulting", destination: "/services/selected-services", statusCode: 301 }];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
