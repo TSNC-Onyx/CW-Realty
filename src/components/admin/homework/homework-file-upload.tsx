@@ -23,12 +23,15 @@ type HomeworkFileUploadProps = {
   chooseLabel: string;
   buttonLabel: string;
   helperText: string;
+  /** Make a cover from the video's opening scene once it is saved (videos without an uploaded cover). */
+  isMakingCover?: boolean;
 };
 
 function getStageText(progress: HomeworkUploadProgress): string {
   if (progress.stage === "checking") return "Checking the file…";
   if (progress.stage === "uploading") return `Uploading… ${Math.round(progress.share * PERCENT)}%`;
   if (progress.stage === "saving") return "Saving…";
+  if (progress.stage === "cover") return "Making a cover picture…";
   return "";
 }
 
@@ -36,11 +39,11 @@ function getAcceptList(purpose: UploadPurpose): string {
   return UPLOAD_FORMATS[purpose].flatMap((format) => [format.mime, ...format.extensions.map((extension) => `.${extension}`)]).join(",");
 }
 
-export function HomeworkFileUpload({ itemId, purpose, chooseLabel, buttonLabel, helperText }: HomeworkFileUploadProps) {
+export function HomeworkFileUpload({ itemId, purpose, chooseLabel, buttonLabel, helperText, isMakingCover = false }: HomeworkFileUploadProps) {
   const inputId = useId();
   const router = useRouter();
   const { showToast } = useToast();
-  const { progress, uploadFile, clearError } = useHomeworkUpload({ itemId, purpose });
+  const { progress, uploadFile, clearError } = useHomeworkUpload({ itemId, purpose, isMakingCover });
   const [file, setFile] = useState<File | null>(null);
   const [pickerKey, setPickerKey] = useState(0);
   const isBusy = progress.stage !== "idle";
@@ -55,6 +58,7 @@ export function HomeworkFileUpload({ itemId, purpose, chooseLabel, buttonLabel, 
     const result = await uploadFile(file);
     if (result.status === "error") return;
     showToast({ tone: "success", title: result.message });
+    if (result.coverNotice) showToast(result.coverNotice);
     setFile(null);
     setPickerKey((key) => key + 1);
     router.refresh();

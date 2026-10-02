@@ -3,7 +3,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { useState } from "react";
 
-import { encodePhoto, PhotoProblemError, type EncodedPhoto, type PhotoProblemCode } from "@/lib/admin/photos/encode-photo";
+import { encodePhoto, encodePhotoBitmap, PhotoProblemError, type EncodedPhoto, type PhotoProblemCode } from "@/lib/admin/photos/encode-photo";
 import type { EncodedVariant } from "@/workers/photo-encoder";
 import { requestPhotoUploadAction, type PhotoTarget, type PhotoUploadTicket } from "@/lib/admin/photos/actions";
 import { PHOTO_CONTENT_TYPES } from "@/lib/admin/photos/photo-files";
@@ -71,6 +71,13 @@ async function preparePhoto(file: File, onProgress: (share: number) => void): Pr
   });
 }
 
+/** Encodes a frame taken from a video (automatic Homework covers). */
+export async function prepareFramePhoto(bitmap: ImageBitmap): Promise<EncodedPhoto> {
+  return encodePhotoBitmap(bitmap, () => undefined).catch((error: unknown) => {
+    throw new PhotoStepError(getPrepareFailure(error));
+  });
+}
+
 async function fetchTicket(target: PhotoTarget): Promise<Extract<PhotoUploadTicket, { status: "ready" }>> {
   const ticket = await requestPhotoUploadAction(target).catch((error: unknown) => {
     unstable_rethrow(error);
@@ -103,6 +110,25 @@ function getFailure(error: unknown): StepFailure {
   return { message: PREPARE_FAILED_MESSAGE, problem: { action: "photos.upload", stage: "unexpected", severity: "error", code: "other", detail: getErrorDetail(error) } };
 }
 
+/** Gets upload links for a prepared photo and sends every file; failures throw for fetchReportedPhotoMessage. */
+export async function sendEncodedPhoto(target: PhotoTarget, encoded: EncodedPhoto): Promise<UploadedPhoto> {
+  const ticket = await fetchTicket(target);
+  await Promise.all(ticket.uploads.map((upload) => sendVariant(upload, getMatchingVariant(encoded.variants, upload))));
+  return { folder: ticket.folder, width: encoded.width, height: encoded.height };
+}
+
+/** The message for a failed photo step; when the server recorded the failure it carries the reference code. */
+export function getPhotoStepMessage(error: unknown): string {
+  return getFailure(error).message;
+}
+
+/** What went wrong in a photo step, for callers that record it under their own action; null when the server already recorded it. */
+export function getPhotoStepProblem(error: unknown): Omit<ClientProblem, "shownMessage" | "action"> | null {
+  const { problem } = getFailure(error);
+  if (!problem) return null;
+  return { stage: problem.stage, severity: problem.severity, code: problem.code, detail: problem.detail };
+}
+
 export function usePhotoUpload(target: PhotoTarget) {
   const [progress, setProgress] = useState<UploadProgress>(IDLE_PROGRESS);
 
@@ -111,10 +137,9 @@ export function usePhotoUpload(target: PhotoTarget) {
       setProgress({ stage: "preparing", share: 0, error: null });
       const encoded = await preparePhoto(file, (share) => setProgress({ stage: "preparing", share, error: null }));
       setProgress({ stage: "uploading", share: 0, error: null });
-      const ticket = await fetchTicket(target);
-      await Promise.all(ticket.uploads.map((upload) => sendVariant(upload, getMatchingVariant(encoded.variants, upload))));
+      const uploaded = await sendEncodedPhoto(target, encoded);
       setProgress(IDLE_PROGRESS);
-      return { folder: ticket.folder, width: encoded.width, height: encoded.height };
+      return uploaded;
     } catch (error) {
       unstable_rethrow(error);
       setProgress({ stage: "idle", share: 0, error: await getShownMessage(getFailure(error)) });

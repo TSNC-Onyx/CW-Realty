@@ -27,6 +27,10 @@ export type ContentSecurityPolicyOptions = {
   supabaseOrigin?: string;
   // Admin pages only: the photo encoder runs WebAssembly (Phase 3 plan, decision 5).
   allowWebAssembly?: boolean;
+  // Admin pages only: the browser opens the video the admin picked (a blob: link made by this
+  // page) to read its length and make its cover (owner approval 2026-10-02,
+  // docs/cwr-video-auto-cover-plan.md). Visitors' pages never get this.
+  allowLocalMedia?: boolean;
   // Public pages only: consented analytics and ad tags (Phase 6), and the owner's optional
   // server-side tagging address.
   allowTrackers?: boolean;
@@ -48,6 +52,11 @@ function getOptionalOrigin(origin: string | null | undefined): string {
   return origin ? ` ${origin}` : "";
 }
 
+function getMediaSources({ supabaseOrigin, allowLocalMedia }: ContentSecurityPolicyOptions): string {
+  const localMediaSource = allowLocalMedia ? " blob:" : "";
+  return `'self'${localMediaSource}${getOptionalOrigin(supabaseOrigin)}`;
+}
+
 function getTrackerSources(options: ContentSecurityPolicyOptions, sources: string[]): string {
   if (!options.allowTrackers) return "";
   return ` ${sources.join(" ")}${getOptionalOrigin(options.tagServerOrigin)}`;
@@ -62,7 +71,7 @@ export function getContentSecurityPolicy(options: ContentSecurityPolicyOptions):
     `img-src 'self' blob: data:${supabaseSource}${getTrackerSources(options, TRACKER_IMAGE_SOURCES)}`,
     "font-src 'self'",
     // Homework videos and their captions play from the public cwr-files storage bucket.
-    `media-src 'self'${supabaseSource}`,
+    `media-src ${getMediaSources(options)}`,
     `connect-src 'self'${supabaseSource}${getTrackerSources(options, TRACKER_CONNECT_SOURCES)}`,
     "worker-src 'self'",
     // Cloudflare Turnstile (bot check on forms) runs in a frame from this host.
