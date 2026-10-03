@@ -28,7 +28,16 @@ export type ProblemStage =
 export type ProblemSeverity = "info" | "warning" | "error" | "critical";
 
 /** Who reported it. Only trusted server code chooses this, never the browser. */
-export type ProblemOrigin = "server_member" | "server_signin" | "browser_member" | "browser_signin" | "job" | "database" | "github";
+export type ProblemOrigin =
+  | "server_member"
+  | "server_signin"
+  | "browser_member"
+  | "browser_signin"
+  | "job"
+  | "database"
+  | "github"
+  | "server_visitor"
+  | "browser_visitor";
 
 export type ProblemEvent = {
   action: ProblemAction;

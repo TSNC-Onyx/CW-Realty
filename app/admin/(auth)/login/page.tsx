@@ -6,6 +6,8 @@ import { getButtonClassName } from "@/components/ui/button-link";
 import { Message, type MessageTone } from "@/components/ui/message";
 import { AUTH_UNAVAILABLE_REASON, fetchSignInStage } from "@/lib/admin/auth-pages";
 import { ADMIN_HOME_PATH, ADMIN_LOGOUT_PATH, getSafeAdminPath } from "@/lib/admin/paths";
+import { getContactLinks } from "@/lib/site/contact-links";
+import { fetchSiteSettings } from "@/lib/site/site-settings";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -44,7 +46,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </button>
         </form>
       )}
-      <LoginForm next={getSafeAdminPath(next)} />
+      <LoginForm next={getSafeAdminPath(next)} contact={getContactLinks(await fetchSiteSettings())} />
     </>
   );
 }

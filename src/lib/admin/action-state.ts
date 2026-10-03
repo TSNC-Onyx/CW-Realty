@@ -9,6 +9,8 @@ export type ActionState = {
   fieldErrors: FieldErrors;
   values: Record<string, string>;
   responseId: string;
+  /** Set only by the sign-in and password-reset forms: the page is out of date and must reload. */
+  recovery?: "refresh";
 };
 
 export const IDLE_ACTION_STATE: ActionState = { status: "idle", message: "", fieldErrors: {}, values: {}, responseId: "idle" };

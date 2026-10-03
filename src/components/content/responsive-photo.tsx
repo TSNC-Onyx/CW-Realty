@@ -12,7 +12,12 @@ const RATIO_CLASSES: Record<PhotoRatio, string> = {
   portrait: "aspect-portrait",
 };
 
+const FIT_CLASSES = { cover: "object-cover", contain: "object-contain" } as const;
+
 type PhotoFile = { alt: string; width: number; height: number };
+
+/** cover fills the frame (cropping); contain shows the whole photo (the full-screen viewer). */
+export type PhotoFit = keyof typeof FIT_CLASSES;
 
 type PictureProps = {
   photo: PhotoFile;
@@ -21,9 +26,11 @@ type PictureProps = {
   isPriority: boolean;
   frameClassName: string;
   imageClassName: string;
+  fit?: PhotoFit;
+  onError?: () => void;
 };
 
-function Picture({ photo, sources, sizes, isPriority, frameClassName, imageClassName }: PictureProps) {
+function Picture({ photo, sources, sizes, isPriority, frameClassName, imageClassName, fit = "cover", onError }: PictureProps) {
   return (
     <picture className={`block overflow-hidden bg-photo-placeholder ${frameClassName}`}>
       <source type="image/avif" srcSet={sources.avifSrcSet} sizes={sizes} />
@@ -37,7 +44,8 @@ function Picture({ photo, sources, sizes, isPriority, frameClassName, imageClass
         loading={isPriority ? "eager" : "lazy"}
         fetchPriority={isPriority ? "high" : "auto"}
         decoding="async"
-        className={`size-full object-cover ${imageClassName}`}
+        onError={onError}
+        className={`size-full ${FIT_CLASSES[fit]} ${imageClassName}`}
       />
     </picture>
   );
@@ -49,9 +57,14 @@ export type ResponsivePhotoProps = {
   sizes: string;
   isPriority?: boolean;
   imageClassName?: string;
+  /** Replaces the ratio when the frame sets its own size (the full-screen viewer). */
+  frameClassName?: string;
+  fit?: PhotoFit;
+  /** The file didn't load (missing or blocked); the caller shows the placeholder instead. */
+  onError?: () => void;
 };
 
-export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "" }: ResponsivePhotoProps) {
+export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "", frameClassName, fit, onError }: ResponsivePhotoProps) {
   const sources = photo ? getPhotoSources({ folder: photo.folder, originalWidth: photo.width }) : null;
   if (!photo || !sources) return <PhotoPlaceholder ratio={ratio} />;
   return (
@@ -60,8 +73,10 @@ export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, image
       sources={sources}
       sizes={sizes}
       isPriority={isPriority}
-      frameClassName={RATIO_CLASSES[ratio]}
+      frameClassName={frameClassName ?? RATIO_CLASSES[ratio]}
       imageClassName={imageClassName}
+      fit={fit}
+      onError={onError}
     />
   );
 }

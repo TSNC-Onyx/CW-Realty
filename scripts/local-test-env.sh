@@ -8,3 +8,6 @@ eval "$(npx supabase status -o env \
 export NEXT_PUBLIC_SUPABASE_URL NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY SUPABASE_SERVICE_ROLE_KEY
 export NEXT_PUBLIC_TURNSTILE_SITE_KEY="1x00000000000000000000AA"
 export TURNSTILE_SECRET_KEY="1x0000000000000000000000000000000AA"
+# Production builds refuse Cloudflare's test keys (docs/cwr-reliability-round-plan.md, D3);
+# local previews and the automated tests opt in. Never set this on the live Worker build.
+export NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS="true"

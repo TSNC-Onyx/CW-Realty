@@ -12,12 +12,13 @@ import {
   getSetupStartOutcome,
   getSignInOutcome,
   getSignInUnavailableOutcome,
+  isBotCheckOutcome,
   PASSWORD_NOT_SAVED_MESSAGE,
   RESET_LINK_SENT_MESSAGE,
   SIGN_IN_UNAVAILABLE_MESSAGE,
   type AuthOutcome,
 } from "@/lib/admin/auth-outcomes";
-import { reportAuthFailure, reportAuthProblem, runSignInStep } from "@/lib/admin/auth-problems";
+import { reportAuthFailure, reportAuthProblem, reportOutdatedSignInPage, runSignInStep } from "@/lib/admin/auth-problems";
 import { emailSchema, getFieldErrorsFromZod, mfaCodeSchema, newPasswordSchema, signInSchema } from "@/lib/admin/auth-schemas";
 import {
   ADMIN_LOGIN_PATH,
@@ -28,6 +29,8 @@ import {
 } from "@/lib/admin/paths";
 import { getAuthErrorCode, isAuthOutage } from "@/lib/observability/auth-outage";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
+import { BOT_CHECK_KEY_FIELD, isOutdatedBotCheckKey } from "@/lib/security/bot-check-key";
+import { BOT_CHECK_MESSAGES } from "@/lib/security/bot-check-messages";
 import { TURNSTILE_FIELD } from "@/lib/security/turnstile-field-name";
 import { createSessionClient, type SessionClient } from "@/lib/supabase/server-client";
 
@@ -58,6 +61,12 @@ function getCaptchaToken(formData: FormData): string | undefined {
   return String(formData.get(TURNSTILE_FIELD) ?? "") || undefined;
 }
 
+// Only the email comes back: the page reloads itself and fills it in again.
+async function getOutdatedPageState({ action, email }: { action: ProblemAction; email: string }): Promise<ActionState> {
+  await reportOutdatedSignInPage(action);
+  return { ...getErrorState({ message: BOT_CHECK_MESSAGES.outdatedAutoRefresh, values: { email } }), recovery: "refresh" };
+}
+
 function getMfaNextStep({ hasVerifiedFactor, next }: { hasVerifiedFactor: boolean; next: string }): string {
   const step = hasVerifiedFactor ? ADMIN_MFA_PATH : ADMIN_MFA_SETUP_PATH;
   return `${step}?next=${encodeURIComponent(next)}`;
@@ -82,6 +91,7 @@ async function signIn(formData: FormData): Promise<ActionState> {
   const values = getFormValues(formData);
   const parsed = signInSchema.safeParse(values);
   if (!parsed.success) return getErrorState({ message: "Fix the fields below.", fieldErrors: getFieldErrorsFromZod(parsed.error), values });
+  if (isOutdatedBotCheckKey(formData.get(BOT_CHECK_KEY_FIELD))) return getOutdatedPageState({ action: SIGN_IN_ACTION, email: parsed.data.email });
   const supabase = await createSessionClient();
   const { error } = await supabase.auth.signInWithPassword({ ...parsed.data, options: { captchaToken: getCaptchaToken(formData) } });
   if (error) return reportFailedStep({ action: SIGN_IN_ACTION, error, outcome: getSignInOutcome(error), values });
@@ -162,11 +172,15 @@ async function requestReset(formData: FormData): Promise<ActionState> {
   if (!parsedEmail.success) return getErrorState({ message: "Check the email address.", fieldErrors: { email: parsedEmail.error.issues[0]?.message ?? "" }, values });
   // The email link is built from the Auth "Site URL" setting (supabase/templates/recovery.html),
   // never from request headers, so a forged Host header cannot redirect the link.
+  if (isOutdatedBotCheckKey(formData.get(BOT_CHECK_KEY_FIELD))) return getOutdatedPageState({ action: REQUEST_RESET_ACTION, email: parsedEmail.data });
   const supabase = await createSessionClient();
   const { error } = await supabase.auth.resetPasswordForEmail(parsedEmail.data, { captchaToken: getCaptchaToken(formData) });
-  // Recorded, but the screen stays the same either way, so it never reveals whether an account exists.
-  if (error) await reportAuthProblem({ action: REQUEST_RESET_ACTION, error, outcome: getPasswordResetOutcome(error) });
-  return getSuccessState(RESET_LINK_SENT_MESSAGE);
+  if (!error) return getSuccessState(RESET_LINK_SENT_MESSAGE);
+  // Recorded, but apart from a refused Quick Check the screen stays the same, so it never
+  // reveals whether an account exists.
+  const outcome = getPasswordResetOutcome(error);
+  await reportAuthProblem({ action: REQUEST_RESET_ACTION, error, outcome });
+  return isBotCheckOutcome(outcome) ? getErrorState({ message: outcome.shownMessage, values: { email: parsedEmail.data } }) : getSuccessState(RESET_LINK_SENT_MESSAGE);
 }
 
 export async function requestPasswordResetAction(_state: ActionState, formData: FormData): Promise<ActionState> {

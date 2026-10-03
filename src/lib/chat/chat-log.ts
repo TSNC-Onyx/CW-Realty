@@ -43,6 +43,13 @@ export async function fetchPublishedPolicy(tenantId: string): Promise<PublishedP
   return data;
 }
 
+/** The owner's on/off switch (decision D4). On when the tenant has no settings row yet. */
+export async function fetchIsAssistantOn(tenantId: string): Promise<boolean> {
+  const { data, error } = await createServiceClient().from("site_settings").select("is_assistant_on").eq("tenant_id", tenantId).maybeSingle<{ is_assistant_on: boolean }>();
+  if (error) throw new ChatLogError({ step: "fetchIsAssistantOn", cause: error });
+  return data?.is_assistant_on ?? true;
+}
+
 export async function isOverHourlyChatLimit(tenantId: string): Promise<boolean> {
   const since = new Date(Date.now() - HOUR_MS).toISOString();
   const { count, error } = await createServiceClient().from("chat_sessions").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("started_at", since);

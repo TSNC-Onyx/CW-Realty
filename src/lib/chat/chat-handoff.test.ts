@@ -3,13 +3,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { submitChatHandoff } from "@/lib/chat/chat-handoff";
 import * as chatLog from "@/lib/chat/chat-log";
 import * as intake from "@/lib/forms/intake";
-import * as turnstile from "@/lib/security/turnstile";
+import * as visitorBotCheck from "@/lib/security/visitor-bot-check";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/chat/chat-log", () => ({ fetchOpenChatSession: vi.fn(), linkChatHandoff: vi.fn() }));
 vi.mock("@/lib/forms/intake", () => ({ submitNewRequest: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ isOverFormLimit: vi.fn().mockResolvedValue(false) }));
-vi.mock("@/lib/security/turnstile", () => ({ TURNSTILE_FIELD: "cf-turnstile-response", verifyTurnstileToken: vi.fn() }));
+vi.mock("@/lib/security/turnstile", () => ({ TURNSTILE_FIELD: "cf-turnstile-response" }));
+vi.mock("@/lib/security/visitor-bot-check", () => ({ passesVisitorBotCheck: vi.fn() }));
+vi.mock("@/lib/observability/report-visitor-problem", () => ({ reportVisitorProblem: vi.fn() }));
 // Visitor without advertising consent: no attribution, no Meta event, no hashed contact.
 vi.mock("@/lib/tracking/lead-tracking", () => ({
   fetchLeadTracking: vi.fn().mockResolvedValue({ isAdsAllowed: false, attributionRow: null, fbc: null, fbp: null, sourceUrl: null, userAgent: null }),
@@ -32,7 +34,7 @@ describe("submitChatHandoff", () => {
     vi.mocked(intake.submitNewRequest).mockReset().mockResolvedValue("thread");
     vi.mocked(chatLog.linkChatHandoff).mockReset();
     vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ id: SESSION_ID, tenantId: "tenant", visitorMessageCount: 1, turns: [{ role: "visitor", body: "Hi" }, { role: "assistant", body: "Hello" }] });
-    vi.mocked(turnstile.verifyTurnstileToken).mockResolvedValue(true);
+    vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(true);
   });
 
   it("sends the question and the chat so far to the inbox, then links the chat", async () => {
@@ -88,7 +90,7 @@ describe("submitChatHandoff", () => {
 
   it("refuses a request that fails the bot check", async () => {
     // Arrange
-    vi.mocked(turnstile.verifyTurnstileToken).mockResolvedValue(false);
+    vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(false);
 
     // Act
     const state = await submitChatHandoff({ formData: getFormData({}), visitor: VISITOR });

@@ -1,4 +1,4 @@
-// Every admin action that can record a problem (docs/cwr-error-tracking-plan.md, Coverage).
+// Every admin action, and every website-visitor action, that can record a problem (docs/cwr-error-tracking-plan.md, Coverage).
 // The same list is seeded into cwr.problem_catalog; CI compares the two. Labels are the only
 // words problem-alert emails use, so nothing a visitor or staff member typed reaches an email.
 
@@ -30,6 +30,7 @@ export const PROBLEM_SECTIONS = {
   trash: "Trash",
   jobs: "Background jobs",
   database: "Database",
+  site: "Website visitors",
   unknown: "Unknown",
 } as const;
 
@@ -137,6 +138,7 @@ export const PROBLEM_ACTIONS = {
   "chat_policy.remove_test": { label: "Remove a policy test question", fn: "removePolicyTestAction" },
   "chat_policy.run_tests": { label: "Run the policy tests", fn: "runPolicyTestsAction" },
   "chat_policy.test_chat": { label: "Try the chat assistant", fn: "sendTestChatAction" },
+  "chat_policy.set_assistant": { label: "Turn the chat assistant on or off", fn: "setAssistantOnAction" },
 
   "tracking.load": { label: "Load ads & analytics settings" },
   "tracking.save": { label: "Save ads & analytics settings", fn: "saveTrackingSettingsAction" },
@@ -158,6 +160,16 @@ export const PROBLEM_ACTIONS = {
 
   "database.scheduled_job": { label: "Nightly database clean-up" },
   "database.health_check": { label: "Background check" },
+
+  "site.contact_form": { label: "Send the contact form" },
+  "site.booking_form": { label: "Send the TouchUp request form" },
+  "site.bot_check": { label: "Check a visitor with the Quick Check" },
+  "site.bot_check_widget": { label: "Load the Quick Check" },
+  "site.chat_message": { label: "Send a chat message" },
+  "site.chat_assistant": { label: "Get a chat assistant reply" },
+  "site.chat_handoff": { label: "Ask for a person from the chat" },
+  "site.chat_widget": { label: "Use the chat window" },
+  "site.listing_photo": { label: "Show a listing photo" },
 
   "unknown.unknown": { label: "Unlisted action" },
 } as const satisfies Record<string, ProblemActionDefinition>;

@@ -1,14 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HANDOFF_TEXT } from "@/lib/chat/assistant-reply";
+import * as reporting from "@/lib/observability/report-visitor-problem";
 import * as chatLog from "@/lib/chat/chat-log";
 import * as claudeModel from "@/lib/chat/claude-model";
 import { sendChatMessage } from "@/lib/chat/send-chat-message";
-import * as turnstile from "@/lib/security/turnstile";
+import * as visitorBotCheck from "@/lib/security/visitor-bot-check";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/chat/chat-log", () => ({
   fetchChatTenantId: vi.fn(),
+  fetchIsAssistantOn: vi.fn(),
   fetchOpenChatSession: vi.fn(),
   fetchPublishedPolicy: vi.fn(),
   isOverHourlyChatLimit: vi.fn(),
@@ -17,7 +19,8 @@ vi.mock("@/lib/chat/chat-log", () => ({
 }));
 vi.mock("@/lib/chat/claude-model", () => ({ getClaudeAnswerModel: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ isOverChatLimit: vi.fn().mockResolvedValue(false) }));
-vi.mock("@/lib/security/turnstile", () => ({ verifyTurnstileToken: vi.fn() }));
+vi.mock("@/lib/security/visitor-bot-check", () => ({ passesVisitorBotCheck: vi.fn() }));
+vi.mock("@/lib/observability/report-visitor-problem", () => ({ reportVisitorProblem: vi.fn() }));
 
 const SESSION_ID = "0b6f7c1e-2f4a-4b8e-9a51-6c1d2e3f4a5b";
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
@@ -29,6 +32,10 @@ function getInput(overrides: Partial<{ sessionId: string | null; message: string
 }
 
 describe("sendChatMessage", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
     vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue(SESSION);
     vi.mocked(chatLog.fetchPublishedPolicy).mockResolvedValue(POLICY);
@@ -36,7 +43,8 @@ describe("sendChatMessage", () => {
     vi.mocked(chatLog.isOverHourlyChatLimit).mockResolvedValue(false);
     vi.mocked(chatLog.startChatSession).mockResolvedValue(SESSION);
     vi.mocked(chatLog.recordChatExchange).mockReset();
-    vi.mocked(turnstile.verifyTurnstileToken).mockResolvedValue(true);
+    vi.mocked(chatLog.fetchIsAssistantOn).mockResolvedValue(true);
+    vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(true);
     vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", reply: "Weekdays, 9 to 5.", citedSections: ["Office hours"] }));
   });
 
@@ -53,7 +61,7 @@ describe("sendChatMessage", () => {
 
   it("refuses to start a chat when the bot check fails", async () => {
     // Arrange
-    vi.mocked(turnstile.verifyTurnstileToken).mockResolvedValue(false);
+    vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(false);
 
     // Act
     const result = await sendChatMessage({ input: getInput({ sessionId: null }), visitor: VISITOR });
@@ -112,7 +120,6 @@ describe("sendChatMessage", () => {
 
   it("hands off when the model call fails", async () => {
     // Arrange
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => {
       throw new Error("timeout");
     });
@@ -152,5 +159,68 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect(result).toEqual({ status: "error", message: "Type a question first" });
+  });
+
+  it("hands off without asking the model when the owner has turned the assistant off", async () => {
+    // Arrange
+    const model = vi.fn();
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(model);
+    vi.mocked(chatLog.fetchIsAssistantOn).mockResolvedValue(false);
+
+    // Act
+    const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect({ text: result.status === "replied" && result.reply.text, asked: model.mock.calls.length }).toEqual({ text: HANDOFF_TEXT.unavailable, asked: 0 });
+  });
+
+  it("asks an out-of-date page to refresh before spending its Quick Check", async () => {
+    // Arrange
+    vi.stubEnv("NEXT_PUBLIC_TURNSTILE_SITE_KEY", "0x4AAAA-current");
+    vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockClear();
+
+    // Act
+    const result = await sendChatMessage({ input: { ...getInput({ sessionId: null }), botCheckKey: "1x00000000000000000000AA" }, visitor: VISITOR });
+
+    // Assert
+    expect({ recovery: result.status === "error" && result.recovery, checked: vi.mocked(visitorBotCheck.passesVisitorBotCheck).mock.calls.length }).toEqual({ recovery: "refresh", checked: 0 });
+  });
+
+  it("records that the assistant isn't set up when no policy is published", async () => {
+    // Arrange
+    vi.mocked(chatLog.fetchPublishedPolicy).mockResolvedValue(null);
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(reporting.reportVisitorProblem).toHaveBeenCalledWith(expect.objectContaining({ action: "site.chat_assistant", code: "no_published_policy", severity: "warning" }));
+  });
+
+  it("records a failed model call with how serious it is", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => {
+      throw new Error("boom");
+    });
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(reporting.reportVisitorProblem).toHaveBeenCalledWith(expect.objectContaining({ action: "site.chat_assistant", severity: "error", code: "Error" }));
+  });
+
+  it("records the hourly limit when it turns visitors away", async () => {
+    // Arrange
+    vi.mocked(chatLog.isOverHourlyChatLimit).mockResolvedValue(true);
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput({ sessionId: null }), visitor: VISITOR });
+
+    // Assert
+    expect(reporting.reportVisitorProblem).toHaveBeenCalledWith(expect.objectContaining({ code: "hourly_cap" }));
   });
 });

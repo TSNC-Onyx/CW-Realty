@@ -59,6 +59,13 @@ export async function fetchTestsChangedAt({ supabase, tenantId }: AdminContext):
   return getLoaded(result.data?.updated_at ?? null);
 }
 
+/** The owner's Assistant on/off switch (decision D4); on when no settings row exists yet. */
+export async function fetchIsAssistantOn({ supabase, tenantId }: AdminContext): Promise<LoadResult<boolean>> {
+  const result = await supabase.from("site_settings").select("is_assistant_on").eq("tenant_id", tenantId).maybeSingle<{ is_assistant_on: boolean }>();
+  if (result.error) return getLoadFailure("assistant switch", result.error);
+  return getLoaded(result.data?.is_assistant_on ?? true);
+}
+
 /** Same rule as cwr.publish_chat_policy: the run checked this exact save and this exact set of questions. */
 export function isRunCurrent({ run, draft, testsChangedAt }: { run: PolicyTestRun | null; draft: WorkingPolicy; testsChangedAt: string | null }): boolean {
   if (!run || !draft.updatedAt) return false;
