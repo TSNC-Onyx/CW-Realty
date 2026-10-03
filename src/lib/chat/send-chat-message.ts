@@ -2,12 +2,13 @@ import "server-only";
 
 import { fetchAssistantReply, type ChatTurn } from "@/lib/chat/answer-question";
 import { getAssistantFailure } from "@/lib/chat/assistant-failure";
-import { HANDOFF_TEXT, getHandoffReply, type AssistantReply } from "@/lib/chat/assistant-reply";
+import { HANDOFF_TEXT, getHandoffReply, type AssistantReply, type HandoffReason } from "@/lib/chat/assistant-reply";
 import { fetchChatTenantId, fetchIsAssistantOn, fetchOpenChatSession, fetchPublishedPolicy, isOverHourlyChatLimit, recordChatExchange, startChatSession, type ChatSession } from "@/lib/chat/chat-log";
 import type { SendChatResult } from "@/lib/chat/chat-results";
 import { CHAT_TURNSTILE_ACTION, MAX_VISITOR_MESSAGES_PER_CHAT, chatMessageSchema, type ChatMessageInput } from "@/lib/chat/chat-schemas";
 import { getClaudeAnswerModel, type NoAnswerReason } from "@/lib/chat/claude-model";
 import { getRedactedText } from "@/lib/chat/restricted-data";
+import type { ProblemSeverity } from "@/lib/observability/problem-types";
 import { reportVisitorProblem } from "@/lib/observability/report-visitor-problem";
 import { isOutdatedBotCheckKey } from "@/lib/security/bot-check-key";
 import { BOT_CHECK_MESSAGES } from "@/lib/security/bot-check-messages";
@@ -22,6 +23,9 @@ import { passesVisitorBotCheck } from "@/lib/security/visitor-bot-check";
 const HISTORY_TURN_LIMIT = 20;
 const LIMITED_MESSAGE = "You're sending messages quickly. Wait a minute, then try again.";
 const FULL_MESSAGE = "This chat has reached its length limit. Tap “Talk to a person” and our team will pick it up from here.";
+// Answers a server check turned into a hand-off (docs/cwr-chat-policy-test-batches-plan.md, Part B).
+// The model's own hand-off (model_handoff) is normal and isn't recorded.
+const RECORDED_REJECTIONS: Partial<Record<HandoffReason, ProblemSeverity>> = { empty_or_long: "info", bad_citation: "info", leaked_marker: "warning" };
 
 type OpenedSession = { session: ChatSession } | { result: SendChatResult };
 
@@ -62,16 +66,29 @@ async function reportNotReady(code: "no_api_key" | "no_published_policy"): Promi
   return getHandoffReply(HANDOFF_TEXT.unavailable);
 }
 
+async function reportRejectedReply(reason: HandoffReason | undefined): Promise<void> {
+  const severity = reason ? RECORDED_REJECTIONS[reason] : undefined;
+  if (!reason || !severity) return;
+  await reportVisitorProblem({ action: "site.chat_assistant", stage: "rule", severity, code: reason, detail: "The assistant's answer failed a server check; the visitor was offered a person." });
+}
+
 /** The model is an outside service: any failure becomes a hand-off, never a broken chat. */
-async function fetchModelReply({ policyBody, turns }: { policyBody: string; turns: ChatTurn[] }): Promise<AssistantReply> {
-  const model = getClaudeAnswerModel({ onNoAnswer: reportNoAnswer });
-  if (!model) return reportNotReady("no_api_key");
+async function fetchReplyOrUnavailable(request: Parameters<typeof fetchAssistantReply>[0]): Promise<AssistantReply> {
   try {
-    return await fetchAssistantReply({ policyBody, turns, model });
+    return await fetchAssistantReply(request);
   } catch (error) {
     await reportVisitorProblem({ action: "site.chat_assistant", stage: "external", ...getAssistantFailure(error) });
     return getHandoffReply(HANDOFF_TEXT.unavailable);
   }
+}
+
+async function fetchModelReply({ policyBody, turns }: { policyBody: string; turns: ChatTurn[] }): Promise<AssistantReply> {
+  const model = getClaudeAnswerModel({ onNoAnswer: reportNoAnswer });
+  if (!model) return reportNotReady("no_api_key");
+  const { handoffReason, ...reply } = await fetchReplyOrUnavailable({ policyBody, turns, model });
+  // The reason is for the problem log only; the visitor's browser never receives it.
+  await reportRejectedReply(handoffReason);
+  return reply;
 }
 
 async function fetchReplyOrHandoff({ tenantId, turns }: { tenantId: string; turns: ChatTurn[] }): Promise<AssistantReply> {

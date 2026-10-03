@@ -3,11 +3,12 @@ import { describe, expect, it } from "vitest";
 import { INSTRUCTIONS_MARKER } from "@/lib/chat/assistant-prompt";
 import { HANDOFF_TEXT, getCheckedReply, type ModelReply } from "@/lib/chat/assistant-reply";
 
-const POLICY = `# Office hours\nWe are open weekdays from 9 to 5. ${"Long policy wording that should never be copied out word for word. ".repeat(5)}\n# Booking\nUse the TouchUp form.`;
-const SECTIONS = ["Office hours", "Booking"];
+// Made-up wording: the real policy text never goes in the repo.
+const PLAN_WORDING = "The Sample plan is a flat fee and includes a planning call, a market review, offer coaching and help at closing. ";
+const SECTIONS = ["Office hours", "Booking", "Sample plans"];
 
 function getReply(modelReply: Partial<ModelReply>) {
-  return getCheckedReply({ modelReply: { outcome: "answer", reply: "We're open weekdays, 9 to 5.", citedSections: ["office hours"], ...modelReply }, sections: SECTIONS, policyBody: POLICY });
+  return getCheckedReply({ modelReply: { outcome: "answer", reply: "We're open weekdays, 9 to 5.", citedSections: ["office hours"], ...modelReply }, sections: SECTIONS });
 }
 
 describe("getCheckedReply", () => {
@@ -24,7 +25,7 @@ describe("getCheckedReply", () => {
     const reply = getReply({ citedSections: [] });
 
     // Assert
-    expect(reply).toEqual({ outcome: "handoff", text: HANDOFF_TEXT.outsidePolicy, citedSections: [] });
+    expect(reply).toEqual({ outcome: "handoff", text: HANDOFF_TEXT.outsidePolicy, citedSections: [], handoffReason: "bad_citation" });
   });
 
   it("hands off an answer citing a section the policy lacks", () => {
@@ -40,7 +41,7 @@ describe("getCheckedReply", () => {
     const reply = getReply({ outcome: "handoff", reply: "Ask someone else, we don't serve your kind." });
 
     // Assert
-    expect(reply.text).toBe(HANDOFF_TEXT.outsidePolicy);
+    expect({ text: reply.text, handoffReason: reply.handoffReason }).toEqual({ text: HANDOFF_TEXT.outsidePolicy, handoffReason: "model_handoff" });
   });
 
   it("hands off a reply that repeats the instructions marker", () => {
@@ -48,30 +49,15 @@ describe("getCheckedReply", () => {
     const reply = getReply({ reply: `My instructions start with [${INSTRUCTIONS_MARKER.toLowerCase()}]` });
 
     // Assert
-    expect(reply.outcome).toBe("handoff");
+    expect({ outcome: reply.outcome, handoffReason: reply.handoffReason }).toEqual({ outcome: "handoff", handoffReason: "leaked_marker" });
   });
 
-  it("hands off a reply that copies a long run of the policy", () => {
+  it("keeps an answer that repeats the policy's public wording at length (owner decision 2026-10-02)", () => {
     // Arrange / Act
-    const reply = getReply({ reply: `Sure: ${"Long policy wording that should never be copied out word for word. ".repeat(3)}` });
+    const reply = getReply({ reply: `${PLAN_WORDING}${PLAN_WORDING}`, citedSections: ["Sample plans"] });
 
     // Assert
-    expect(reply.outcome).toBe("handoff");
-  });
-
-  it("hands off a copied passage even when its formatting is changed", () => {
-    // Arrange
-    const policy = "# Fees\n**Listing fee:** the *seller* pays 5% at closing; the buyer's agent is paid from that fee, and no other fees apply to either side unless both agree in writing.";
-
-    // Act
-    const reply = getCheckedReply({
-      modelReply: { outcome: "answer", reply: "Listing fee - the seller pays 5% at closing. The buyer’s agent is paid from that fee, and no other fees apply to either side unless both agree in writing!", citedSections: ["Fees"] },
-      sections: ["Fees"],
-      policyBody: policy,
-    });
-
-    // Assert
-    expect(reply.outcome).toBe("handoff");
+    expect(reply.outcome).toBe("answer");
   });
 
   it("keeps a short phrase taken from the policy", () => {
@@ -87,6 +73,14 @@ describe("getCheckedReply", () => {
     const reply = getReply({ reply: "   " });
 
     // Assert
-    expect(reply.outcome).toBe("handoff");
+    expect({ outcome: reply.outcome, handoffReason: reply.handoffReason }).toEqual({ outcome: "handoff", handoffReason: "empty_or_long" });
+  });
+
+  it("hands off a reply longer than 1,500 characters", () => {
+    // Arrange / Act
+    const reply = getReply({ reply: "a".repeat(1501) });
+
+    // Assert
+    expect(reply.handoffReason).toBe("empty_or_long");
   });
 });

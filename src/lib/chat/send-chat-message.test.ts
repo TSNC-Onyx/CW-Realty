@@ -223,4 +223,31 @@ describe("sendChatMessage", () => {
     // Assert
     expect(reporting.reportVisitorProblem).toHaveBeenCalledWith(expect.objectContaining({ code: "hourly_cap" }));
   });
+
+  it("records an answer that failed a server check, without sending the reason to the visitor", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", reply: "Weekdays.", citedSections: ["Mortgage advice"] }));
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect({ reply: result.status === "replied" ? result.reply : null, reported: vi.mocked(reporting.reportVisitorProblem).mock.calls[0]?.[0] }).toEqual({
+      reply: { outcome: "handoff", text: HANDOFF_TEXT.outsidePolicy, citedSections: [] },
+      reported: expect.objectContaining({ action: "site.chat_assistant", stage: "rule", severity: "info", code: "bad_citation" }),
+    });
+  });
+
+  it("doesn't record the model's own choice to hand off", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "handoff", reply: "Ask a person.", citedSections: [] }));
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(reporting.reportVisitorProblem).not.toHaveBeenCalled();
+  });
 });

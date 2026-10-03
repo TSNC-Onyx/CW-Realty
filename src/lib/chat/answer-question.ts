@@ -1,6 +1,6 @@
 import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
-import { getPolicySections } from "@/lib/chat/policy-sections";
+import { getPublicPolicy, getPublicSections } from "@/lib/chat/policy-sections";
 import { hasRestrictedNumber } from "@/lib/chat/restricted-data";
 
 // One answer from the policy (Features §2). Shared by the visitor chat, the owner's live
@@ -20,9 +20,10 @@ function getLatestQuestion(turns: ChatTurn[]): string {
 /** Throws whatever the model call throws; callers decide how to fail gracefully. */
 export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRequest): Promise<AssistantReply> {
   if (hasRestrictedNumber(getLatestQuestion(turns))) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
-  const sections = getPolicySections(policyBody);
+  // Private sections are cut out here, so the model can't quote, summarize or reword them.
+  const sections = getPublicSections(policyBody);
   if (sections.length === 0) return getHandoffReply(HANDOFF_TEXT.unavailable);
-  const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody, sections }), turns });
+  const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody: getPublicPolicy(policyBody), sections }), turns });
   if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.outsidePolicy);
-  return getCheckedReply({ modelReply, sections, policyBody });
+  return getCheckedReply({ modelReply, sections });
 }

@@ -1,0 +1,122 @@
+import { BUILT_IN_TEST_CASES, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
+
+// One list of test questions, each with its last result (docs/cwr-chat-policy-test-batches-plan.md,
+// Part C). Display only: whether Publish is allowed is decided by the server's rule
+// (isReadyToPublish), never by these rows. Safe in the browser: imports nothing server-only.
+
+/** The page and every test run see the same questions, well under the API's 1000-row cap. */
+export const MAX_TESTS = 500;
+
+export const TEST_LIMIT_MESSAGE = `You can have up to ${MAX_TESTS} test questions. Remove one first.`;
+
+const STATUS_ORDER = ["failed", "untested", "stale", "passed"] as const;
+
+export type TestRowStatus = (typeof STATUS_ORDER)[number];
+
+export type OwnerTest = { id: string; question: string; expectedOutcome: PolicyTestCase["expectedOutcome"]; expectedSection: string | null };
+
+/** testId: null for a built-in safety check, which can't be removed. */
+export type TestRow = PolicyTestCase & { key: string; testId: string | null; status: TestRowStatus; result: PolicyTestResult | null };
+
+export type TestCounts = Record<TestRowStatus | "all", number>;
+
+type RowCase = PolicyTestCase & { key: string; testId: string | null };
+
+export type PublishBlockerInput = {
+  isReadyToPublish: boolean;
+  isRunning: boolean;
+  hasDraft: boolean;
+  didRunLoad: boolean;
+  isAssistantConfigured: boolean;
+  hasRun: boolean;
+  isCurrent: boolean;
+  counts: TestCounts;
+};
+
+function getRowCases(tests: OwnerTest[]): RowCase[] {
+  const ownerCases = tests.map((test) => ({ ...test, isBuiltIn: false, key: test.id, testId: test.id }));
+  const builtInCases = BUILT_IN_TEST_CASES.map((testCase, index) => ({ ...testCase, key: `built-in-${index}`, testId: null }));
+  return [...ownerCases, ...builtInCases];
+}
+
+function isSameCase(testCase: PolicyTestCase, result: PolicyTestResult): boolean {
+  return result.question === testCase.question && result.expectedOutcome === testCase.expectedOutcome && result.expectedSection === testCase.expectedSection && result.isBuiltIn === testCase.isBuiltIn;
+}
+
+/** Each result is used once, so two identical questions never share one result. */
+function getMatchedResults({ rowCases, results }: { rowCases: RowCase[]; results: PolicyTestResult[] }): (PolicyTestResult | null)[] {
+  const unusedResults = [...results];
+  return rowCases.map((rowCase) => {
+    const index = unusedResults.findIndex((result) => isSameCase(rowCase, result));
+    return index === -1 ? null : (unusedResults.splice(index, 1)[0] ?? null);
+  });
+}
+
+function getRowStatus({ result, isCurrent }: { result: PolicyTestResult | null; isCurrent: boolean }): TestRowStatus {
+  if (!result) return "untested";
+  if (!isCurrent) return "stale";
+  return result.isPassed ? "passed" : "failed";
+}
+
+function compareRows(first: TestRow, second: TestRow): number {
+  return STATUS_ORDER.indexOf(first.status) - STATUS_ORDER.indexOf(second.status) || Number(first.isBuiltIn) - Number(second.isBuiltIn);
+}
+
+/** Failed first, then not tested, then out of date, then passed; built-in checks last in each group. */
+export function getTestRows({ tests, results, isCurrent }: { tests: OwnerTest[]; results: PolicyTestResult[]; isCurrent: boolean }): TestRow[] {
+  const rowCases = getRowCases(tests);
+  const matchedResults = getMatchedResults({ rowCases, results });
+  const rows = rowCases.map((rowCase, index) => {
+    const result = matchedResults[index] ?? null;
+    return { ...rowCase, result, status: getRowStatus({ result, isCurrent }) };
+  });
+  return rows.sort(compareRows);
+}
+
+export function getTestCounts(rows: TestRow[]): TestCounts {
+  const counts: TestCounts = { all: rows.length, failed: 0, untested: 0, stale: 0, passed: 0 };
+  return rows.reduce((total, row) => ({ ...total, [row.status]: total[row.status] + 1 }), counts);
+}
+
+export function getQuestionCountText(count: number): string {
+  return count === 1 ? "1 question" : `${count} questions`;
+}
+
+function getUntestedBlocker(counts: TestCounts): string | null {
+  if (counts.untested === 0) return null;
+  const verb = counts.untested === 1 ? "isn't" : "aren't";
+  return `${getQuestionCountText(counts.untested)} ${verb} tested yet. Run the tests again.`;
+}
+
+function getFailedBlocker(counts: TestCounts): string | null {
+  if (counts.failed === 0) return null;
+  return `${getQuestionCountText(counts.failed)} failed. Fix the draft or the questions, then run the tests again.`;
+}
+
+function getSetupBlocker(input: PublishBlockerInput): string | null {
+  if (!input.hasDraft) return "Save a draft first.";
+  if (!input.didRunLoad) return "The last test run didn't load. Refresh the page.";
+  if (!input.isAssistantConfigured) return "The chat assistant isn't connected yet, so the tests can't run.";
+  return null;
+}
+
+function getRunBlocker(input: PublishBlockerInput): string | null {
+  if (!input.hasRun) return "Run the tests first.";
+  if (!input.isCurrent) return "You changed the draft or questions since the last run. Run the tests again.";
+  return null;
+}
+
+/**
+ * Why Publish is locked, in plain words. It follows the button (the server's rule, and a run in
+ * progress), so it never says "nothing is wrong" while Publish is greyed, or names a problem
+ * while it is enabled.
+ */
+export function getPublishBlocker(input: PublishBlockerInput): string | null {
+  if (input.isRunning) return "Tests are running…";
+  if (input.isReadyToPublish) return null;
+  return getSetupBlocker(input) ?? getRunBlocker(input) ?? getFailedBlocker(input.counts) ?? getUntestedBlocker(input.counts) ?? "Run the tests again to check the current questions.";
+}
+
+export function isAtTestLimit(activeCount: number): boolean {
+  return activeCount >= MAX_TESTS;
+}

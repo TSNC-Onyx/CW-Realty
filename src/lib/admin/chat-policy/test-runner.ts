@@ -21,8 +21,10 @@ async function fetchOneOutcome({ policyBody, testCase, model }: { policyBody: st
   }
 }
 
-// One record per run, not per question, so a model outage doesn't flood the problem log.
-async function reportModelFailures(outcomes: TestOutcome[]): Promise<void> {
+type TestRunInput = { policyBody: string; testCases: PolicyTestCase[]; model: AnswerModel; batchLabel: string };
+
+// One record per batch, not per question, so a model outage doesn't flood the problem log.
+async function reportModelFailures({ outcomes, batchLabel }: { outcomes: TestOutcome[]; batchLabel: string }): Promise<void> {
   const errorNames = outcomes.flatMap((outcome) => (outcome.errorName ? [outcome.errorName] : []));
   if (errorNames.length === 0) return;
   await reportProblem({
@@ -30,16 +32,17 @@ async function reportModelFailures(outcomes: TestOutcome[]): Promise<void> {
     stage: "external",
     severity: "error",
     code: errorNames[0],
-    detail: `${errorNames.length} of ${outcomes.length} test questions got no reply from the model`,
+    detail: `${errorNames.length} of ${outcomes.length} test questions got no reply from the model (${batchLabel})`,
   });
 }
 
-export async function fetchTestResults({ policyBody, testCases, model }: { policyBody: string; testCases: PolicyTestCase[]; model: AnswerModel }): Promise<PolicyTestResult[]> {
+/** batchLabel: which batch of the run this is ("batch 2 of 6"), for the problem log. */
+export async function fetchTestResults({ policyBody, testCases, model, batchLabel }: TestRunInput): Promise<PolicyTestResult[]> {
   const outcomes: TestOutcome[] = [];
   for (let start = 0; start < testCases.length; start += PARALLEL_TESTS) {
     const batch = testCases.slice(start, start + PARALLEL_TESTS);
     outcomes.push(...(await Promise.all(batch.map((testCase) => fetchOneOutcome({ policyBody, testCase, model })))));
   }
-  await reportModelFailures(outcomes);
+  await reportModelFailures({ outcomes, batchLabel });
   return outcomes.map((outcome) => outcome.result);
 }

@@ -18,4 +18,20 @@ describe("policyBodySchema", () => {
     // Assert
     expect(result.error?.issues[0]?.message).toMatch(/^Add at least one section heading/);
   });
+
+  it("asks for one section the assistant may share when every section is private", () => {
+    // Arrange / Act
+    const result = policyBodySchema.safeParse("# Notes (private)\nInternal.");
+
+    // Assert
+    expect(result.error?.issues[0]?.message).toBe("Add at least one section without (private): the assistant needs something it may share.");
+  });
+
+  it("accepts a policy with private notes beside a public section", () => {
+    // Arrange / Act
+    const result = policyBodySchema.safeParse("# Office hours\nWeekdays.\n# Notes (private)\nInternal.");
+
+    // Assert
+    expect(result.success).toBe(true);
+  });
 });

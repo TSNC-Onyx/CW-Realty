@@ -49,7 +49,7 @@ export function PolicyEditor({ draftId, initialBody }: PolicyEditorProps) {
         <input type="hidden" name="draftId" value={draftId ?? ""} />
         <div>
           <label htmlFor="policy-body" className="mb-1 block text-base font-bold">Policy text</label>
-          <p id="policy-body-helper" className="type-small mb-2 text-muted">Start each section with a heading line such as “# Office hours”. The assistant cites these headings.</p>
+          <p id="policy-body-helper" className="type-small mb-2 text-muted">Start each section with a heading line such as “# Office hours”. The assistant cites these headings. Sections whose heading ends in (private) are never shown to the assistant.</p>
           <textarea
             id="policy-body"
             name="body"

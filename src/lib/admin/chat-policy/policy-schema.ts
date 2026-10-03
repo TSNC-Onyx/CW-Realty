@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getPolicySections } from "@/lib/chat/policy-sections";
+import { getPolicySections, getPublicSections } from "@/lib/chat/policy-sections";
 
 // Policy file and test-question rules, shared by the editor and its server actions.
 
@@ -12,7 +12,8 @@ export const policyBodySchema = z
   .trim()
   .min(1, "Write or upload the policy before saving")
   .max(MAX_POLICY_LENGTH, `Keep the policy under ${MAX_POLICY_LENGTH.toLocaleString("en-US")} characters`)
-  .refine((body) => getPolicySections(body).length > 0, "Add at least one section heading: a line starting with # and a title, like “# Office hours”");
+  .refine((body) => getPolicySections(body).length > 0, "Add at least one section heading: a line starting with # and a title, like “# Office hours”")
+  .refine((body) => getPolicySections(body).length === 0 || getPublicSections(body).length > 0, "Add at least one section without (private): the assistant needs something it may share.");
 
 export const policyTestSchema = z.object({
   question: z.string().trim().min(1, "Enter a question a visitor might ask").max(MAX_TEST_QUESTION_LENGTH, `Keep the question under ${MAX_TEST_QUESTION_LENGTH} characters`),

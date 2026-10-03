@@ -64,4 +64,28 @@ describe("fetchAssistantReply", () => {
     // Assert
     expect({ text: reply.text, calls: model.mock.calls.length }).toEqual({ text: HANDOFF_TEXT.unavailable, calls: 0 });
   });
+
+  it("never gives the model a private section's text or heading", async () => {
+    // Arrange
+    const model = getFakeModel(null);
+    const policy = "# Office hours\nWeekdays.\n# Margins (private)\nKeep 2 percent.";
+
+    // Act
+    await fetchAssistantReply({ policyBody: policy, turns: [{ role: "visitor", body: "What are your margins?" }], model });
+
+    // Assert
+    const systemPrompt = model.mock.calls[0]?.[0].systemPrompt ?? "";
+    expect({ hasPrivateText: systemPrompt.includes("Keep 2 percent"), hasPrivateHeading: systemPrompt.includes("Margins") }).toEqual({ hasPrivateText: false, hasPrivateHeading: false });
+  });
+
+  it("hands off without calling the model when every section is private", async () => {
+    // Arrange
+    const model = getFakeModel(null);
+
+    // Act
+    const reply = await fetchAssistantReply({ policyBody: "# Notes (private)\nInternal.", turns: [{ role: "visitor", body: "Hi" }], model });
+
+    // Assert
+    expect({ text: reply.text, calls: model.mock.calls.length }).toEqual({ text: HANDOFF_TEXT.unavailable, calls: 0 });
+  });
 });

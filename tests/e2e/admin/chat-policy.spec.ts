@@ -19,14 +19,26 @@ function getServiceClient() {
   });
 }
 
-/** Stands in for a passing test run, which needs the Anthropic key CI does not have. */
-async function recordPassingRun(): Promise<void> {
+type RecordedResult = { question: string; expectedOutcome: "answer" | "handoff"; expectedSection: string | null; isBuiltIn: boolean; outcome: "answer" | "handoff" | null; reply: string; citedSections: string[]; isPassed: boolean };
+
+/** Stands in for a test run, which needs the Anthropic key CI does not have. */
+async function recordRun({ isPassed, results }: { isPassed: boolean; results: RecordedResult[] }): Promise<void> {
   const client = getServiceClient();
   const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
   const { data: draft } = await client.from("chat_policies").select("id, updated_at").eq("tenant_id", tenant?.id).eq("status", "draft").order("version", { ascending: false }).limit(1).single();
   const { data: newestTest } = await client.from("chat_policy_tests").select("updated_at").eq("tenant_id", tenant?.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
-  const { error } = await client.rpc("record_chat_policy_test_run", { p_policy_id: draft?.id, p_policy_updated_at: draft?.updated_at, p_tests_updated_at: newestTest?.updated_at ?? null, p_is_passed: true, p_results: [], p_ran_by: null });
+  const { error } = await client.rpc("record_chat_policy_test_run", { p_policy_id: draft?.id, p_policy_updated_at: draft?.updated_at, p_tests_updated_at: newestTest?.updated_at ?? null, p_is_passed: isPassed, p_results: results, p_ran_by: null });
   if (error) throw new Error(`Could not record a test run: ${error.message}`);
+}
+
+async function recordPassingRun(): Promise<void> {
+  await recordRun({ isPassed: true, results: [] });
+}
+
+/** The add form starts open when there are no questions yet, so it is opened only when closed. */
+async function openAddQuestionForm(page: Page): Promise<void> {
+  const toggle = page.getByRole("button", { name: "Add a test question" });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
 }
 
 async function saveDraft(page: Page, body: string): Promise<void> {
@@ -85,6 +97,7 @@ test("running the tests explains that the assistant is not connected yet", async
   // Arrange
   await signInFully(page, owner);
   await page.goto(POLICY_PATH);
+  await openAddQuestionForm(page);
   await page.getByLabel("Question a visitor might ask").fill("When are you open?");
   await page.getByLabel("Section it should cite").fill("Office hours");
   await page.getByRole("button", { name: "Add question" }).click();
@@ -115,6 +128,69 @@ test("more than five test questions scroll inside their own box, which the keybo
 
   // Assert
   expect({ isFocused: await box.evaluate((element) => element === document.activeElement), isScrollable, violations: results.violations }).toEqual({ isFocused: true, isScrollable: true, violations: [] });
+});
+
+test("after a failed run the list opens on the failed question, with its reply and the reason Publish is locked", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const question = `Failing question ${Date.now()}`;
+  const { data: added } = await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "answer", expected_section: null }).select("id").single();
+  // Without an Anthropic key (CI) the reason names that first, as the page's priority order says.
+  await recordRun({ isPassed: false, results: [{ question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false, outcome: "handoff", reply: "A person on our team can help with that.", citedSections: [], isPassed: false }] });
+  await signInFully(page, owner);
+
+  // Act
+  await page.goto(POLICY_PATH);
+  const isFailedPressed = await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^Failed 1$/ }).getAttribute("aria-pressed");
+  await page.getByText(`Show reply to: ${question}`).click();
+  const results = await new AxeBuilder({ page }).include('section[aria-labelledby="publish-heading"]').withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const isReplyShown = await page.getByText("A person on our team can help with that.").isVisible();
+  const reason = await page.getByText(/^Publish is locked: /).textContent();
+  await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
+  const isAllPressed = await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).getAttribute("aria-pressed");
+  await client.from("chat_policy_tests").delete().eq("id", added?.id);
+
+  // Assert
+  expect({ isFailedPressed, isReplyShown, reason, isAllPressed, violations: results.violations }).toEqual({ isFailedPressed: "true", isReplyShown: true, reason: expect.stringMatching(/^Publish is locked: (1 question failed\.|The chat assistant isn't connected yet)/), isAllPressed: "true", violations: [] });
+});
+
+test("a test question citing a private section is flagged before and after it is added", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await saveDraft(page, "# Office hours\nWe are open weekdays.\n# Margins (private)\nInternal notes.");
+  await expect(page.getByRole("status").filter({ hasText: /draft version \d+/i })).toBeVisible();
+  await page.reload();
+  await openAddQuestionForm(page);
+  const question = `Private section question ${Date.now()}`;
+
+  // Act
+  await page.getByLabel("Question a visitor might ask").fill(question);
+  await page.getByLabel("Section it should cite").fill("margins (private)");
+  const isFormWarned = await page.getByText("This section is private, so the assistant can't cite it; this test can't pass.").isVisible();
+  await page.getByRole("button", { name: "Add question" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Test question added." })).toBeVisible();
+  await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
+  const isRowWarned = await page.getByRole("listitem").filter({ hasText: question }).getByText("Cites a private section, so this test can’t pass.").isVisible();
+  await getServiceClient().from("chat_policy_tests").delete().eq("question", question);
+
+  // Assert
+  expect({ isFormWarned, isRowWarned }).toEqual({ isFormWarned: true, isRowWarned: true });
+});
+
+test("closing the add form returns focus to its button", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await openAddQuestionForm(page);
+
+  // Act
+  await page.getByRole("button", { name: "Cancel" }).click();
+
+  // Assert
+  await expect(page.getByRole("button", { name: "Add a test question" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Add a test question" })).toHaveAttribute("aria-expanded", "false");
 });
 
 test("after a passing run the owner publishes, then restores an old version as a new draft", async ({ page }) => {

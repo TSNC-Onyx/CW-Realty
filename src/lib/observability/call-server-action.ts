@@ -60,7 +60,7 @@ async function getReportedFailure({ action, mode, error }: { action: ProblemActi
 }
 
 /** For one-click actions: a failed call becomes an error result, never an exception. */
-export async function callQuickAction(action: ProblemAction, run: () => Promise<QuickResult>): Promise<QuickResult> {
+export async function callQuickAction<Result extends QuickResult = QuickResult>(action: ProblemAction, run: () => Promise<Result | QuickResult>): Promise<Result | QuickResult> {
   try {
     return await run();
   } catch (error) {

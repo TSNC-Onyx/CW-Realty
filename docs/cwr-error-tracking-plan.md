@@ -60,7 +60,7 @@ The owner can look any of them up on a Problems page. The owner is emailed when 
   5. **`assignThreadAction`:** a transition failure after assignment leaves the thread half-changed (`inbox/actions.ts:42-47`).
   6. **`resetSignInCodesAction`:** can finish only partly, ignores the membership read error (`:94`), and hides the cause.
   7. **`inviteUserAction`:** discards the Auth error.
-  8. **`runPolicyTestsAction`:** a test-question load error says "Add at least one test question first".
+  8. **`runPolicyTestsAction`** (now `startPolicyTestRunAction`): a test-question load error says "Add at least one test question first".
   9. **`restorePolicyVersionAction` and `requestPhotoUploadAction`:** read errors say "no longer exists" or "couldn't be found" (`chat-policy/actions.ts:55`, `photos/actions.ts:30`).
   10. **`sendReplyAction`:** shows "Reply sent" even when the email could not be queued or sent.
   11. **`deleteForeverAction`:** pre-read errors orphan files without a record.
