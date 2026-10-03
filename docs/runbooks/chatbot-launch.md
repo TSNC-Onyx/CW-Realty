@@ -23,10 +23,11 @@ The Quick Check (Cloudflare Turnstile) must use real keys from one widget:
 1. Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets: add the secret `ANTHROPIC_API_KEY`.
 2. Claude Console → the key's workspace → Limits: set a **monthly spend limit**. When it is reached the API refuses calls; visitors are offered a person and a critical `site.chat_assistant` problem (code `http_400` or `http_429_spend_cap`) is recorded.
 3. Admin → Chatbot policy:
-   1. Write the policy. Each heading is a section the assistant can cite.
-   2. Add a few test questions.
-   3. Run the tests.
-   4. Publish once every test passes.
+   1. Write the policy. Each heading is a section the assistant can cite. The assistant may quote it, so put notes visitors shouldn't see under a heading ending in "(private)" (for example `# Margins (private)`); those sections never reach the assistant.
+   2. Under **Test and publish**, press **Add a test question** and add a few.
+   3. Press **Run the tests**. The questions are tested 8 at a time; a line shows the progress and the time left, and **Stop** ends the run without saving. Keep the page open until it finishes (the browser asks before you leave).
+   4. The page then refreshes. The list opens on any failed questions; **Show reply** shows what the assistant said and why it handed off. If Publish is greyed, the line under it says why.
+   5. Publish once every test passes.
 4. Ask 2–3 real questions on the live site. Expect replies within about 20 seconds; after 15 seconds the chat says "Still working".
 5. The rate limiter `CHAT_RATE_LIMITER` (namespace 1002, 10 messages a minute per visitor) is already in `wrangler.jsonc`.
 
@@ -66,6 +67,8 @@ group by 1;
 | `site.chat_assistant` / `no_api_key`, `no_published_policy` | The assistant isn't set up | Section 2 |
 | `site.chat_assistant` / `http_401`, `http_402`, `http_400`, `http_429_spend_cap` (critical) | Bad key, billing, spend limit, or retired model | Fix in the Claude Console |
 | `site.chat_assistant` / `refusal`, `max_tokens`, `unreadable` (info) | No usable answer for one question; the visitor was offered a person | Review the policy if frequent |
+| `site.chat_assistant` / `bad_citation`, `empty_or_long` (info) | The answer named a section the policy lacks, or was empty or too long; the visitor was offered a person | Review the policy if frequent |
+| `site.chat_assistant` / `leaked_marker` (warning) | The answer contained the assistant's own instructions and was replaced | Look at the chat; check the built-in injection test still passes |
 | `site.chat_handoff` (error) | A "Talk to a person" request wasn't saved, so a lead may be lost | Look at the time and contact the visitor if known |
 | `site.chat_message` / `hourly_cap` | 200 new chats in an hour; later visitors were offered a person | Usually a bot; check the rate limiter |
 | `site.listing_photo` / `image_failed` | A listing photo didn't load | Re-upload the photo |

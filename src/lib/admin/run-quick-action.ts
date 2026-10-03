@@ -16,7 +16,7 @@ import { ReportedProblemError } from "@/lib/observability/reported-problem-error
 
 const UNEXPECTED_MESSAGE = "That didn't work. Refresh the page and try again.";
 
-async function getQuickResult(roles: AdminActionOptions["roles"], work: (admin: AdminContext) => Promise<QuickResult>): Promise<QuickResult> {
+async function getQuickResult<Result extends QuickResult>(roles: AdminActionOptions["roles"], work: (admin: AdminContext) => Promise<Result | QuickResult>): Promise<Result | QuickResult> {
   try {
     return await work(await requireAdmin(roles));
   } catch (error) {
@@ -35,7 +35,8 @@ async function getQuickResult(roles: AdminActionOptions["roles"], work: (admin: 
   }
 }
 
-export function runQuickAction({ action, roles }: AdminActionOptions, work: (admin: AdminContext) => Promise<QuickResult>): Promise<QuickResult> {
+/** Result: a success may carry more than a message (a test run's key and progress, for example). */
+export function runQuickAction<Result extends QuickResult = QuickResult>({ action, roles }: AdminActionOptions, work: (admin: AdminContext) => Promise<Result | QuickResult>): Promise<Result | QuickResult> {
   return runInActionContext(action, async () => {
     const result = await getQuickResult(roles, work);
     if (result.status !== "error") return result;

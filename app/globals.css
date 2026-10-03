@@ -647,6 +647,28 @@
     overscroll-behavior: contain;
   }
 
+  /* Admin → Chatbot policy "Test and publish" (docs/cwr-chat-policy-test-batches-plan.md,
+     Part C): filter buttons (toggle buttons, 44px tall) and the reason Publish is locked. */
+  .policy-test-filter {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 1px solid var(--color-ink);
+    border-radius: 9999px;
+    background: var(--color-surface);
+    color: var(--color-ink);
+    font-size: 0.875rem;
+    font-weight: var(--font-weight-semibold);
+  }
+  .policy-test-filter[aria-pressed="true"] {
+    background: var(--color-ink);
+    color: var(--color-surface);
+  }
+  .policy-test-blocker {
+    padding: 0.625rem 1rem;
+    background: var(--color-warning-tint);
+    color: var(--color-warning);
+  }
+
   /* Listing photo gallery (docs/cwr-reliability-round-plan.md, Phase 3; owner decision D2):
      a native scroll-snap track, so touch swipe and trackpads work with no gesture script;
      buttons, thumbnails and arrow keys do the same for everyone else. */

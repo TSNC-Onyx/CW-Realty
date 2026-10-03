@@ -59,7 +59,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `inbox_threads`, `inbox_messages` | Contact form, chat handoffs, TouchUp booking requests; status (`new`/`assigned`/`replied`/`closed`), assignee, internal notes, replies |
 | `alert_deliveries` | Every alert/reply email and its outcome (sent / failed / not sent) for retry and dead-letter visibility |
 | `notification_recipients` | Who gets contact / chat / booking alerts |
-| `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs` | Versioned policy file, preset test questions, pass/fail gate for publishing |
+| `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs`, `chat_policy_test_jobs`, `chat_policy_test_parts` | Versioned policy file, preset test questions, pass/fail gate for publishing, in-progress batched test runs (service role only) |
 | `chat_sessions`, `chat_messages` | Logged chats for weekly review |
 | `tracking_settings`, `lead_attribution`, `closed_deals` | Tag Manager / Meta Pixel IDs (owner-only); ad click IDs saved with a lead only after advertising consent; closed deals for the Google Ads and Meta download files |
 | `workflows`, `workflow_transitions` + `cwr.transition()` | The only path for any status change; every transition audited |

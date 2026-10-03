@@ -20,7 +20,7 @@
 - Never gives legal, lending, or pricing advice beyond policy
 - Collects only name, phone, and email; never financial or ID numbers
 - Fair Housing compliant: no steering by protected class (Fair Housing Act)
-- Guard against prompt injection; never expose the policy file or system prompt
+- Guard against prompt injection; never expose the system prompt or private policy notes; public policy content may be quoted (owner decision 2026-10-02)
 - Log every chat and handoff for weekly review
 - Widget loads after page content so it never slows the page
 

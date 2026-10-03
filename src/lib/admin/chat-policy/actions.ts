@@ -5,15 +5,23 @@ import { z } from "zod";
 
 import { getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
 import { policyBodySchema, policyTestSchema, type PolicyTestInput } from "@/lib/admin/chat-policy/policy-schema";
+import { fetchTestsChangedAt } from "@/lib/admin/chat-policy/queries";
+import { BATCH_SIZE, getAssembledResults, getBatchCount, getBatchSlots, getDoneCount, getOrderedTestIds, getRunTotal, isSameQuestionSet, type TestBatchProgress, type TestRunStart, type TestSlot } from "@/lib/admin/chat-policy/test-batches";
+import { deleteStaleTestJobs, deleteTestJob, fetchTestJob, fetchTestParts, insertTestJob, insertTestPart, type TestJob } from "@/lib/admin/chat-policy/test-jobs";
+import { MAX_TESTS, TEST_LIMIT_MESSAGE, isAtTestLimit } from "@/lib/admin/chat-policy/test-rows";
 import { fetchTestResults } from "@/lib/admin/chat-policy/test-runner";
-import { BUILT_IN_TEST_CASES, getRunSummary, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
-import { getDatabaseErrorMessage } from "@/lib/admin/database-errors";
+import { getRunSummary, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
+import { getDatabaseErrorMessage, isUniqueViolation } from "@/lib/admin/database-errors";
+import { getQueryLoad, type LoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
 import { OWNER_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
+import type { AnswerModel } from "@/lib/chat/answer-question";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
 import { noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
+import type { ProblemAction } from "@/lib/observability/problem-catalog";
+import { reportProblem } from "@/lib/observability/report-problem";
 import { createServiceClient } from "@/lib/supabase/service-client";
 
 // Chatbot policy (Admin §6): owners only, checked here, in the page, and by RLS.
@@ -21,6 +29,9 @@ import { createServiceClient } from "@/lib/supabase/service-client";
 const POLICY_PATH = "/admin/chat-policy";
 const NO_MODEL_MESSAGE = "The chat assistant isn't connected yet (no Anthropic API key), so tests can't run. The site owner adds the key at launch.";
 const NO_MODEL_CAUSE: ProblemCause = { stage: "setup", severity: "warning", code: "no_api_key", detail: null };
+const RUN_ENDED_MESSAGE = "This test run has ended. Run the tests again.";
+const DRAFT_CHANGED_MESSAGE = "The draft changed while the tests ran. Run the tests again.";
+const QUESTIONS_CHANGED_MESSAGE = "The test questions changed while the tests ran. Run the tests again.";
 
 type DraftRow = { id: string; version: number };
 
@@ -103,19 +114,33 @@ export async function setAssistantOnAction({ isOn }: { isOn: boolean }): Promise
 
 // ------------------------------------------------------------------ test questions
 
+/** A message when no more questions can be added (the limit, or the count didn't load). */
+async function fetchTestLimitError({ supabase, tenantId }: AdminContext): Promise<string | null> {
+  const { count, error } = await supabase.from("chat_policy_tests").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("is_active", true);
+  if (error) {
+    noteLoadCause(error);
+    return "We couldn't check how many test questions there are. Try again in a moment.";
+  }
+  if (!isAtTestLimit(count ?? 0)) return null;
+  noteProblemCause({ stage: "rule", severity: "info", code: "test_limit", detail: null });
+  return TEST_LIMIT_MESSAGE;
+}
+
 function getTestRow(input: z.infer<typeof policyTestSchema>) {
   return { question: input.question, expected_outcome: input.expectedOutcome, expected_section: input.expectedSection || null };
 }
 
 export async function addPolicyTestAction(_state: ActionState, formData: FormData): Promise<ActionState> {
-  return runAdminAction({ action: "chat_policy.add_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
+  return runAdminAction({ action: "chat_policy.add_test", roles: OWNER_ROLES }, async (admin) => {
     const values = getFormValues(formData);
     const parsed = policyTestSchema.safeParse({ question: values.question ?? "", expectedOutcome: values.expectedOutcome, expectedSection: values.expectedSection ?? "" });
     if (!parsed.success) {
       const fieldErrors = Object.fromEntries(parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
       return getErrorState({ message: "Fix the highlighted fields.", fieldErrors, values });
     }
-    const { error } = await supabase.from("chat_policy_tests").insert({ tenant_id: tenantId, ...getTestRow(parsed.data) });
+    const limitError = await fetchTestLimitError(admin);
+    if (limitError) return getErrorState({ message: limitError, values });
+    const { error } = await admin.supabase.from("chat_policy_tests").insert({ tenant_id: admin.tenantId, ...getTestRow(parsed.data) });
     if (error) return getErrorState({ message: getDatabaseErrorMessage(error), values });
     revalidatePath(POLICY_PATH);
     return getSuccessState("Test question added.");
@@ -123,8 +148,11 @@ export async function addPolicyTestAction(_state: ActionState, formData: FormDat
 }
 
 export async function restorePolicyTestAction(input: PolicyTestInput): Promise<QuickResult> {
-  return runQuickAction({ action: "chat_policy.restore_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
-    const { error } = await supabase.from("chat_policy_tests").insert({ tenant_id: tenantId, ...getTestRow(policyTestSchema.parse(input)) });
+  return runQuickAction({ action: "chat_policy.restore_test", roles: OWNER_ROLES }, async (admin) => {
+    const testRow = getTestRow(policyTestSchema.parse(input));
+    const limitError = await fetchTestLimitError(admin);
+    if (limitError) return getQuickError(limitError);
+    const { error } = await admin.supabase.from("chat_policy_tests").insert({ tenant_id: admin.tenantId, ...testRow });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(POLICY_PATH);
     return getQuickSuccess("Test question restored.");
@@ -141,11 +169,36 @@ export async function removePolicyTestAction(testId: string): Promise<QuickResul
   });
 }
 
-// ------------------------------------------------------------------ test run
+// ------------------------------------------------------------------ test run, in batches
+// docs/cwr-chat-policy-test-batches-plan.md, Part A: start fixes the questions, the browser asks
+// for one batch per request, and finish saves the run once every batch is in.
 
 type DraftToTest = { id: string; body: string; updated_at: string };
-type TestRow = { question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null; is_active: boolean; updated_at: string };
-type TestCaseSet = { testCases: PolicyTestCase[]; changedAt: string | null };
+type ActiveTestRow = { id: string; updated_at: string };
+type TestQuestionRow = { id: string; question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null };
+type BatchInputs = { job: TestJob; batchIndex: number; draft: DraftToTest; model: AnswerModel; testCases: PolicyTestCase[] };
+
+function noteNoModelError(): QuickResult {
+  noteProblemCause(NO_MODEL_CAUSE);
+  return getQuickError(NO_MODEL_MESSAGE);
+}
+
+/** The run can't go on (it ended, or the draft or questions changed): the person's normal edit, recorded as info. */
+function noteStoppedRunError({ code, message }: { code: string; message: string }): QuickResult {
+  noteProblemCause({ stage: "rule", severity: "info", code, detail: null });
+  return getQuickError(message);
+}
+
+function noteLoadError(failure: LoadFailure, message: string): QuickResult {
+  noteProblemCause({ stage: "load", severity: "error", code: failure.code ?? "database", detail: failure.detail });
+  return getQuickError(message);
+}
+
+// Clean-up that fails never blocks a run; it is recorded so it can be looked at.
+async function reportCleanupFailure(action: ProblemAction, error: DatabaseError | null): Promise<void> {
+  if (!error) return;
+  await reportProblem({ action, stage: "database", severity: "warning", code: error.code ?? "database", detail: error.message });
+}
 
 /** A message when the draft can't be tested (read failed, or it isn't a saved draft). */
 async function fetchDraftToTest({ supabase, tenantId }: AdminContext, policyId: string): Promise<DraftToTest | { error: string }> {
@@ -157,48 +210,126 @@ async function fetchDraftToTest({ supabase, tenantId }: AdminContext, policyId: 
   return data ?? { error: "Only a saved draft can be tested. Save your changes first." };
 }
 
-function getTestCaseSet(rows: TestRow[]): TestCaseSet {
-  const testCases = rows.filter((row) => row.is_active).map((row) => ({ question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false }));
-  return { testCases, changedAt: rows[0]?.updated_at ?? null };
+/** The active questions a run tests: the same limit the page shows (MAX_TESTS). */
+async function fetchActiveTests({ supabase, tenantId }: AdminContext): Promise<LoadResult<ActiveTestRow[]>> {
+  const result = await supabase.from("chat_policy_tests").select("id, updated_at").eq("tenant_id", tenantId).eq("is_active", true).order("updated_at", { ascending: false }).limit(MAX_TESTS).returns<ActiveTestRow[]>();
+  return getQueryLoad({ part: "test questions", result, empty: [] });
 }
 
-/** One read, so the questions asked and the "changed at" stamp always describe the same set. */
-async function fetchTestCases({ supabase, tenantId }: AdminContext): Promise<TestCaseSet | { error: string }> {
-  const { data, error } = await supabase.from("chat_policy_tests").select("question, expected_outcome, expected_section, is_active, updated_at").eq("tenant_id", tenantId).order("updated_at", { ascending: false }).returns<TestRow[]>();
-  if (error) {
-    noteLoadCause(error);
-    return { error: "We couldn't load the test questions. Try again in a moment." };
-  }
-  const testCaseSet = getTestCaseSet(data ?? []);
-  return testCaseSet.testCases.length > 0 ? testCaseSet : { error: "Add at least one test question first." };
+/** null when the run has ended, was cleared, or belongs to someone else. */
+async function fetchOwnedJob(admin: AdminContext, runKey: string): Promise<TestJob | { error: QuickResult }> {
+  const job = await fetchTestJob({ tenantId: admin.tenantId, userId: admin.userId, runKey: z.uuid().parse(runKey) });
+  if (!job.isLoaded) return { error: noteLoadError(job.failure, "We couldn't load this test run. Try again in a moment.") };
+  return job.data ?? { error: noteStoppedRunError({ code: "run_ended", message: RUN_ENDED_MESSAGE }) };
 }
 
-async function saveTestRun({ draft, changedAt, results, userId }: { draft: DraftToTest; changedAt: string | null; results: PolicyTestResult[]; userId: string }) {
+function getTestCase(row: TestQuestionRow): PolicyTestCase {
+  return { question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false };
+}
+
+/** The batch's questions in the run's order; a question removed since the start stops the run. */
+async function fetchBatchTestCases({ supabase, tenantId }: AdminContext, slots: TestSlot[]): Promise<PolicyTestCase[] | { error: QuickResult }> {
+  const testIds = slots.flatMap((slot) => (slot.kind === "owner" ? [slot.testId] : []));
+  const result = testIds.length === 0 ? { data: [], error: null } : await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).in("id", testIds).returns<TestQuestionRow[]>();
+  if (result.error) return { error: noteLoadError({ part: "test questions", code: result.error.code ?? null, detail: result.error.message }, "We couldn't load the test questions. Try again in a moment.") };
+  const rowsById = new Map((result.data ?? []).map((row) => [row.id, row]));
+  if (testIds.some((testId) => !rowsById.has(testId))) return { error: noteStoppedRunError({ code: "questions_changed", message: QUESTIONS_CHANGED_MESSAGE }) };
+  return slots.flatMap((slot) => {
+    if (slot.kind === "built_in") return [slot.testCase];
+    const row = rowsById.get(slot.testId);
+    return row ? [getTestCase(row)] : [];
+  });
+}
+
+async function fetchBatchInputs(admin: AdminContext, { runKey, batchIndex }: { runKey: string; batchIndex: number }): Promise<BatchInputs | { error: QuickResult }> {
+  const job = await fetchOwnedJob(admin, runKey);
+  if ("error" in job) return job;
+  const index = z.number().int().min(0).max(job.batch_count - 1).parse(batchIndex);
+  const draft = await fetchDraftToTest(admin, job.policy_id);
+  if ("error" in draft) return { error: getQuickError(draft.error) };
+  if (draft.updated_at !== job.policy_updated_at) return { error: noteStoppedRunError({ code: "draft_changed", message: DRAFT_CHANGED_MESSAGE }) };
+  const model = getClaudeAnswerModel();
+  if (!model) return { error: noteNoModelError() };
+  const testCases = await fetchBatchTestCases(admin, getBatchSlots({ testIds: job.test_ids, batchIndex: index }));
+  if ("error" in testCases) return testCases;
+  return { job, batchIndex: index, draft, model, testCases };
+}
+
+/** Every batch's results in order, or the reason the run can't be saved. */
+async function fetchRunResults(job: TestJob): Promise<PolicyTestResult[] | { error: QuickResult }> {
+  const parts = await fetchTestParts(job.run_key);
+  if (!parts.isLoaded) return { error: noteLoadError(parts.failure, "We couldn't load the test results. Try again in a moment.") };
+  const results = getAssembledResults({ parts: parts.data, batchCount: job.batch_count });
+  if (results) return results;
+  noteProblemCause({ stage: "rule", severity: "warning", code: "missing_batch", detail: `${parts.data.length} of ${job.batch_count} batches saved` });
+  return { error: getQuickError("Some questions weren't tested. Run the tests again.") };
+}
+
+async function fetchIsSameQuestionSet(admin: AdminContext, job: TestJob): Promise<boolean | { error: QuickResult }> {
+  const tests = await fetchActiveTests(admin);
+  if (!tests.isLoaded) return { error: noteLoadError(tests.failure, "We couldn't load the test questions. Try again in a moment.") };
+  return isSameQuestionSet({ runTestIds: job.test_ids, currentTestIds: tests.data.map((test) => test.id) });
+}
+
+async function saveTestRun({ job, results, userId }: { job: TestJob; results: PolicyTestResult[]; userId: string }) {
   return createServiceClient().rpc("record_chat_policy_test_run", {
-    p_policy_id: draft.id,
-    p_policy_updated_at: draft.updated_at,
-    p_tests_updated_at: changedAt,
+    p_policy_id: job.policy_id,
+    p_policy_updated_at: job.policy_updated_at,
+    p_tests_updated_at: job.tests_updated_at,
     p_is_passed: results.every((result) => result.isPassed),
     p_results: results,
     p_ran_by: userId,
   });
 }
 
-export async function runPolicyTestsAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction({ action: "chat_policy.run_tests", roles: OWNER_ROLES }, async (admin) => {
+/** Fixes the run's questions; asks the model nothing. */
+export async function startPolicyTestRunAction(policyId: string): Promise<TestRunStart | QuickResult> {
+  return runQuickAction<TestRunStart>({ action: "chat_policy.start_tests", roles: OWNER_ROLES }, async (admin) => {
+    if (!getClaudeAnswerModel()) return noteNoModelError();
     const draft = await fetchDraftToTest(admin, z.uuid().parse(policyId));
     if ("error" in draft) return getQuickError(draft.error);
-    const testCaseSet = await fetchTestCases(admin);
-    if ("error" in testCaseSet) return getQuickError(testCaseSet.error);
-    const model = getClaudeAnswerModel();
-    if (!model) {
-      noteProblemCause(NO_MODEL_CAUSE);
-      return getQuickError(NO_MODEL_MESSAGE);
-    }
-    const results = await fetchTestResults({ policyBody: draft.body, testCases: [...BUILT_IN_TEST_CASES, ...testCaseSet.testCases], model });
-    const { error } = await saveTestRun({ draft, changedAt: testCaseSet.changedAt, results, userId: admin.userId });
+    // The stamp covers every question, active or not, as the database's save check does.
+    const testsChangedAt = await fetchTestsChangedAt(admin);
+    if (!testsChangedAt.isLoaded) return noteLoadError(testsChangedAt.failure, "We couldn't load the test questions. Try again in a moment.");
+    const tests = await fetchActiveTests(admin);
+    if (!tests.isLoaded) return noteLoadError(tests.failure, "We couldn't load the test questions. Try again in a moment.");
+    if (tests.data.length === 0) return getQuickError("Add at least one test question first.");
+    await reportCleanupFailure("chat_policy.start_tests", await deleteStaleTestJobs(admin.tenantId));
+    const testIds = getOrderedTestIds(tests.data);
+    const batchCount = getBatchCount(testIds);
+    const job = await insertTestJob({ tenantId: admin.tenantId, userId: admin.userId, policyId: draft.id, policyUpdatedAt: draft.updated_at, testsUpdatedAt: testsChangedAt.data, testIds, batchSize: BATCH_SIZE, batchCount });
+    if (!job.isLoaded) return noteLoadError(job.failure, "The test run didn't start. Try again in a moment.");
+    return { ...getQuickSuccess("Testing started."), runKey: job.data, batchCount, total: getRunTotal(testIds) };
+  });
+}
+
+/** Tests one batch (at most BATCH_SIZE questions) and saves its results once. */
+export async function runPolicyTestBatchAction(input: { runKey: string; batchIndex: number }): Promise<TestBatchProgress | QuickResult> {
+  return runQuickAction<TestBatchProgress>({ action: "chat_policy.run_tests", roles: OWNER_ROLES }, async (admin) => {
+    const inputs = await fetchBatchInputs(admin, input);
+    if ("error" in inputs) return inputs.error;
+    const { job, batchIndex, draft, model, testCases } = inputs;
+    const results = await fetchTestResults({ policyBody: draft.body, testCases, model, batchLabel: `batch ${batchIndex + 1} of ${job.batch_count}` });
+    const error = await insertTestPart({ runKey: job.run_key, batchIndex, results });
+    if (error) return getQuickError(isUniqueViolation(error) ? "These questions were already tested in this run. Run the tests again." : getDatabaseErrorMessage(error));
+    const done = getDoneCount({ testIds: job.test_ids, batchIndex });
+    return { ...getQuickSuccess(`Tested ${done} questions.`), done, total: getRunTotal(job.test_ids) };
+  });
+}
+
+/** Saves the run once every batch is in and the questions are still the ones it started with. */
+export async function finishPolicyTestRunAction({ runKey }: { runKey: string }): Promise<QuickResult> {
+  return runQuickAction({ action: "chat_policy.finish_tests", roles: OWNER_ROLES }, async (admin) => {
+    const job = await fetchOwnedJob(admin, runKey);
+    if ("error" in job) return job.error;
+    const results = await fetchRunResults(job);
+    if ("error" in results) return results.error;
+    const isSameSet = await fetchIsSameQuestionSet(admin, job);
+    if (typeof isSameSet !== "boolean") return isSameSet.error;
+    if (!isSameSet) return noteStoppedRunError({ code: "questions_changed", message: QUESTIONS_CHANGED_MESSAGE });
+    const { error } = await saveTestRun({ job, results, userId: admin.userId });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
-    revalidatePath(POLICY_PATH);
+    await reportCleanupFailure("chat_policy.finish_tests", await deleteTestJob(job.run_key));
     return results.every((result) => result.isPassed) ? getQuickSuccess(getRunSummary(results)) : getQuickError(getRunSummary(results));
   });
 }

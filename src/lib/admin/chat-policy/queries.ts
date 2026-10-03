@@ -1,5 +1,6 @@
 import "server-only";
 
+import { MAX_TESTS } from "@/lib/admin/chat-policy/test-rows";
 import type { PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 import { getLoaded, getLoadFailure, getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
@@ -8,7 +9,6 @@ import type { ChatOutcome } from "@/lib/chat/assistant-reply";
 // Chatbot policy reads through the owner's own session (RLS: owners only).
 
 const HISTORY_LIMIT = 50;
-const MAX_TESTS = 100;
 
 export type PolicyStatus = "draft" | "published" | "archived";
 

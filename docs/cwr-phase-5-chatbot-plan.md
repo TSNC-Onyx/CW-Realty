@@ -73,7 +73,7 @@ Parent-plan list (incl. Google Workspace records, `docs/constitution/*`, design 
 
 | # | Edge case | Solution |
 |---|---|---|
-| 1 | A visitor tricks the bot into revealing the policy or its instructions | Visitor text is only ever a question; marker and long-copy checks replace leaks with a handoff; a built-in injection test runs before every publish |
+| 1 | A visitor tricks the bot into revealing its instructions or private notes | Visitor text is only ever a question; the marker check replaces a reply quoting the instructions with a handoff; "(private)" policy sections never reach the model; public policy content may be quoted (owner decision 2026-10-02, docs/cwr-chat-policy-test-batches-plan.md Part B); a built-in injection test runs before every publish |
 | 2 | Bot gives advice outside policy (legal, lending, pricing) or steers by protected class | Rules in the system prompt, answers must cite real sections or become a handoff, built-in Fair Housing and lending tests block publishing a policy that fails them |
 | 3 | Visitor types an SSN or card number | Caught before the model, never stored, visitor told not to share it |
 | 4 | Bots run up the Anthropic bill | Turnstile per chat, per-visitor limit, 20 messages per chat, 200 new chats per hour site-wide |
