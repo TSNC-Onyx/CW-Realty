@@ -639,6 +639,14 @@
     opacity: 0.6;
   }
 
+  /* Admin → Chatbot policy test questions (owner request 2026-10-02): after about 5 questions
+     the list scrolls inside its own box. */
+  .policy-test-scroll {
+    max-height: 26rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   /* Listing photo gallery (docs/cwr-reliability-round-plan.md, Phase 3; owner decision D2):
      a native scroll-snap track, so touch swipe and trackpads work with no gesture script;
      buttons, thumbnails and arrow keys do the same for everyone else. */

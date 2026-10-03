@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 
@@ -94,6 +95,26 @@ test("running the tests explains that the assistant is not connected yet", async
 
   // Assert
   await expect(page.getByRole("alert").filter({ hasText: /isn't connected yet/ })).toBeVisible();
+});
+
+test("more than five test questions scroll inside their own box, which the keyboard can reach", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const rows = Array.from({ length: 6 }, (_unused, index) => ({ tenant_id: tenant?.id, question: `Scroll box question ${index + 1} ${Date.now()}`, expected_outcome: "handoff" }));
+  const { data: added } = await client.from("chat_policy_tests").insert(rows).select("id");
+  await signInFully(page, owner);
+
+  // Act
+  await page.goto(POLICY_PATH);
+  const box = page.getByRole("region", { name: /^Test questions, \d+ in all$/ });
+  await box.focus();
+  const results = await new AxeBuilder({ page }).include(".policy-test-scroll").withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
+  const isScrollable = await box.evaluate((element) => element.scrollHeight > element.clientHeight);
+  await client.from("chat_policy_tests").delete().in("id", (added ?? []).map((row) => row.id));
+
+  // Assert
+  expect({ isFocused: await box.evaluate((element) => element === document.activeElement), isScrollable, violations: results.violations }).toEqual({ isFocused: true, isScrollable: true, violations: [] });
 });
 
 test("after a passing run the owner publishes, then restores an old version as a new draft", async ({ page }) => {
