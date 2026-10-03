@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCappedSeverity, isBrowserReportable, isSameSiteOrigin } from "@/lib/observability/problem-report-rules";
+import { getCappedSeverity, getVisitorBrowserCode, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
 
 describe("browser problem report rules", () => {
   it.each([
@@ -11,6 +11,10 @@ describe("browser problem report rules", () => {
     ["a database check", "database.scheduled_job", false],
     ["a page load the server checks", "homework.load", false],
     ["a sign-in session check", "auth.session_check", false],
+    ["a visitor's Quick Check that didn't load", "site.bot_check_widget", true],
+    ["a visitor's broken listing photo", "site.listing_photo", true],
+    ["a Quick Check refusal the server decides", "site.bot_check", false],
+    ["a chat reply the server fetches", "site.chat_assistant", false],
   ] as const)("decide whether a browser may report %s", (_label, action, expected) => {
     // Act
     const isReportable = isBrowserReportable(action);
@@ -39,5 +43,34 @@ describe("browser problem report rules", () => {
 
     // Assert
     expect(severity).toBe("warning");
+  });
+
+  it.each([
+    ["the chat window", "site.chat_widget", true],
+    ["the contact form", "site.contact_form", true],
+    ["a server-side chat message", "site.chat_message", false],
+    ["an admin upload", "homework.upload_file", false],
+  ] as const)("treat %s as a visitor report or not", (_label, action, expected) => {
+    // Act
+    const isVisitorReport = isVisitorBrowserAction(action);
+
+    // Assert
+    expect(isVisitorReport).toBe(expected);
+  });
+
+  it("keeps a code from the visitor list", () => {
+    // Act
+    const code = getVisitorBrowserCode("image_failed");
+
+    // Assert
+    expect(code).toBe("image_failed");
+  });
+
+  it("turns a code outside the visitor list into other", () => {
+    // Act
+    const code = getVisitorBrowserCode("file_rejected");
+
+    // Assert
+    expect(code).toBe("other");
   });
 });

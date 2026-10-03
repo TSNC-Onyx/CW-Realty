@@ -638,6 +638,57 @@
     background: var(--color-dark);
     opacity: 0.6;
   }
+
+  /* Listing photo gallery (docs/cwr-reliability-round-plan.md, Phase 3; owner decision D2):
+     a native scroll-snap track, so touch swipe and trackpads work with no gesture script;
+     buttons, thumbnails and arrow keys do the same for everyone else. */
+  .photo-track {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .photo-track::-webkit-scrollbar {
+    display: none;
+  }
+  .photo-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .photo-thumbs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding-block: 4px;
+  }
+  .photo-thumb {
+    flex: 0 0 auto;
+    width: 72px;
+    height: 48px;
+    outline-offset: 2px;
+  }
+  .photo-thumb[aria-current="true"] {
+    box-shadow: 0 0 0 2px var(--color-ink);
+  }
+
+  /* Full-screen photo viewer: covers the whole window, photos shown whole (not cropped). */
+  .photo-viewer {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+  .photo-viewer::backdrop {
+    background: var(--color-dark);
+  }
+  .photo-viewer .photo-track {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
 }
 
 @keyframes menu-open {

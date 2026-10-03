@@ -15,7 +15,8 @@
       "description": "Test description.\n\nSecond paragraph.",
       "photos": [
         { "source": "test-house.jpg", "alt": "Front of the test home" },
-        { "source": "test-house.jpg", "alt": "Second view of the test home" }
+        { "source": "test-house.jpg", "alt": "Second view of the test home" },
+        { "source": "test-house.jpg", "alt": "Third view of the test home" }
       ]
     },
     {

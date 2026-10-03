@@ -23,7 +23,7 @@ export default async function SiteLayout({ children }: Readonly<{ children: Reac
       </main>
       <SiteFooter settings={settings} />
       <ActionBar contact={contact} />
-      <ChatLauncher />
+      <ChatLauncher contact={contact} />
     </>
   );
 }

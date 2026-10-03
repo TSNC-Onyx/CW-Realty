@@ -11,6 +11,11 @@ function getSeriousText({ total, serious }: ProblemCounts): string {
   return serious === 1 ? "1 was an error or worse." : `${serious} were errors or worse.`;
 }
 
+function getVisitorText(visitors: number): string {
+  if (visitors === 0) return "Website visitors: none.";
+  return visitors === 1 ? "Website visitors: 1 problem." : `Website visitors: ${visitors} problems.`;
+}
+
 export function ProblemsCard({ counts }: { counts: LoadResult<ProblemCounts> }) {
   return (
     <section aria-labelledby="problems-heading" className="grid content-start gap-2 border-t-2 border-ink bg-surface p-6">
@@ -19,6 +24,7 @@ export function ProblemsCard({ counts }: { counts: LoadResult<ProblemCounts> }) 
       </h2>
       <p className="type-h2 leading-none tabular-nums">{counts.isLoaded ? counts.data.total : MISSING_FIGURE}</p>
       <p className="text-tag leading-normal text-muted">{counts.isLoaded ? getSeriousText(counts.data) : "Didn't load — refresh to try again"}</p>
+      {counts.isLoaded && <p className="text-tag leading-normal text-muted">{getVisitorText(counts.data.visitors)}</p>}
     </section>
   );
 }

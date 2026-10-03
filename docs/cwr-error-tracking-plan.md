@@ -300,9 +300,10 @@ Two new migrations, because Postgres refuses to use a new enum value in the same
 6. **Auth:**
    - **Mapping:**
      - `invalid_credentials`, `captcha_failed`, 429, `same_password`, `weak_password`, MFA wrong code, expired link: `auth`/`info`, existing messages unchanged.
+     - Changed 2026-10-02 (`docs/cwr-stale-quick-check-addendum.md`): a refused Quick Check says "The quick check didn't go through. Try again. If it happens again, tap Refresh page." and is recorded as `captcha_failed`, or `captcha_expired` when Cloudflare says `timeout-or-duplicate` (both `info`, never spike). A page built before the latest Quick Check key is recorded as `outdated_page` (`validate`/`warning`) and refreshes itself.
      - `insufficient_aal`: the existing redirect, `info`.
      - Any other Auth error or a thrown exception: `auth`/`critical`, shown as "Sign-in isn't working right now. Try again in a few minutes (Ref …)".
-   - **Password reset** keeps its always-success screen (account-enumeration defence) and records failures.
+   - **Password reset** keeps its always-success screen (account-enumeration defence) and records failures. Exception (2026-10-02): a refused Quick Check shows the refusal message, since it reveals nothing about the account.
    - **No email address or code is ever stored.**
    - **Outage classifier** (`src/lib/observability/auth-outage.ts`, shared by middleware, `requireAdmin` and `getMfaPath`): an error counts as an **outage** only when `isAuthError(e)` **and** one of these holds: `isAuthRetryableFetchError(e)` (network status 0 or upstream 5xx), `e.name === 'AuthUnknownError'` (non-JSON upstream page), or `e.status >= 500`.
      - Any non-auth throw (for example a forged token with an unsupported algorithm) is **signed out**. It is recorded at most as `auth.session_check_invalid` at `warning`, which is never emailed and has no spike codes.
@@ -546,7 +547,7 @@ Key:
 
 ## Assumptions
 
-- **Scope:** admin portal, sign-in pages, background alert jobs, DB scheduled jobs and the GitHub photo clean-up. Public visitor forms and chat are **out of scope** and reuse the same pipeline in a follow-up (D5).
+- **Scope:** admin portal, sign-in pages, background alert jobs, DB scheduled jobs and the GitHub photo clean-up. Public visitor forms and chat are **out of scope** and reuse the same pipeline in a follow-up (D5). That follow-up was built 2026-10-02 for forms with a Quick Check, chat, hand-off and listing photos (origins `server_visitor`/`browser_visitor`, `docs/cwr-reliability-round-plan.md`).
 - **Service key dependency:** database recording needs `SUPABASE_SERVICE_ROLE_KEY` in the Worker. That is already build plan open item 1, and it is also needed for forms, invites and uploads. Until it is added, problems go to the server log only, and the dashboard says so.
 - **Items confirmed at Gate 3 before any other work:** `after()`, `AsyncLocalStorage`, `onRequestError` on OpenNext, the `cron.job_run_details` access, and `cwr.transition` in the service context. Fallback for `after()`: `getCloudflareContext().ctx.waitUntil`. Fallback for `onRequestError`: `error.tsx` reporting.
 - **Tenant:** one tenant (`cwr`). Sign-in-page events are attributed to it.

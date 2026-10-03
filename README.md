@@ -19,7 +19,8 @@ Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_P
 
 - `SUPABASE_SERVICE_ROLE_KEY` — used only on the server for saving public form requests, chat logs, invites, teammate emails, photo uploads, the content import, alert emails, and the problem log (`docs/runbooks/problem-alerts.md`). Without it in the Worker, forms fail and owners see a red notice on the admin dashboard (Cloudflare → Workers → `cw-realty` → Settings → Variables and Secrets → add a **Secret**).
 - `MAILERSEND_API_KEY` — alert and reply emails (with Worker variables `ALERT_FROM_EMAIL`, `ALERT_FROM_NAME`).
-- `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`).
+- `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; rebuild after changing it). Never set `NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS` on the live build: it lets Cloudflare's test keys through (only local tests use it).
+- `ANTHROPIC_API_KEY` — the website chat assistant; without it every visitor is offered a person (`docs/runbooks/chatbot-launch.md`).
 - `META_CAPI_ACCESS_TOKEN` — optional; lets the server confirm leads to Meta (with the Pixel ID entered in **Ads & analytics**). Optional Worker variable `TAG_SERVER_URL` points Tag Manager at a server-side tagging container.
 
 ## Admin portal

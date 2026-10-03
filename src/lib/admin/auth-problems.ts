@@ -31,6 +31,11 @@ export async function reportAuthFailure({ action, error, outcome }: AuthProblem<
   return getOutcomeMessage({ outcome, record });
 }
 
+/** A sign-in page built before the latest Quick Check keys (docs/cwr-stale-quick-check-addendum.md). */
+export async function reportOutdatedSignInPage(action: ProblemAction): Promise<void> {
+  await reportProblem({ action, stage: "validate", severity: "warning", code: "outdated_page" });
+}
+
 /**
  * Boundary for a sign-in step: anything it throws (other than a redirect) is recorded as
  * critical and shown as a plain message, never a crash screen.

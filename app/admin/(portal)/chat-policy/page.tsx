@@ -1,6 +1,7 @@
 import { CircleCheck, CircleX, ListChecks } from "lucide-react";
 import type { Metadata } from "next";
 
+import { AssistantSwitch } from "@/components/admin/chat-policy/assistant-switch";
 import { PolicyEditor } from "@/components/admin/chat-policy/policy-editor";
 import { PolicyHistory } from "@/components/admin/chat-policy/policy-history";
 import { PolicyPublishing } from "@/components/admin/chat-policy/policy-publishing";
@@ -10,6 +11,7 @@ import { LoadProblem } from "@/components/admin/load-problem";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Message } from "@/components/ui/message";
 import {
+  fetchIsAssistantOn,
   fetchLatestTestRun,
   fetchPolicyTests,
   fetchPolicyVersions,
@@ -91,11 +93,11 @@ function HistoryBody({ versions, notice }: { versions: LoadResult<PolicyVersion[
 
 export default async function ChatPolicyPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
-  const [versions, tests, testsChangedAt] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin)]);
+  const [versions, tests, testsChangedAt, isAssistantOn] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin), fetchIsAssistantOn(admin)]);
   // A failed versions read carries through as the working policy's failure, so it is reported once.
   const working = versions.isLoaded ? await fetchWorkingPolicy(admin, versions.data) : versions;
   const run = working.isLoaded && working.data.draftId ? await fetchLatestTestRun(admin, working.data.draftId) : getLoaded(null);
-  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run] });
+  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run, isAssistantOn] });
   return (
     <>
       <h1 className="type-h1 mb-2">Chatbot policy</h1>
@@ -108,6 +110,10 @@ export default async function ChatPolicyPage() {
           </Message>
         </div>
       )}
+      <section aria-labelledby="switch-heading" className="mb-12 border-t-2 border-ink pt-6">
+        <h2 id="switch-heading" className="type-h3 mb-2">Assistant on or off</h2>
+        {isAssistantOn.isLoaded ? <AssistantSwitch isOn={isAssistantOn.data} /> : <LoadProblem notice={notice} />}
+      </section>
       <section aria-labelledby="editor-heading" className="mb-12 border-t-2 border-ink pt-6">
         {working.isLoaded ? (
           <>

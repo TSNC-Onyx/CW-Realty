@@ -24,7 +24,8 @@ describe("sign-in password step", () => {
   it.each([
     ["a wrong password", new AuthApiError("Invalid login credentials", 400, "invalid_credentials"), "invalid_credentials", "That email and password don't match an account. Check them and try again."],
     ["too many attempts", new AuthApiError("Too many requests", 429, "over_request_rate_limit"), "over_request_rate_limit", "Too many attempts. Wait a few minutes, then try again."],
-    ["a failed bot check", new AuthApiError("captcha protection: request disallowed", 400, "captcha_failed"), "captcha_failed", "Please complete the quick check, then sign in again."],
+    ["a failed bot check", new AuthApiError("captcha protection: request disallowed", 400, "captcha_failed"), "captcha_failed", "The quick check didn't go through. Try again. If it happens again, tap Refresh page."],
+    ["an expired bot check", new AuthApiError("captcha protection: request disallowed (timeout-or-duplicate)", 400, "captcha_failed"), "captcha_expired", "The quick check didn't go through. Try again. If it happens again, tap Refresh page."],
   ])("treats %s as the person's to fix, with its usual wording", (_label, error, code, shownMessage) => {
     // Act
     const outcome = getSignInOutcome(error);

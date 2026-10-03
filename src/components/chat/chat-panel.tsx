@@ -10,6 +10,7 @@ import { useChatConversation } from "@/components/chat/use-chat-conversation";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import type { ContactLinks } from "@/lib/site/contact-links";
 
 // Style §11.13 AI chat window: 380px panel on desktop, full screen on phones; labeled
 // "AI · NOT A PERSON"; "Talk to a person" always visible. Escape closes it. While it covers
@@ -58,7 +59,9 @@ function ViewSwitch({ view, onChange }: { view: ChatView; onChange: (view: ChatV
   );
 }
 
-export function ChatPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+type ChatPanelProps = { isOpen: boolean; contact: ContactLinks | null; onClose: () => void };
+
+export function ChatPanel({ isOpen, contact, onClose }: ChatPanelProps) {
   const conversation = useChatConversation();
   const [view, setView] = useState<ChatView>("chat");
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -93,11 +96,11 @@ export function ChatPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () =>
               <Message tone="error" title={conversation.notice} onDismiss={conversation.dismissNotice} />
             </div>
           )}
-          <ChatComposer isStartingChat={conversation.sessionId === null} botCheckKey={conversation.botCheckKey} inputRef={inputRef} onSubmitQuestion={conversation.submitQuestion} />
+          <ChatComposer isStartingChat={conversation.sessionId === null} isOutdated={conversation.isOutdated} botCheckKey={conversation.botCheckKey} contact={contact} inputRef={inputRef} onSubmitQuestion={conversation.submitQuestion} />
         </>
       ) : (
         <div className="flex flex-1 flex-col overflow-y-auto">
-          <ChatHandoffForm sessionId={conversation.sessionId} question={conversation.latestQuestion} />
+          <ChatHandoffForm sessionId={conversation.sessionId} question={conversation.latestQuestion} contact={contact} />
         </div>
       )}
       <ViewSwitch view={view} onChange={setView} />

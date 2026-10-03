@@ -87,6 +87,20 @@ export async function publishPolicyAction(policyId: string): Promise<QuickResult
   });
 }
 
+/**
+ * The owner's off switch (decision D4): off, every visitor is offered a person and the model
+ * is never called. The database lets only owners change it.
+ */
+export async function setAssistantOnAction({ isOn }: { isOn: boolean }): Promise<QuickResult> {
+  return runQuickAction({ action: "chat_policy.set_assistant", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
+    const { data, error } = await supabase.from("site_settings").update({ is_assistant_on: z.boolean().parse(isOn) }).eq("tenant_id", tenantId).select("is_assistant_on").maybeSingle<{ is_assistant_on: boolean }>();
+    if (error) return getQuickError(getDatabaseErrorMessage(error));
+    if (!data) return getQuickError("The site settings are missing, so the switch didn't change. Save the contact details first.");
+    revalidatePath(POLICY_PATH);
+    return getQuickSuccess(isOn ? "The chat assistant is on. Visitors get answers from the live policy." : "The chat assistant is off. Every visitor is offered a person.");
+  });
+}
+
 // ------------------------------------------------------------------ test questions
 
 function getTestRow(input: z.infer<typeof policyTestSchema>) {

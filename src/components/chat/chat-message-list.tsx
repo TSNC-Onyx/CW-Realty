@@ -1,12 +1,15 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { ChatEntry } from "@/components/chat/use-chat-conversation";
 
 // Style §11.13: visitor messages dark and right aligned; assistant messages on surface-soft,
 // left aligned, ending with the policy source line. New messages are read out politely.
 
+const SLOW_REPLY_MS = 15_000;
+const REPLYING_TEXT = "The assistant is replying…";
+const SLOW_REPLY_TEXT = "Still working — this can take up to a minute. You can also tap “Talk to a person”.";
 const GREETING = "Hi, I'm the CWR Assistant, an AI. I can answer questions from Charlie Ward Realty's policies. For anything else, tap “Talk to a person”.";
 
 function VisitorBubble({ text }: { text: string }) {
@@ -20,6 +23,16 @@ function AssistantBubble({ text, citedSections }: { text: string; citedSections:
       {citedSections.length > 0 && <p className="mt-2 text-tag text-muted">{`Source: Policy · ${citedSections.join(", ")}`}</p>}
     </div>
   );
+}
+
+// Mounted per question, so the 15-second clock starts fresh each time.
+function PendingReplyLine() {
+  const [isSlow, setIsSlow] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsSlow(true), SLOW_REPLY_MS);
+    return () => window.clearTimeout(timer);
+  }, []);
+  return <p className="self-start text-tag text-muted">{isSlow ? SLOW_REPLY_TEXT : REPLYING_TEXT}</p>;
 }
 
 export function ChatMessageList({ entries, pendingQuestion }: { entries: ChatEntry[]; pendingQuestion: string | null }) {
@@ -38,7 +51,7 @@ export function ChatMessageList({ entries, pendingQuestion }: { entries: ChatEnt
       {pendingQuestion !== null && (
         <>
           <VisitorBubble text={pendingQuestion} />
-          <p className="self-start text-tag text-muted">The assistant is replying…</p>
+          <PendingReplyLine />
         </>
       )}
       <div ref={endRef} />
