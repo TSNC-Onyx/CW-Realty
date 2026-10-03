@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`).
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`).
 
 ## 1. Brand Identity
 
@@ -104,6 +104,7 @@
 | `on-dark-muted` | `#CFCFCF` | Secondary text on `dark` | — |
 | `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, the Pending status dot, on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
 | `status-active` / `status-sold` | `#4CAF6A` / `#E5534B` | The Active and Sold listing status dots on the `dark` status tag (6.8:1 / 5.1:1; owner choice 2026-09-27). The `success`/`error` shades fall below 3:1 on `dark` | Anything but the status dot |
+| `gold-deep` | `#806210` | The CWR initial of a plan title on light plan cards only (4.85:1 on `surface-soft`; owner choice 2026-10-02, `docs/cwr-selected-services-plan.md`) | Anything else; brand `gold` stays the gold on `dark` |
 | `gold-hover` / `gold-active` | `#F0CD55` / `#C9A227` | Gold button hover / pressed | — |
 | `ink-hover` / `ink-active` | `#3A3A3A` / `#000000` | Black button hover / pressed | — |
 | `on-dark-hover` | White at 10% | Hover tint on `dark`: secondary buttons and menu links | — |
@@ -183,7 +184,7 @@ Status colors (always with an icon and words, never color alone):
 | Disabled | Light: `#D6D6D6` fill, `#5E5E5E` text; dark: `#3A3A3A` fill, `#9A9A9A` text; `disabled` attribute |
 | Loading | 20px spinner plus a verb ("Sending…"); button keeps its width; `aria-busy="true"`; cannot be clicked twice |
 
-- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss and the Home hero pause/play button, 44×44px `dark-translucent`, which carry `aria-label`; the hero exception is an owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`; and the listing photo gallery's 48×48px ‹ › "Previous photo"/"Next photo" arrows and its full-screen Close button, which carry `aria-label`, owner choice 2026-10-02, `docs/cwr-reliability-round-plan.md` D2)
+- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss, the Home hero pause/play button, 44×44px `dark-translucent`, the plan carousel arrows, and the listing photo gallery's 48×48px ‹ › "Previous photo"/"Next photo" arrows and full-screen Close button, which carry `aria-label`; the hero exception is an owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`; the plan carousel arrows 2026-10-02, `docs/cwr-selected-services-plan.md`; the gallery arrows 2026-10-02, `docs/cwr-reliability-round-plan.md` D2)
 
 ### 11.6 Icons
 
@@ -240,6 +241,9 @@ Status colors (always with an icon and words, never color alone):
 - **Captions warning tag** (owner choice 2026-09-27, Admin → Homework): warning tint and border, 16px warning icon, 14px bold "No captions yet"; shown on videos that have a file but no captions file
 - **Texture band** (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): `dark` with a tiled 8×8px crosshatch of `#2A2A2A` lines, Property Management only; white text 14:1 or better, no gradients
 - **Plan card** (owner approved 2026-09-26, seller consulting): cards side by side from 768px, stacked on phones; 24px padding (40px from 768px); eyebrow, H3, 15px summary, a bold "includes" line over a 1px divider, then items with 18px check icons and optional 15px detail lines; then an L "Ask for pricing" button, full width and pinned to the card bottom. Standard plan: `surface-soft` fill, 2px `ink` top rule, `ink` checks, L secondary button. Recommended plan: `dark` fill, 2px `gold` top rule, eyebrow with its gold rule, gold checks, `on-dark-muted` details, L gold main button. Add-ons follow as a 680px-wide list under a 2px `ink` rule: 18px icon, name, bold price, 1px `line` dividers
+- **Plan card additions** (owner approved 2026-09-30 → 2026-10-02, Selected services, `docs/cwr-selected-services-plan.md`): a price line under the H3 in the Team name size (19px / 24px), always smaller than the H3, with a 15px note; the seller "3%" on a `dark` block; one or more bold "includes" lines; a 15px "Not included:" line above the button; the button reads "Get started" (prices are shown). The H3's first letter (the CWR initials across the three plans) is weight 700, `gold` on the dark card and `gold-deep` on light cards (`::first-letter`, text unchanged for screen readers). Grid from 1024px: two across with the full-service card spanning the row (its button sized to its label), three across from 1280px
+- **Plan carousel** (owner approved 2026-10-02, below 1024px): a plan list (name and price per plan, 16px, rows of 48px or more under a 2px `ink` rule with `line` dividers; current plan has a 4px `ink` left bar, bold name, `aria-current`; choosing one brings that card into view under the header and focuses it); one centered card at a time with a sliver of each neighbour (80vw phones, 70vw tablets), native scroll snap, no visible scroll bar; arrows are 48×48px square buttons with a `page` fill, 1px `field-border` border, and 24px `ink` chevron, fixed at the left and right edges at the middle of the cards, disabled (`line`) at the ends; opens on the recommended plan; W3C APG carousel roles and a polite live region; reduced motion moves instantly
+- **Intro byline** (owner approved 2026-09-30, Selected services): text and portrait top-aligned (portrait 5/12 from 768px, 4/12 from 1280px); on phones a 112px 4:5 portrait beside the name (Team name size, 44px link), title, and phone text link
 
 ### 11.11 Forms
 

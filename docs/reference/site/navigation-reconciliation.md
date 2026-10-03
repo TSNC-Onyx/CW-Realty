@@ -22,12 +22,12 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 |---|---|
 | Home | Home page (`/`); the footer reaches it through the logo instead of a column |
 | Listings | Featured Properties (`/listings`), Property Search (`/property-search`) |
-| Services | CWR TouchUp (`/services/cwr-touchup`), Property Management (`/services/property-management`); overview at `/services` |
+| Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property Management (`/services/property-management`); overview at `/services` |
 | Team | CWR Team (`/team`) and member pages |
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
 | About | About Us (`/about`), Contact (`/contact`) |
 
-Link-only pages (owner decision 2026-09-26): Seller consulting (`/services/seller-consulting`) is served but kept out of the menu, footer, sitemap, and search results until its companion page launches (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`).
+Link-only pages (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`): none at the moment. The former link-only Seller consulting page became the listed Selected services page on 2026-10-02; `/services/seller-consulting` redirects there (301, `next.config.ts`).
 
 Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above plus Privacy Policy, Cookie settings, Equal Housing Opportunity, NC "Working with Real Estate Agents".
 

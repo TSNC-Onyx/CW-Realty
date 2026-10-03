@@ -57,6 +57,9 @@
   /* Listing status dots on the dark status tag (owner choice 2026-09-27); Pending uses gold */
   --color-status-active: #4caf6a;
   --color-status-sold: #e5534b;
+  /* The CWR initial of a plan title on light plan cards only (owner choice 2026-10-02):
+     brand gold is 1.5:1 there, this deep gold is 4.85:1 on surface-soft */
+  --color-gold-deep: #806210;
 
   /* §11.2 type: sizes (never under 14px), line heights, tracking, weights */
   --text-tag: 14px;
@@ -242,6 +245,155 @@
     }
     .header-phone-short {
       display: inline;
+    }
+  }
+
+  /* Selected services plans (owner choices 2026-09-30 → 2026-10-02, docs/cwr-selected-services-plan.md). */
+  /* The first letters of the three plan names spell CWR: bold and gold. */
+  .plan-title::first-letter {
+    font-weight: 700;
+    color: var(--color-gold-deep);
+  }
+  .tone-dark .plan-title::first-letter {
+    color: var(--color-gold);
+  }
+
+  /* Selected services intro on phones: a 112px portrait beside the name, title, and direct line. */
+  .profile-byline {
+    grid-template-columns: 112px minmax(0, 1fr);
+  }
+
+  /* Plan carousel below 1024px: one centered card with a sliver of each neighbour, native
+     scroll snap, no scroll bar (the arrows, plan list, swipe, and keyboard move it). From
+     1024px it is the plan grid: two across with the full-service card spanning the row,
+     three across from 1280px. */
+  .plan-stage {
+    position: relative;
+    margin-inline: -16px;
+    @media (width >= 768px) {
+      margin-inline: -32px;
+    }
+    @media (width >= 1024px) {
+      margin-inline: 0;
+    }
+  }
+  .plan-track {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    padding-inline: 10vw;
+    /* Room above and below so a focused card's focus ring isn't clipped by the scroll box. */
+    padding-block: 6px 8px;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      scroll-behavior: smooth;
+    }
+    @media (width >= 768px) {
+      gap: 32px;
+      padding-inline: 15vw;
+    }
+    @media (width >= 1024px) {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      overflow: visible;
+      padding: 0;
+      scroll-snap-type: none;
+    }
+    @media (width >= 1280px) {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .plan-slide {
+    display: flex;
+    flex: 0 0 80vw;
+    scroll-snap-align: center;
+    & > * {
+      flex: 1;
+    }
+    @media (width >= 768px) {
+      flex-basis: 70vw;
+    }
+    @media (width >= 1024px) {
+      &[data-wide] {
+        grid-column: span 2 / span 2;
+      }
+    }
+    @media (width >= 1280px) {
+      &[data-wide] {
+        grid-column: span 1 / span 1;
+      }
+    }
+  }
+  .plan-list {
+    @media (width >= 1024px) {
+      display: none;
+    }
+  }
+  .plan-list-link {
+    transition: background-color 200ms ease-out;
+    @media (hover: hover) {
+      &:hover {
+        background: rgb(0 0 0 / 0.06);
+      }
+    }
+    &:active {
+      background: rgb(0 0 0 / 0.12);
+    }
+    &[aria-current="true"] {
+      border-left-color: var(--color-ink);
+      font-weight: 700;
+    }
+  }
+  /* Arrows at the left and right edges, fixed at the middle of the cards (owner choice
+     2026-10-02). Space is reserved but invisible until the script runs. */
+  .plan-arrows {
+    position: absolute;
+    inset: 0 4px;
+    display: flex;
+    justify-content: space-between;
+    pointer-events: none;
+    &[data-pending] {
+      visibility: hidden;
+    }
+    @media (width >= 1024px) {
+      display: none;
+    }
+  }
+  .plan-arrow-rail {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .plan-arrow {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    border: 1px solid var(--color-field-border);
+    background: var(--color-page);
+    color: var(--color-ink);
+    cursor: pointer;
+    transition: background-color 200ms ease-out;
+    @media (hover: hover) {
+      &:not([aria-disabled="true"]):hover {
+        background: linear-gradient(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.06)), var(--color-page);
+      }
+    }
+    &:not([aria-disabled="true"]):active {
+      background: linear-gradient(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.12)), var(--color-page);
+    }
+    /* aria-disabled, not disabled, so keyboard focus stays on an arrow that reaches the end. */
+    &[aria-disabled="true"] {
+      border-color: var(--color-line);
+      color: var(--color-line);
+      cursor: default;
     }
   }
 

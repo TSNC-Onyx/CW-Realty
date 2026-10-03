@@ -30,6 +30,7 @@ export const MENU_SECTIONS: NavSection[] = [
     kind: "group",
     label: "Services",
     links: [
+      { label: "Selected services", href: "/services/selected-services" },
       { label: "CWR TouchUp", href: "/services/cwr-touchup" },
       { label: "Property management", href: "/services/property-management" },
     ],
@@ -63,6 +64,7 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
   "/resources",
   "/connections",
   "/services",
+  "/services/selected-services",
   "/services/cwr-touchup",
   "/services/property-management",
   "/property-search",
@@ -72,7 +74,8 @@ export const STATIC_PAGE_PATHS: ReadonlySet<string> = new Set([
 
 // Pages served by this app but reachable only by their link: kept out of the menu,
 // footer, sitemap, and search results until the owner is ready to list them.
-export const UNLISTED_PAGE_PATHS: ReadonlySet<string> = new Set(["/services/seller-consulting"]);
+// None at the moment: the seller consulting page became the listed Selected services page (2026-10-02).
+export const UNLISTED_PAGE_PATHS: ReadonlySet<string> = new Set();
 
 export function getFooterColumns(): { heading: string; links: NavLink[] }[] {
   const footerSections = MENU_SECTIONS.filter((section) => section.kind === "group" || section.href !== HOME_PATH);
