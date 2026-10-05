@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { isRunCurrent } from "@/lib/admin/chat-policy/queries";
+import { isLiveRunCurrent, isRunCurrent } from "@/lib/admin/chat-policy/queries";
 
 vi.mock("server-only", () => ({}));
 
@@ -31,6 +31,60 @@ describe("isRunCurrent", () => {
   it("ignores a run made before a test question changed", () => {
     // Arrange / Act
     const isCurrent = isRunCurrent({ run: getRun({ policy_updated_at: DRAFT.updatedAt, tests_updated_at: TESTS_CHANGED_AT }), draft: DRAFT, testsChangedAt: "2026-09-25T10:10:00.000001+00:00" });
+
+    // Assert
+    expect(isCurrent).toBe(false);
+  });
+});
+
+describe("isLiveRunCurrent", () => {
+  it("counts the live version's run although publishing moved the version's save time", () => {
+    // Arrange
+    const run = getRun({ policy_updated_at: "2026-10-03T03:50:42.235209+00:00", tests_updated_at: TESTS_CHANGED_AT });
+
+    // Act
+    const isCurrent = isLiveRunCurrent({ run, testsChangedAt: TESTS_CHANGED_AT });
+
+    // Assert
+    expect(isCurrent).toBe(true);
+  });
+
+  it("marks the run out of date once a test question changes after publishing", () => {
+    // Arrange
+    const run = getRun({ policy_updated_at: DRAFT.updatedAt, tests_updated_at: TESTS_CHANGED_AT });
+
+    // Act
+    const isCurrent = isLiveRunCurrent({ run, testsChangedAt: "2026-10-05T12:00:00.000001+00:00" });
+
+    // Assert
+    expect(isCurrent).toBe(false);
+  });
+
+  it("counts an older run with no question stamp while no question has ever been saved", () => {
+    // Arrange
+    const run = getRun({ policy_updated_at: null, tests_updated_at: null });
+
+    // Act
+    const isCurrent = isLiveRunCurrent({ run, testsChangedAt: null });
+
+    // Assert
+    expect(isCurrent).toBe(true);
+  });
+
+  it("marks an older run with no question stamp out of date once questions exist", () => {
+    // Arrange
+    const run = getRun({ policy_updated_at: null, tests_updated_at: null });
+
+    // Act
+    const isCurrent = isLiveRunCurrent({ run, testsChangedAt: TESTS_CHANGED_AT });
+
+    // Assert
+    expect(isCurrent).toBe(false);
+  });
+
+  it("has nothing current when the live version has no passing run", () => {
+    // Arrange / Act
+    const isCurrent = isLiveRunCurrent({ run: null, testsChangedAt: TESTS_CHANGED_AT });
 
     // Assert
     expect(isCurrent).toBe(false);

@@ -33,7 +33,7 @@ describe("a chat message call from the widget", () => {
     const result = await fetchChatResult(INPUT);
 
     // Assert
-    expect(result).toEqual({ status: "error", message: "We couldn't reach the assistant. Try again, or tap “Talk to a person”." });
+    expect(result).toEqual({ status: "error", message: "I'm sorry, I couldn't get your message through. Please try again, or tap “Talk to a person”." });
   });
 
   it("records the failure as a visitor's chat window problem", async () => {

@@ -8,15 +8,20 @@ import { modelReplySchema, type ModelReply } from "@/lib/chat/assistant-reply";
 
 // Claude, called from the server only (Phase 5 plan, decision 1). The API key is a Worker
 // secret; without it the assistant is simply "not ready" and chat hands off to a person.
+// Changing the model, effort or any request setting below? Bump SAFETY_CHECKS_VERSION in
+// test-verdict.ts so every policy is re-tested before it can publish again
+// (assistant-fingerprint.test.ts fails until you do).
 
-const CHAT_MODEL = "claude-opus-5";
+export const CHAT_MODEL = "claude-opus-5";
 // Short policy answers: low effort keeps replies quick without changing the model.
-const CHAT_EFFORT = "low";
-const MAX_REPLY_TOKENS = 4096;
+export const CHAT_EFFORT = "low";
+export const MAX_REPLY_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 1;
 // If Claude declines a request, the API retries it on its recommended fallback model.
-const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+export const FALLBACK_BETA = "server-side-fallback-2026-07-01";
+export const CHAT_FALLBACKS = "default" as const;
+export const CHAT_THINKING = { type: "adaptive" } as const;
 const UNREADABLE_REPLY = "unreadable";
 
 /** Why Claude gave no usable answer: its stop reason (for example "refusal" or "max_tokens"), or "unreadable". */
@@ -42,8 +47,8 @@ async function fetchClaudeReply({ client, request, onNoAnswer }: { client: Anthr
     model: CHAT_MODEL,
     max_tokens: MAX_REPLY_TOKENS,
     betas: [FALLBACK_BETA],
-    fallbacks: "default",
-    thinking: { type: "adaptive" },
+    fallbacks: CHAT_FALLBACKS,
+    thinking: CHAT_THINKING,
     output_config: { effort: CHAT_EFFORT, format: betaZodOutputFormat(modelReplySchema) },
     system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
     messages: getMessages(turns),

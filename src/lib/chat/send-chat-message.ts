@@ -1,6 +1,6 @@
 import "server-only";
 
-import { fetchAssistantReply, type ChatTurn } from "@/lib/chat/answer-question";
+import { fetchAssistantReply, getUnrepeatedTurnReply, type ChatTurn } from "@/lib/chat/answer-question";
 import { getAssistantFailure } from "@/lib/chat/assistant-failure";
 import { HANDOFF_TEXT, getHandoffReply, type AssistantReply, type HandoffReason } from "@/lib/chat/assistant-reply";
 import { fetchChatTenantId, fetchIsAssistantOn, fetchOpenChatSession, fetchPublishedPolicy, isOverHourlyChatLimit, recordChatExchange, startChatSession, type ChatSession } from "@/lib/chat/chat-log";
@@ -21,11 +21,17 @@ import { passesVisitorBotCheck } from "@/lib/security/visitor-bot-check";
 
 // The model sees the latest turns only; the full chat stays in the log and the hand-off.
 const HISTORY_TURN_LIMIT = 20;
-const LIMITED_MESSAGE = "You're sending messages quickly. Wait a minute, then try again.";
-const FULL_MESSAGE = "This chat has reached its length limit. Tap “Talk to a person” and our team will pick it up from here.";
+const LIMITED_MESSAGE = "Thanks for your patience! You're sending messages a little quickly, so please wait a minute and try again.";
+const FULL_MESSAGE = "We've covered a lot in this chat, and it has reached its length limit. Just tap “Talk to a person” and our team will be glad to pick it up from here.";
 // Answers a server check turned into a hand-off (docs/cwr-chat-policy-test-batches-plan.md, Part B).
 // The model's own hand-off (model_handoff) is normal and isn't recorded.
-const RECORDED_REJECTIONS: Partial<Record<HandoffReason, ProblemSeverity>> = { empty_or_long: "info", bad_citation: "info", leaked_marker: "warning" };
+const RECORDED_REJECTIONS: Partial<Record<HandoffReason, ProblemSeverity>> = { empty_or_long: "info", bad_citation: "info", leaked_marker: "warning", unsafe_conversation: "warning" };
+// How much of a rejected AI-written reply the problem log keeps, with ID numbers removed.
+const MAX_REJECTED_DETAIL_LENGTH = 200;
+const REJECTED_DETAIL = "The assistant's reply failed a server check; the visitor got an approved line instead.";
+// The problem log never keeps contact details the reply may have echoed: digits and emails are masked.
+const DIGIT_PATTERN = /\p{Nd}/gu;
+const EMAIL_PATTERN = /\S+@\S+/g;
 
 type OpenedSession = { session: ChatSession } | { result: SendChatResult };
 
@@ -66,10 +72,17 @@ async function reportNotReady(code: "no_api_key" | "no_published_policy"): Promi
   return getHandoffReply(HANDOFF_TEXT.unavailable);
 }
 
-async function reportRejectedReply(reason: HandoffReason | undefined): Promise<void> {
+/** The rejected text, masked and shortened, so the owner can review what a check blocked (OWASP LLM05). */
+function getRejectedDetail(rejectedText: string | undefined): string {
+  if (rejectedText === undefined) return REJECTED_DETAIL;
+  const maskedText = getRedactedText(rejectedText.normalize("NFKC")).replace(EMAIL_PATTERN, "[email removed]").replace(DIGIT_PATTERN, "#");
+  return `${REJECTED_DETAIL} Rejected reply: ${maskedText.slice(0, MAX_REJECTED_DETAIL_LENGTH)}`;
+}
+
+async function reportRejectedReply({ reason, rejectedText }: { reason: HandoffReason | undefined; rejectedText: string | undefined }): Promise<void> {
   const severity = reason ? RECORDED_REJECTIONS[reason] : undefined;
   if (!reason || !severity) return;
-  await reportVisitorProblem({ action: "site.chat_assistant", stage: "rule", severity, code: reason, detail: "The assistant's answer failed a server check; the visitor was offered a person." });
+  await reportVisitorProblem({ action: "site.chat_assistant", stage: "rule", severity, code: reason, detail: getRejectedDetail(rejectedText) });
 }
 
 /** The model is an outside service: any failure becomes a hand-off, never a broken chat. */
@@ -85,9 +98,9 @@ async function fetchReplyOrUnavailable(request: Parameters<typeof fetchAssistant
 async function fetchModelReply({ policyBody, turns }: { policyBody: string; turns: ChatTurn[] }): Promise<AssistantReply> {
   const model = getClaudeAnswerModel({ onNoAnswer: reportNoAnswer });
   if (!model) return reportNotReady("no_api_key");
-  const { handoffReason, ...reply } = await fetchReplyOrUnavailable({ policyBody, turns, model });
-  // The reason is for the problem log only; the visitor's browser never receives it.
-  await reportRejectedReply(handoffReason);
+  const { handoffReason, rejectedText, ...reply } = await fetchReplyOrUnavailable({ policyBody, turns, model });
+  // The reason and rejected text are for the problem log only; the visitor's browser never receives them.
+  await reportRejectedReply({ reason: handoffReason, rejectedText });
   return reply;
 }
 
@@ -108,7 +121,7 @@ export async function sendChatMessage({ input, visitor }: { input: ChatMessageIn
   if (session.visitorMessageCount >= MAX_VISITOR_MESSAGES_PER_CHAT) return { status: "error", message: FULL_MESSAGE };
   const question = parsed.data.message;
   const turns: ChatTurn[] = [...session.turns.slice(-HISTORY_TURN_LIMIT), { role: "visitor", body: question }];
-  const reply = await fetchReplyOrHandoff({ tenantId: session.tenantId, turns });
+  const reply = getUnrepeatedTurnReply({ reply: await fetchReplyOrHandoff({ tenantId: session.tenantId, turns }), turns });
   await recordChatExchange({ session, question, reply });
   return { status: "replied", sessionId: session.id, question: getRedactedText(question), reply };
 }

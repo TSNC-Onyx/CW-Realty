@@ -8,7 +8,7 @@ const PRICE: OwnerTest = { id: "t2", question: "What does it cost?", expectedOut
 
 const NO_COUNTS = { all: 0, failed: 0, untested: 0, stale: 0, passed: 0 };
 
-const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, counts: NO_COUNTS };
+const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, hasCurrentChecksVersion: true, counts: NO_COUNTS };
 
 function getResult({ testCase, isPassed }: { testCase: PolicyTestCase; isPassed: boolean }): PolicyTestResult {
   return { ...testCase, outcome: "answer", reply: "Reply.", citedSections: [], isPassed };
@@ -113,7 +113,7 @@ describe("getTestRows", () => {
     const rows = getTestRows({ tests: [OPEN_HOURS, PRICE], results, isCurrent: true });
 
     // Assert
-    expect(rows.map((row) => `${row.status}:${row.isBuiltIn ? "built-in" : row.testId}`)).toEqual(["failed:t2", "untested:t1", "passed:built-in", "passed:built-in", "passed:built-in", "passed:built-in"]);
+    expect(rows.map((row) => `${row.status}:${row.isBuiltIn ? "built-in" : row.testId}`)).toEqual(["failed:t2", "untested:t1", ...BUILT_IN_TEST_CASES.map(() => "passed:built-in")]);
   });
 
   it("shows the built-in checks as not tested before any run", () => {
@@ -134,7 +134,7 @@ describe("getTestCounts", () => {
     const counts = getTestCounts(rows);
 
     // Assert
-    expect(counts).toEqual({ all: 6, failed: 1, untested: 1, stale: 0, passed: 4 });
+    expect(counts).toEqual({ all: 2 + BUILT_IN_TEST_CASES.length, failed: 1, untested: 1, stale: 0, passed: BUILT_IN_TEST_CASES.length });
   });
 });
 
@@ -191,6 +191,24 @@ describe("getPublishBlocker", () => {
 
     // Assert
     expect(blockers).toEqual(["1 question isn't tested yet. Run the tests again.", "3 questions aren't tested yet. Run the tests again."]);
+  });
+});
+
+describe("getPublishBlocker and the safety checks version", () => {
+  it("explains that the safety checks were updated before naming their untested rows", () => {
+    // Arrange / Act
+    const blocker = getPublishBlocker({ ...READY_INPUT, hasCurrentChecksVersion: false, counts: { ...NO_COUNTS, untested: 3 } });
+
+    // Assert
+    expect(blocker).toBe("The safety checks were updated. Run the tests again.");
+  });
+
+  it("names a genuinely failed safety check in a current run as a failure", () => {
+    // Arrange / Act
+    const blocker = getPublishBlocker({ ...READY_INPUT, hasCurrentChecksVersion: true, counts: { ...NO_COUNTS, failed: 1 } });
+
+    // Assert
+    expect(blocker).toBe("1 question failed. Fix the draft or the questions, then run the tests again.");
   });
 });
 

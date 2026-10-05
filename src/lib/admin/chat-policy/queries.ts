@@ -47,9 +47,19 @@ export async function fetchPolicyTests({ supabase, tenantId }: AdminContext): Pr
   return getQueryLoad({ part: "test questions", result, empty: [] });
 }
 
-export async function fetchLatestTestRun({ supabase, tenantId }: AdminContext, policyId: string): Promise<LoadResult<PolicyTestRun | null>> {
-  const result = await supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results, policy_updated_at, tests_updated_at").eq("tenant_id", tenantId).eq("policy_id", policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
+function getTestRunQuery({ supabase, tenantId }: AdminContext, policyId: string) {
+  return supabase.from("chat_policy_test_runs").select("is_passed, ran_at, results, policy_updated_at, tests_updated_at").eq("tenant_id", tenantId).eq("policy_id", policyId);
+}
+
+export async function fetchLatestTestRun(admin: AdminContext, policyId: string): Promise<LoadResult<PolicyTestRun | null>> {
+  const result = await getTestRunQuery(admin, policyId).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
   return getQueryLoad({ part: "latest test run", result, empty: null });
+}
+
+/** The live version's newest passing run: the one that let it publish (a failing run may come after it). */
+export async function fetchLatestPassingRun(admin: AdminContext, policyId: string): Promise<LoadResult<PolicyTestRun | null>> {
+  const result = await getTestRunQuery(admin, policyId).eq("is_passed", true).order("ran_at", { ascending: false }).limit(1).maybeSingle<PolicyTestRun>();
+  return getQueryLoad({ part: "live version's test run", result, empty: null });
 }
 
 /** Newest change to any test question, active or not: the stamp a test run must match. */
@@ -70,4 +80,14 @@ export async function fetchIsAssistantOn({ supabase, tenantId }: AdminContext): 
 export function isRunCurrent({ run, draft, testsChangedAt }: { run: PolicyTestRun | null; draft: WorkingPolicy; testsChangedAt: string | null }): boolean {
   if (!run || !draft.updatedAt) return false;
   return run.policy_updated_at === draft.updatedAt && run.tests_updated_at === testsChangedAt;
+}
+
+/**
+ * A live version's text can never change (the database refuses edits to published bodies), so
+ * only edits to the test questions make its run out of date. Publishing moves the version's
+ * updated_at, so the run's policy stamp is deliberately not compared.
+ */
+export function isLiveRunCurrent({ run, testsChangedAt }: { run: PolicyTestRun | null; testsChangedAt: string | null }): boolean {
+  if (!run) return false;
+  return run.tests_updated_at === testsChangedAt;
 }

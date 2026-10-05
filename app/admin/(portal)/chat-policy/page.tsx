@@ -8,11 +8,13 @@ import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import {
   fetchIsAssistantOn,
+  fetchLatestPassingRun,
   fetchLatestTestRun,
   fetchPolicyTests,
   fetchPolicyVersions,
   fetchTestsChangedAt,
   fetchWorkingPolicy,
+  isLiveRunCurrent,
   isRunCurrent,
   type PolicyStatus,
   type PolicyTest,
@@ -21,8 +23,10 @@ import {
   type WorkingPolicy,
 } from "@/lib/admin/chat-policy/queries";
 import { getTestRows, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
+import { BUILT_IN_TEST_CASES, hasCurrentChecksVersion, hasCurrentSafetyChecks } from "@/lib/admin/chat-policy/test-verdict";
 import { getPrivateSections } from "@/lib/chat/policy-sections";
 import { getLoaded, type LoadResult } from "@/lib/admin/load-result";
+import type { AdminContext } from "@/lib/admin/require-admin";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
@@ -32,14 +36,20 @@ export const metadata: Metadata = { title: "Chatbot policy" };
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 const STATUS_LABELS: Record<PolicyStatus, string> = { draft: "Draft", published: "Live now", archived: "Earlier live version" };
 
+function getLiveVersion(versions: PolicyVersion[]): PolicyVersion | null {
+  return versions.find((version) => version.status === "published") ?? null;
+}
+
 function getLiveSummary(versions: PolicyVersion[]): string {
-  const live = versions.find((version) => version.status === "published");
+  const live = getLiveVersion(versions);
   if (!live) return "Nothing is published yet, so the website chat hands every question to a person.";
   return `Version ${live.version} is live, published ${DATE_TIME.format(new Date(live.published_at ?? live.updated_at))}.`;
 }
 
 type TestSectionProps = {
   working: WorkingPolicy;
+  /** The live version, shown with its own test run while there is no draft. */
+  live: PolicyVersion | null;
   tests: PolicyTest[];
   run: LoadResult<PolicyTestRun | null>;
   testsChangedAt: LoadResult<string | null>;
@@ -55,20 +65,35 @@ function getTestScore(run: PolicyTestRun | null): TestScore | null {
   return { passed: run.results.filter((result) => result.isPassed).length, total: run.results.length, lastRunText: DATE_TIME.format(new Date(run.ran_at)) };
 }
 
+function isShownRunCurrent({ run, working, testsChangedAt }: { run: PolicyTestRun | null; working: WorkingPolicy; testsChangedAt: string | null }): boolean {
+  if (working.draftId) return isRunCurrent({ run, draft: working, testsChangedAt });
+  return isLiveRunCurrent({ run, testsChangedAt });
+}
+
+/** With a draft, its latest run; with none, the run that let the live version publish (Admin §6). */
+async function fetchShownRun({ admin, working, live }: { admin: AdminContext; working: WorkingPolicy; live: PolicyVersion | null }): Promise<LoadResult<PolicyTestRun | null>> {
+  if (working.draftId) return fetchLatestTestRun(admin, working.draftId);
+  if (live) return fetchLatestPassingRun(admin, live.id);
+  return getLoaded(null);
+}
+
 /** A run or stamp that didn't load leaves every question "Not tested yet" and Publish locked, with a notice. */
-function TestSectionBody({ working, tests, run, testsChangedAt, notice }: TestSectionProps) {
+function TestSectionBody({ working, live, tests, run, testsChangedAt, notice }: TestSectionProps) {
   const didRunLoad = run.isLoaded && testsChangedAt.isLoaded;
   const latestRun = run.isLoaded ? run.data : null;
-  const isCurrent = didRunLoad && isRunCurrent({ run: latestRun, draft: working, testsChangedAt: testsChangedAt.data });
+  const isCurrent = didRunLoad && isShownRunCurrent({ run: latestRun, working, testsChangedAt: testsChangedAt.data });
+  const results = latestRun?.results ?? [];
   return (
     <PolicyTestPanel
       runAt={latestRun?.ran_at ?? null}
       draftId={working.draftId}
       draftVersion={working.draftVersion}
-      rows={getTestRows({ tests: getOwnerTests(tests), results: latestRun?.results ?? [], isCurrent })}
+      liveVersion={working.draftId ? null : (live?.version ?? null)}
+      rows={getTestRows({ tests: getOwnerTests(tests), results, isCurrent })}
       score={getTestScore(latestRun)}
-      isReadyToPublish={Boolean(latestRun?.is_passed) && isCurrent}
+      isReadyToPublish={working.draftId !== null && Boolean(latestRun?.is_passed) && isCurrent && hasCurrentSafetyChecks(results)}
       isCurrent={isCurrent}
+      hasCurrentChecksVersion={hasCurrentChecksVersion(results)}
       didRunLoad={didRunLoad}
       isAssistantConfigured={isAssistantConfigured()}
       runProblem={didRunLoad ? null : <LoadProblem notice={notice} />}
@@ -88,7 +113,8 @@ export default async function ChatPolicyPage() {
   const [versions, tests, testsChangedAt, isAssistantOn] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin), fetchIsAssistantOn(admin)]);
   // A failed versions read carries through as the working policy's failure, so it is reported once.
   const working = versions.isLoaded ? await fetchWorkingPolicy(admin, versions.data) : versions;
-  const run = working.isLoaded && working.data.draftId ? await fetchLatestTestRun(admin, working.data.draftId) : getLoaded(null);
+  const live = versions.isLoaded ? getLiveVersion(versions.data) : null;
+  const run = working.isLoaded ? await fetchShownRun({ admin, working: working.data, live }) : getLoaded(null);
   const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run, isAssistantOn] });
   return (
     <>
@@ -121,8 +147,8 @@ export default async function ChatPolicyPage() {
       </section>
       <section aria-labelledby="publish-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="publish-heading" className="type-h3 mb-2">Test and publish</h2>
-        <p className="mb-4 max-w-prose">Each test run asks your questions plus four built-in safety checks. Publishing unlocks once every one passes on the saved draft.</p>
-        {working.isLoaded && tests.isLoaded ? <TestSectionBody working={working.data} tests={tests.data} run={run} testsChangedAt={testsChangedAt} notice={notice} /> : <LoadProblem notice={notice} />}
+        <p className="mb-4 max-w-prose">{`Each test run asks your questions plus ${BUILT_IN_TEST_CASES.length} built-in safety checks.`} Publishing unlocks once every one passes on the saved draft.</p>
+        {working.isLoaded && tests.isLoaded ? <TestSectionBody working={working.data} live={live} tests={tests.data} run={run} testsChangedAt={testsChangedAt} notice={notice} /> : <LoadProblem notice={notice} />}
       </section>
       <section aria-labelledby="history-heading" className="border-t-2 border-ink pt-6">
         <h2 id="history-heading" className="type-h3 mb-2">Version history</h2>
