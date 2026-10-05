@@ -18,8 +18,9 @@ import type { ContactLinks } from "@/lib/site/contact-links";
 
 // The question box. Enter sends, Shift+Enter adds a line. The Quick Check runs only while
 // starting a new chat; after that the chat's own id is enough. A press made while the check
-// is still running is held and sent once it passes. An out-of-date page offers Refresh page,
-// keeping the question typed so far.
+// is still running is held and sent once it passes. The box empties on Send and stays locked
+// until the reply arrives; a failed send puts the question back. An out-of-date page offers
+// Refresh page, keeping the question typed so far.
 
 const FORM_ID = "chat-composer";
 const DRAFT_FIELD = "question";
@@ -46,10 +47,14 @@ export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact,
   const sendDraft = async (form: HTMLFormElement) => {
     const question = draft.trim();
     if (question === "" || isSending) return;
+    // Read the form before emptying the box: the question already shows in the conversation.
+    const request = { question, turnstileToken: getFormText(form, TURNSTILE_FIELD), botCheckKey: getFormText(form, BOT_CHECK_KEY_FIELD) };
     setIsSending(true);
-    const isAnswered = await onSubmitQuestion({ question, turnstileToken: getFormText(form, TURNSTILE_FIELD), botCheckKey: getFormText(form, BOT_CHECK_KEY_FIELD) });
+    setDraft("");
+    const isAnswered = await onSubmitQuestion(request);
     setIsSending(false);
-    if (isAnswered) setDraft("");
+    // A failed send gives the question back, so the visitor never has to retype it.
+    if (!isAnswered) setDraft(question);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -81,7 +86,7 @@ export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact,
           rows={2}
           value={draft}
           maxLength={MAX_CHAT_MESSAGE_LENGTH}
-          readOnly={botCheck.isHolding}
+          readOnly={isBusy}
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={handleKeyDown}
           className="field-input min-h-13 flex-1 resize-none"

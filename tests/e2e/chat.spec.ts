@@ -109,7 +109,7 @@ test.describe("with the local database", () => {
     // Assert
     const log = page.getByRole("log", { name: "Chat messages" });
     await expect(log.getByText("How do I book a TouchUp?")).toBeVisible();
-    await expect(log.getByText(/a person on our team can/)).toBeVisible();
+    await expect(log.getByText(/can't answer questions right now/)).toBeVisible();
     await expect(page.getByLabel("Your question")).toHaveValue("");
   });
 
@@ -119,7 +119,7 @@ test.describe("with the local database", () => {
     await page.getByLabel("Your question").fill("Do you work in High Point?");
     await waitForBotCheck(page);
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/a person on our team can/)).toBeVisible();
+    await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/can't answer questions right now/)).toBeVisible();
 
     // Act
     await page.goto("/team");

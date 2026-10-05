@@ -2,6 +2,8 @@ import AxeBuilder from "@axe-core/playwright";
 import { createClient } from "@supabase/supabase-js";
 import { expect, test, type Page } from "@playwright/test";
 
+import { BUILT_IN_TEST_CASES, SAFETY_CHECKS_VERSION } from "../../../src/lib/admin/chat-policy/test-verdict";
+import { HANDOFF_TEXT } from "../../../src/lib/chat/handoff-text";
 import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully, waitForBotCheck, type TestAdmin } from "./admin-helpers";
 
 // Phase 5: owner-only chatbot policy (Admin §6) and the chat history review (Features §2).
@@ -19,7 +21,23 @@ function getServiceClient() {
   });
 }
 
-type RecordedResult = { question: string; expectedOutcome: "answer" | "handoff"; expectedSection: string | null; isBuiltIn: boolean; outcome: "answer" | "handoff" | null; reply: string; citedSections: string[]; isPassed: boolean };
+type RecordedResult = {
+  question: string;
+  expectedOutcome: "answer" | "handoff";
+  expectedSection: string | null;
+  isBuiltIn: boolean;
+  outcome: "answer" | "handoff" | null;
+  reply: string;
+  citedSections: string[];
+  isPassed: boolean;
+  isApprovedWording?: boolean;
+  checksVersion?: string;
+};
+
+/** The built-in safety checks, passed with the approved wording; no version stands for a run from before the checks changed. */
+function getBuiltInResults(checksVersion: string | null = SAFETY_CHECKS_VERSION): RecordedResult[] {
+  return BUILT_IN_TEST_CASES.map((testCase) => ({ ...testCase, outcome: "handoff", reply: HANDOFF_TEXT.needsPerson, citedSections: [], isPassed: true, isApprovedWording: true, ...(checksVersion ? { checksVersion } : {}) }));
+}
 
 /** Stands in for a test run, which needs the Anthropic key CI does not have. */
 async function recordRun({ isPassed, results }: { isPassed: boolean; results: RecordedResult[] }): Promise<void> {
@@ -32,7 +50,7 @@ async function recordRun({ isPassed, results }: { isPassed: boolean; results: Re
 }
 
 async function recordPassingRun(): Promise<void> {
-  await recordRun({ isPassed: true, results: [] });
+  await recordRun({ isPassed: true, results: getBuiltInResults() });
 }
 
 /** The add form starts open when there are no questions yet, so it is opened only when closed. */
@@ -137,7 +155,7 @@ test("after a failed run the list opens on the failed question, with its reply a
   const question = `Failing question ${Date.now()}`;
   const { data: added } = await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "answer", expected_section: null }).select("id").single();
   // Without an Anthropic key (CI) the reason names that first, as the page's priority order says.
-  await recordRun({ isPassed: false, results: [{ question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false, outcome: "handoff", reply: "A person on our team can help with that.", citedSections: [], isPassed: false }] });
+  await recordRun({ isPassed: false, results: [...getBuiltInResults(), { question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false, outcome: "handoff", reply: "A person on our team can help with that.", citedSections: [], isPassed: false }] });
   await signInFully(page, owner);
 
   // Act
@@ -212,6 +230,66 @@ test("after a passing run the owner publishes, then restores an old version as a
   await expect(page.getByRole("heading", { name: /^Editing draft version \d+$/ })).toBeVisible();
 });
 
+test("after publishing, the test list shows the live version's passing results instead of “Not tested yet”", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const question = `Live result question ${Date.now()}`;
+  const { data: added } = await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "handoff", expected_section: null }).select("id").single();
+  await recordRun({ isPassed: true, results: [...getBuiltInResults(), { question, expectedOutcome: "handoff", expectedSection: null, isBuiltIn: false, outcome: "handoff", reply: "Someone on our team would be glad to help.", citedSections: [], isPassed: true }] });
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await page.getByRole("button", { name: "Publish this draft to the website chat" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
+
+  // Act
+  await page.reload();
+  await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
+  const rowText = await page.getByRole("listitem").filter({ hasText: question }).textContent();
+  const statusText = await page.getByText(/^Live version \d+ · tested /).isVisible();
+  const isNoteShown = await page.getByText(/^Version \d+ is live\. To change it, edit the policy above and save\./).isVisible();
+  const lockedCount = await page.getByText(/^Publish is locked: /).count();
+  await client.from("chat_policy_tests").delete().eq("id", added?.id);
+
+  // Assert
+  expect({ isPassedShown: rowText?.includes("Passed"), statusText, isNoteShown, lockedCount }).toEqual({ isPassedShown: true, statusText: true, isNoteShown: true, lockedCount: 0 });
+});
+
+test("a run saved before the safety checks changed keeps Publish locked and says why", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await saveDraft(page, `# Office hours\nWe are open weekdays. ${Date.now()}`);
+  await expect(page.getByRole("status").filter({ hasText: /draft version \d+/i })).toBeVisible();
+  await recordRun({ isPassed: true, results: getBuiltInResults(null) });
+
+  // Act
+  await page.reload();
+
+  // Assert
+  await expect(page.getByText(/^Publish is locked: (The safety checks were updated\. Run the tests again\.|The chat assistant isn't connected yet)/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Publish this draft to the website chat" })).toBeDisabled();
+});
+
+test("a passed hand-off test answered in the AI's own words is marked for the owner to read", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const question = `Poem question ${Date.now()}`;
+  const { data: added } = await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "handoff", expected_section: null }).select("id").single();
+  await recordRun({ isPassed: true, results: [...getBuiltInResults(), { question, expectedOutcome: "handoff", expectedSection: null, isBuiltIn: false, outcome: "handoff", reply: "I'll leave the poetry to our team! How can I help today?", citedSections: [], isPassed: true, isApprovedWording: false }] });
+  await signInFully(page, owner);
+
+  // Act
+  await page.goto(POLICY_PATH);
+  await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
+  const rowText = await page.getByRole("listitem").filter({ hasText: question }).textContent();
+  await client.from("chat_policy_tests").delete().eq("id", added?.id);
+
+  // Assert
+  expect(rowText).toContain("Passed · the visitor would see an AI-written reply. Read it before publishing.");
+});
+
 test("a chat hand-off reaches the inbox with the conversation, and the chat is in the history", async ({ page }) => {
   // Arrange
   const visitorName = `Chat Visitor ${Date.now()}`;
@@ -220,7 +298,7 @@ test("a chat hand-off reaches the inbox with the conversation, and the chat is i
   await page.getByLabel("Your question").fill("Do you handle rentals?");
   await waitForBotCheck(page);
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/a person on our team can/)).toBeVisible();
+  await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/can't answer questions right now/)).toBeVisible();
 
   // Act
   await page.getByRole("button", { name: "Talk to a person" }).click();

@@ -45,7 +45,7 @@ describe("sendChatMessage", () => {
     vi.mocked(chatLog.recordChatExchange).mockReset();
     vi.mocked(chatLog.fetchIsAssistantOn).mockResolvedValue(true);
     vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(true);
-    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", reply: "Weekdays, 9 to 5.", citedSections: ["Office hours"] }));
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", handoffKind: "needs_person", reply: "Weekdays, 9 to 5.", citedSections: ["Office hours"] }));
   });
 
   it("answers and logs the exchange", async () => {
@@ -129,6 +129,18 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect(result.status === "replied" && result.reply.text).toBe(HANDOFF_TEXT.unavailable);
+  });
+
+  it("rewords the not-available line instead of sending it twice in a row", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(null);
+    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, turns: [{ role: "visitor", body: "Hi" }, { role: "assistant", body: HANDOFF_TEXT.unavailable }] });
+
+    // Act
+    const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(result.status === "replied" && result.reply.text).toBe(HANDOFF_TEXT.unavailableAgain);
   });
 
   it("returns the question with ID numbers removed, for the widget to show and keep", async () => {
@@ -226,7 +238,7 @@ describe("sendChatMessage", () => {
 
   it("records an answer that failed a server check, without sending the reason to the visitor", async () => {
     // Arrange
-    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", reply: "Weekdays.", citedSections: ["Mortgage advice"] }));
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "answer", handoffKind: "needs_person", reply: "Weekdays.", citedSections: ["Mortgage advice"] }));
     vi.mocked(reporting.reportVisitorProblem).mockClear();
 
     // Act
@@ -234,14 +246,42 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect({ reply: result.status === "replied" ? result.reply : null, reported: vi.mocked(reporting.reportVisitorProblem).mock.calls[0]?.[0] }).toEqual({
-      reply: { outcome: "handoff", text: HANDOFF_TEXT.outsidePolicy, citedSections: [] },
+      reply: { outcome: "handoff", text: HANDOFF_TEXT.needsPerson, citedSections: [] },
       reported: expect.objectContaining({ action: "site.chat_assistant", stage: "rule", severity: "info", code: "bad_citation" }),
     });
   });
 
+  it("records a blocked AI-written small-talk reply as a warning, with contact details masked, and never sends it to the visitor", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "handoff", handoffKind: "conversation", reply: "Sure! SSN 123-45-6789, call 336-555-0123 or jo@example.com.", citedSections: [] }));
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect({ reply: result.status === "replied" ? result.reply : null, reported: vi.mocked(reporting.reportVisitorProblem).mock.calls[0]?.[0] }).toEqual({
+      reply: { outcome: "handoff", text: HANDOFF_TEXT.conversation, citedSections: [] },
+      reported: expect.objectContaining({ code: "unsafe_conversation", severity: "warning", detail: expect.stringContaining("Rejected reply: Sure! SSN [number removed], call ###-###-#### or [email removed]") }),
+    });
+  });
+
+  it("keeps only the first 200 characters of a blocked reply in the problem log", async () => {
+    // Arrange
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "handoff", handoffKind: "conversation", reply: `1${"a".repeat(398)}`, citedSections: [] }));
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    const detail = vi.mocked(reporting.reportVisitorProblem).mock.calls[0]?.[0].detail ?? "";
+    expect(detail.split("Rejected reply: ")[1]?.length).toBe(200);
+  });
+
   it("doesn't record the model's own choice to hand off", async () => {
     // Arrange
-    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "handoff", reply: "Ask a person.", citedSections: [] }));
+    vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(async () => ({ outcome: "handoff", handoffKind: "needs_person", reply: "", citedSections: [] }));
     vi.mocked(reporting.reportVisitorProblem).mockClear();
 
     // Act

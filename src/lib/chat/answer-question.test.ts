@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { fetchAssistantReply, type AnswerModel } from "@/lib/chat/answer-question";
-import { HANDOFF_TEXT } from "@/lib/chat/assistant-reply";
+import { fetchAssistantReply, getUnrepeatedTurnReply, type AnswerModel } from "@/lib/chat/answer-question";
+import { HANDOFF_TEXT, getHandoffReply } from "@/lib/chat/assistant-reply";
 
 const POLICY = "# Office hours\nWe are open weekdays from 9 to 5.";
 
@@ -12,7 +12,7 @@ function getFakeModel(reply: Awaited<ReturnType<AnswerModel>>) {
 describe("fetchAssistantReply", () => {
   it("returns the model's checked answer", async () => {
     // Arrange
-    const model = getFakeModel({ outcome: "answer", reply: "Weekdays, 9 to 5.", citedSections: ["Office hours"] });
+    const model = getFakeModel({ outcome: "answer", handoffKind: "needs_person", reply: "Weekdays, 9 to 5.", citedSections: ["Office hours"] });
 
     // Act
     const reply = await fetchAssistantReply({ policyBody: POLICY, turns: [{ role: "visitor", body: "When are you open?" }], model });
@@ -51,7 +51,7 @@ describe("fetchAssistantReply", () => {
     const reply = await fetchAssistantReply({ policyBody: POLICY, turns: [{ role: "visitor", body: "Hi" }], model });
 
     // Assert
-    expect(reply.text).toBe(HANDOFF_TEXT.outsidePolicy);
+    expect(reply.text).toBe(HANDOFF_TEXT.needsPerson);
   });
 
   it("hands off without calling the model when the policy has no sections", async () => {
@@ -87,5 +87,48 @@ describe("fetchAssistantReply", () => {
 
     // Assert
     expect({ text: reply.text, calls: model.mock.calls.length }).toEqual({ text: HANDOFF_TEXT.unavailable, calls: 0 });
+  });
+});
+
+describe("getUnrepeatedTurnReply", () => {
+  it("rewords the fixed hand-off line when the assistant's last reply was the same line", () => {
+    // Arrange
+    const turns = [
+      { role: "visitor" as const, body: "Do you sell boats?" },
+      { role: "assistant" as const, body: HANDOFF_TEXT.needsPerson },
+      { role: "visitor" as const, body: "Do you sell cars?" },
+    ];
+
+    // Act
+    const reply = getUnrepeatedTurnReply({ reply: getHandoffReply(HANDOFF_TEXT.needsPerson), turns });
+
+    // Assert
+    expect(reply.text).toBe(HANDOFF_TEXT.needsPersonAgain);
+  });
+
+  it("goes back to the first wording after the alternate was used", () => {
+    // Arrange
+    const turns = [
+      { role: "assistant" as const, body: HANDOFF_TEXT.needsPersonAgain },
+      { role: "visitor" as const, body: "Do you sell trucks?" },
+    ];
+
+    // Act
+    const reply = getUnrepeatedTurnReply({ reply: getHandoffReply(HANDOFF_TEXT.needsPerson), turns });
+
+    // Assert
+    expect(reply.text).toBe(HANDOFF_TEXT.needsPerson);
+  });
+
+  it("leaves the model's own wording alone even when it matches the last reply", () => {
+    // Arrange
+    const text = "Happy to help! What would you like to know?";
+    const turns = [{ role: "assistant" as const, body: text }, { role: "visitor" as const, body: "Hi" }];
+
+    // Act
+    const reply = getUnrepeatedTurnReply({ reply: getHandoffReply(text), turns });
+
+    // Assert
+    expect(reply.text).toBe(text);
   });
 });

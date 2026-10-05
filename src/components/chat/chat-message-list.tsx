@@ -9,8 +9,8 @@ import type { ChatEntry } from "@/components/chat/use-chat-conversation";
 
 const SLOW_REPLY_MS = 15_000;
 const REPLYING_TEXT = "The assistant is replying…";
-const SLOW_REPLY_TEXT = "Still working — this can take up to a minute. You can also tap “Talk to a person”.";
-const GREETING = "Hi, I'm the CWR Assistant, an AI. I can answer questions from Charlie Ward Realty's policies. For anything else, tap “Talk to a person”.";
+const SLOW_REPLY_TEXT = "Thanks for waiting. This can take up to a minute. You can also tap “Talk to a person”.";
+const GREETING = "Hi, and welcome! I'm the CWR Assistant, an AI helper for Charlie Ward Realty. I'm happy to answer questions about buying, selling, renting, or property management in the Triad. What can I help you with today?";
 
 function VisitorBubble({ text }: { text: string }) {
   return <p className="toast-enter ml-10 self-end bg-dark px-4 py-3 text-base leading-normal whitespace-pre-wrap text-on-dark">{text}</p>;

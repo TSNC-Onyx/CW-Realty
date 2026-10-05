@@ -341,9 +341,43 @@ test.describe("chat", () => {
     await page.getByRole("button", { name: "Send" }).click();
 
     // Assert
-    await expect(page.getByText("We couldn't reach the assistant. Try again, or tap “Talk to a person”.")).toBeVisible();
+    await expect(page.getByText("I'm sorry, I couldn't get your message through. Please try again, or tap “Talk to a person”.")).toBeVisible();
     await expect(page.getByText("The assistant is replying…")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Send" })).toHaveAttribute("aria-busy", "false");
+  });
+
+  test("the question box empties as soon as Send is pressed and stays locked while the reply loads", async ({ page }) => {
+    // Arrange
+    await openChat(page);
+    await page.getByLabel("Your question").fill("Do you work in High Point?");
+    await waitForBotCheck(page);
+    await page.route("**/*", async (route) => {
+      if (route.request().headers()[SERVER_ACTION_HEADER]) await new Promise((resolve) => setTimeout(resolve, 3000));
+      await route.continue();
+    });
+
+    // Act
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Assert
+    await expect(page.getByText("The assistant is replying…")).toBeVisible();
+    await expect(page.getByLabel("Your question")).toHaveValue("");
+    await expect(page.getByLabel("Your question")).toHaveAttribute("readonly", "");
+  });
+
+  test("a failed send puts the question back in the box", async ({ page }) => {
+    // Arrange
+    await openChat(page);
+    await page.getByLabel("Your question").fill("Do you work in High Point?");
+    await waitForBotCheck(page);
+    await page.route("**/*", (route) => (route.request().headers()[SERVER_ACTION_HEADER] ? route.abort("failed") : route.continue()));
+
+    // Act
+    await page.getByRole("button", { name: "Send" }).click();
+
+    // Assert
+    await expect(page.getByText("I'm sorry, I couldn't get your message through. Please try again, or tap “Talk to a person”.")).toBeVisible();
+    await expect(page.getByLabel("Your question")).toHaveValue("Do you work in High Point?");
   });
 
   test("a second question in the same chat needs no Quick Check", async ({ page }) => {
@@ -353,7 +387,7 @@ test.describe("chat", () => {
     await page.getByLabel("Your question").fill("Do you work in High Point?");
     await waitForBotCheck(page);
     await page.getByRole("button", { name: "Send" }).click();
-    await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/a person on our team can/).first()).toBeVisible();
+    await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/can't answer questions right now/).first()).toBeVisible();
 
     // Act
     await page.getByLabel("Your question").fill("And Greensboro?");
