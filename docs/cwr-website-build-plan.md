@@ -1,7 +1,7 @@
 # CWR Website Build — Plan
 
 Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); Phase 6 (analytics and consent) is built on `phase-6-analytics-consent` and merged into `build1` as PR #9 (`docs/cwr-phase-6-analytics-consent-plan.md`); the admin console and header redesign (dark headers, admin sidebar, new dashboard) is merged into `build1` (`docs/cwr-admin-console-header-redesign-plan.md`); Phase 7 not started.
-**Merged** (checked 2026-10-04): Phases 1–4 by PRs #1–#4 on 2026-09-25; the rounds that followed by PRs #11–#25 (latest #25, 2026-10-03). `main` is still untouched.
+**Merged** (checked 2026-10-04): Phases 1–4 by PRs #1–#4 on 2026-09-25; the rounds that followed by PRs #11–#17 and #22–#25 (latest #25, 2026-10-03; #18–#21 are open). `main` is still untouched.
 
 ## Goal
 

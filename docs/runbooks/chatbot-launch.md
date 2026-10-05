@@ -78,4 +78,4 @@ group by 1;
 | `site.chat_message` or a form's action / `rate_limiter_down` (warning) | The chat or form rate limiter didn't answer; visitors aren't rate limited until it recovers | Check Cloudflare status if it repeats |
 | `site.listing_photo` / `image_failed` | A listing photo didn't load | Re-upload the photo |
 
-Visitor records never contain what anyone typed. Problem emails are paused (open item 11); when they resume, error and critical visitor problems (and any sudden spike) will email the chosen owners.
+Visitor records never contain what anyone typed. Problem emails are paused (open item 11); when they resume, error and critical visitor problems will email the chosen owners.
