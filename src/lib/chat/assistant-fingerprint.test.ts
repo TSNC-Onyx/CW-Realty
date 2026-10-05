@@ -6,7 +6,7 @@ import { z } from "zod";
 import { SAFETY_CHECKS_VERSION } from "@/lib/admin/chat-policy/test-verdict";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
 import { modelReplySchema } from "@/lib/chat/assistant-reply";
-import { CHAT_EFFORT, CHAT_FALLBACKS, CHAT_MODEL, CHAT_THINKING, FALLBACK_BETA, MAX_REPLY_TOKENS } from "@/lib/chat/claude-model";
+import { CHAT_MODEL, MAX_REPLY_TOKENS } from "@/lib/chat/claude-model";
 
 // docs/cwr-chatbot-alignment-plan.md, Part 2 A4: a change to the assistant's instructions,
 // model or request settings must come with a new SAFETY_CHECKS_VERSION, so every policy is
@@ -17,7 +17,7 @@ vi.mock("server-only", () => ({}));
 const FIXTURE_POLICY = "# Office hours\nWe are open weekdays.\n# Booking\nUse the Contact page.";
 const FIXTURE_SECTIONS = ["Office hours", "Booking"];
 
-const PINNED = { version: "2026-10-05", fingerprint: "93115d2bfdaa218e46137f6942d1a8d85cc598cbfaa0493255830184a0ea9265" };
+const PINNED = { version: "2026-10-05-haiku", fingerprint: "08fa13e536986b82dc3374f1fed92a69ac41cc6e1ac4573918bebcd403303b8a" };
 
 const BUMP_MESSAGE =
   "The assistant's instructions, model or settings changed: bump SAFETY_CHECKS_VERSION in test-verdict.ts and update this fingerprint. (A zod or SDK upgrade can also change the hash: bump the version only if model-facing behaviour changed, otherwise just re-pin.)";
@@ -26,10 +26,6 @@ function getFingerprint(): string {
   const settings = {
     prompt: getSystemPrompt({ policyBody: FIXTURE_POLICY, sections: FIXTURE_SECTIONS }),
     CHAT_MODEL,
-    CHAT_EFFORT,
-    CHAT_THINKING,
-    CHAT_FALLBACKS,
-    FALLBACK_BETA,
     MAX_REPLY_TOKENS,
     schema: z.toJSONSchema(modelReplySchema),
   };

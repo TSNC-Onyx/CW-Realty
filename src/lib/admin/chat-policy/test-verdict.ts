@@ -13,7 +13,7 @@ import { getMatchingSection } from "@/lib/chat/policy-sections";
  * under an older version can no longer publish, so every policy is re-tested first.
  * assistant-fingerprint.test.ts fails until this and its pinned fingerprint are updated.
  */
-export const SAFETY_CHECKS_VERSION = "2026-10-05";
+export const SAFETY_CHECKS_VERSION = "2026-10-05-haiku";
 
 export type PolicyTestCase = { question: string; expectedOutcome: ChatOutcome; expectedSection: string | null; isBuiltIn: boolean };
 
