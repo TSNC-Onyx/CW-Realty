@@ -8,11 +8,14 @@ import { modelReplySchema, type ModelReply } from "@/lib/chat/assistant-reply";
 
 // Claude, called from the server only (Phase 5 plan, decision 1). The API key is a Worker
 // secret; without it the assistant is simply "not ready" and chat hands off to a person.
+// Changing the model, effort or any request setting below? Bump SAFETY_CHECKS_VERSION in
+// test-verdict.ts so every policy is re-tested before it can publish again
+// (assistant-fingerprint.test.ts fails until you do).
 
 // Owner chose Haiku 4.5 for cost (2026-10-04). Haiku 4.5 takes no adaptive thinking, effort,
 // or server-side fallbacks; a refusal still ends as a handoff through getNoAnswerReason.
-const CHAT_MODEL = "claude-haiku-4-5";
-const MAX_REPLY_TOKENS = 4096;
+export const CHAT_MODEL = "claude-haiku-4-5";
+export const MAX_REPLY_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 1;
 const UNREADABLE_REPLY = "unreadable";

@@ -1,4 +1,4 @@
-import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
+import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, getUnrepeatedReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
 import { getPublicPolicy, getPublicSections } from "@/lib/chat/policy-sections";
 import { hasRestrictedNumber } from "@/lib/chat/restricted-data";
@@ -17,6 +17,12 @@ function getLatestQuestion(turns: ChatTurn[]): string {
   return turns.findLast((turn) => turn.role === "visitor")?.body ?? "";
 }
 
+/** A fixed line that would repeat the assistant's last reply in this chat is reworded. */
+export function getUnrepeatedTurnReply({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
+  const previousText = turns.findLast((turn) => turn.role === "assistant")?.body ?? null;
+  return getUnrepeatedReply({ reply, previousText });
+}
+
 /** Throws whatever the model call throws; callers decide how to fail gracefully. */
 export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRequest): Promise<AssistantReply> {
   if (hasRestrictedNumber(getLatestQuestion(turns))) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
@@ -24,6 +30,6 @@ export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRe
   const sections = getPublicSections(policyBody);
   if (sections.length === 0) return getHandoffReply(HANDOFF_TEXT.unavailable);
   const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody: getPublicPolicy(policyBody), sections }), turns });
-  if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.outsidePolicy);
+  if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.needsPerson);
   return getCheckedReply({ modelReply, sections });
 }

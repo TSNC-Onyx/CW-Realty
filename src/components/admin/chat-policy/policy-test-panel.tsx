@@ -12,7 +12,7 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // "Test and publish" (docs/cwr-chat-policy-test-batches-plan.md, Part C): one list of the
 // questions with their last results, the run and Publish buttons, and a plain reason
-// whenever Publish is locked.
+// whenever Publish is locked. With no draft, it shows the run that let the live version publish.
 
 type TestFilter = "all" | TestRowStatus;
 
@@ -31,10 +31,14 @@ type PolicyTestPanelProps = {
   runAt: string | null;
   draftId: string | null;
   draftVersion: number | null;
+  /** The live version, set only while there is no draft. */
+  liveVersion: number | null;
   rows: TestRow[];
   score: TestScore | null;
   isReadyToPublish: boolean;
   isCurrent: boolean;
+  /** Every current built-in safety check was tested under the current version. */
+  hasCurrentChecksVersion: boolean;
   didRunLoad: boolean;
   isAssistantConfigured: boolean;
   /** Shown above the list when the last run didn't load. */
@@ -48,12 +52,28 @@ function getScoreText({ score, isCurrent }: { score: TestScore | null; isCurrent
   return `${score.passed} of ${score.total} passed${isCurrent ? "" : " (out of date)"}`;
 }
 
-function TestStatusBox({ draftId, draftVersion, score, isCurrent, isReadyToPublish, isRunning, onRunningChange }: Pick<PolicyTestPanelProps, "draftId" | "draftVersion" | "score" | "isCurrent" | "isReadyToPublish"> & { isRunning: boolean; onRunningChange: (isRunning: boolean) => void }) {
+function getVersionText({ draftVersion, liveVersion }: { draftVersion: number | null; liveVersion: number | null }): string {
+  if (draftVersion) return `Draft version ${draftVersion}`;
+  if (liveVersion) return `Live version ${liveVersion}`;
+  return "No saved draft";
+}
+
+function getRunTimeText({ score, liveVersion }: { score: TestScore | null; liveVersion: number | null }): string | null {
+  if (!score) return null;
+  return `${liveVersion ? "tested" : "last run"} ${score.lastRunText}`;
+}
+
+/** Why there is nothing to publish while a version is live and no draft is open. */
+function getLiveNote(liveVersion: number): string {
+  return `Version ${liveVersion} is live. To change it, edit the policy above and save. That starts a new draft to test.`;
+}
+
+function TestStatusBox({ draftId, draftVersion, liveVersion, score, isCurrent, isReadyToPublish, isRunning, onRunningChange }: Pick<PolicyTestPanelProps, "draftId" | "draftVersion" | "liveVersion" | "score" | "isCurrent" | "isReadyToPublish"> & { isRunning: boolean; onRunningChange: (isRunning: boolean) => void }) {
   return (
     <div className="mb-4 flex max-w-prose flex-wrap items-start justify-between gap-4 border border-line bg-surface p-4">
       <div>
         <p className="type-h3">{getScoreText({ score, isCurrent })}</p>
-        <p className="type-small text-muted">{[draftVersion ? `Draft version ${draftVersion}` : "No saved draft", score ? `last run ${score.lastRunText}` : null].filter(Boolean).join(" · ")}</p>
+        <p className="type-small text-muted">{[getVersionText({ draftVersion, liveVersion }), getRunTimeText({ score, liveVersion })].filter(Boolean).join(" · ")}</p>
       </div>
       {draftId && <PolicyPublishing draftId={draftId} isReadyToPublish={isReadyToPublish} isRunning={isRunning} onRunningChange={onRunningChange} />}
     </div>
@@ -100,7 +120,7 @@ function AddTestDisclosure({ hasOwnerTests, privateSections }: { hasOwnerTests: 
 
 type FilterChoice = { runAt: string | null; filter: TestFilter };
 
-export function PolicyTestPanel({ runAt, draftId, draftVersion, rows, score, isReadyToPublish, isCurrent, didRunLoad, isAssistantConfigured, runProblem, privateSections }: PolicyTestPanelProps) {
+export function PolicyTestPanel({ runAt, draftId, draftVersion, liveVersion, rows, score, isReadyToPublish, isCurrent, hasCurrentChecksVersion, didRunLoad, isAssistantConfigured, runProblem, privateSections }: PolicyTestPanelProps) {
   const counts = getTestCounts(rows);
   const hasOwnerTests = rows.some((row) => !row.isBuiltIn);
   const [isRunning, setIsRunning] = useState(false);
@@ -111,11 +131,13 @@ export function PolicyTestPanel({ runAt, draftId, draftVersion, rows, score, isR
   // A view that empties (the last failure was fixed or removed) falls back to every question.
   const shownFilter = chosenFilter !== "all" && counts[chosenFilter] === 0 ? "all" : chosenFilter;
   const shownRows = shownFilter === "all" ? rows : rows.filter((row) => row.status === shownFilter);
-  const blocker = getPublishBlocker({ isReadyToPublish, isRunning, hasDraft: draftId !== null, didRunLoad, isAssistantConfigured, hasRun: score !== null, isCurrent, counts });
+  const liveNote = draftId === null && liveVersion !== null ? getLiveNote(liveVersion) : null;
+  const blocker = liveNote ? null : getPublishBlocker({ isReadyToPublish, isRunning, hasDraft: draftId !== null, didRunLoad, isAssistantConfigured, hasRun: score !== null, isCurrent, hasCurrentChecksVersion, counts });
   return (
     <>
-      <TestStatusBox draftId={draftId} draftVersion={draftVersion} score={score} isCurrent={isCurrent} isReadyToPublish={isReadyToPublish} isRunning={isRunning} onRunningChange={setIsRunning} />
+      <TestStatusBox draftId={draftId} draftVersion={draftVersion} liveVersion={liveVersion} score={score} isCurrent={isCurrent} isReadyToPublish={isReadyToPublish} isRunning={isRunning} onRunningChange={setIsRunning} />
       {blocker && <p className="policy-test-blocker mb-4 max-w-prose">{`Publish is locked: ${blocker}`}</p>}
+      {liveNote && <p className="mb-4 max-w-prose">{liveNote}</p>}
       {runProblem}
       <TestFilters counts={counts} shownFilter={shownFilter} onChange={(filter) => setFilterChoice({ runAt, filter })} />
       <p role="status" className="type-small mb-2 text-muted">{`Showing ${shownRows.length}.`}</p>

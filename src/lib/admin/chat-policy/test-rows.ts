@@ -30,6 +30,8 @@ export type PublishBlockerInput = {
   isAssistantConfigured: boolean;
   hasRun: boolean;
   isCurrent: boolean;
+  /** Every current built-in safety check was tested under the current version (pass or fail). */
+  hasCurrentChecksVersion: boolean;
   counts: TestCounts;
 };
 
@@ -103,6 +105,8 @@ function getSetupBlocker(input: PublishBlockerInput): string | null {
 function getRunBlocker(input: PublishBlockerInput): string | null {
   if (!input.hasRun) return "Run the tests first.";
   if (!input.isCurrent) return "You changed the draft or questions since the last run. Run the tests again.";
+  // Before failed and untested: an old run's new safety checks show as untested, and this says why.
+  if (!input.hasCurrentChecksVersion) return "The safety checks were updated. Run the tests again.";
   return null;
 }
 

@@ -17,8 +17,8 @@ import { pushKeyEvent } from "@/lib/tracking/data-layer";
 // reads is the server's own log, never this copy (Phase 5 plan, decision 5).
 
 const STORAGE_KEY = "cwr-chat";
-const EXPIRED_NOTICE = "That chat timed out. Send your question again to start a new one.";
-const UNREACHABLE_NOTICE = "We couldn't reach the assistant. Try again, or tap “Talk to a person”.";
+const EXPIRED_NOTICE = "I'm sorry, that chat timed out. Just send your question again and we'll start fresh.";
+const UNREACHABLE_NOTICE = "I'm sorry, I couldn't get your message through. Please try again, or tap “Talk to a person”.";
 
 export type ChatEntry = { id: string; role: "visitor" | "assistant"; text: string; citedSections: string[] };
 

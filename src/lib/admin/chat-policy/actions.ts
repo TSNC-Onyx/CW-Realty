@@ -10,7 +10,7 @@ import { BATCH_SIZE, getAssembledResults, getBatchCount, getBatchSlots, getDoneC
 import { deleteStaleTestJobs, deleteTestJob, fetchTestJob, fetchTestParts, insertTestJob, insertTestPart, type TestJob } from "@/lib/admin/chat-policy/test-jobs";
 import { MAX_TESTS, TEST_LIMIT_MESSAGE, isAtTestLimit } from "@/lib/admin/chat-policy/test-rows";
 import { fetchTestResults } from "@/lib/admin/chat-policy/test-runner";
-import { getRunSummary, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
+import { getRunSummary, hasCurrentChecksVersion, hasCurrentSafetyChecks, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 import { getDatabaseErrorMessage, isUniqueViolation } from "@/lib/admin/database-errors";
 import { getQueryLoad, type LoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
@@ -32,6 +32,9 @@ const NO_MODEL_CAUSE: ProblemCause = { stage: "setup", severity: "warning", code
 const RUN_ENDED_MESSAGE = "This test run has ended. Run the tests again.";
 const DRAFT_CHANGED_MESSAGE = "The draft changed while the tests ran. Run the tests again.";
 const QUESTIONS_CHANGED_MESSAGE = "The test questions changed while the tests ran. Run the tests again.";
+const RUN_SIZE_CHANGED_MESSAGE = "The safety checks changed during this run. Run the tests again.";
+const NO_PUBLISH_RUN_MESSAGE = "Run the tests and pass them on this draft before publishing.";
+const SAFETY_CHECKS_OUTDATED_MESSAGE = "Run the tests again: the safety checks were updated since the last run.";
 
 type DraftRow = { id: string; version: number };
 
@@ -89,9 +92,45 @@ export async function restorePolicyVersionAction(policyId: string): Promise<Quic
   });
 }
 
+type PublishDraft = { updated_at: string };
+
+/** The draft's newest passing run with the database's own stamps (cwr.publish_chat_policy), or null. */
+async function fetchPublishRunResults(admin: AdminContext, { policyId, draft, testsChangedAt }: { policyId: string; draft: PublishDraft; testsChangedAt: string | null }) {
+  const base = admin.supabase.from("chat_policy_test_runs").select("results").eq("tenant_id", admin.tenantId).eq("policy_id", policyId).eq("is_passed", true).eq("policy_updated_at", draft.updated_at);
+  const stamped = testsChangedAt === null ? base.is("tests_updated_at", null) : base.eq("tests_updated_at", testsChangedAt);
+  const result = await stamped.order("ran_at", { ascending: false }).limit(1).maybeSingle<{ results: PolicyTestResult[] }>();
+  return getQueryLoad({ part: "test run to publish", result, empty: null });
+}
+
+async function fetchPublishDraft({ supabase, tenantId }: AdminContext, policyId: string) {
+  const result = await supabase.from("chat_policies").select("updated_at").eq("tenant_id", tenantId).eq("id", policyId).eq("status", "draft").maybeSingle<PublishDraft>();
+  return getQueryLoad({ part: "draft to publish", result, empty: null });
+}
+
+/**
+ * docs/cwr-chatbot-alignment-plan.md, Part 2 A5: the run that lets a draft publish must show every
+ * current built-in safety check passing, under the current version, with approved wording. The
+ * database trigger still applies after this.
+ */
+async function fetchPublishBlocker(admin: AdminContext, policyId: string): Promise<QuickResult | null> {
+  const draft = await fetchPublishDraft(admin, policyId);
+  if (!draft.isLoaded) return noteLoadError(draft.failure, "We couldn't load the draft. Try again in a moment.");
+  if (!draft.data) return getQuickError("Only a saved draft can be published.");
+  const testsChangedAt = await fetchTestsChangedAt(admin);
+  if (!testsChangedAt.isLoaded) return noteLoadError(testsChangedAt.failure, "We couldn't load the test questions. Try again in a moment.");
+  const run = await fetchPublishRunResults(admin, { policyId, draft: draft.data, testsChangedAt: testsChangedAt.data });
+  if (!run.isLoaded) return noteLoadError(run.failure, "We couldn't load the last test run. Try again in a moment.");
+  if (!run.data) return noteStoppedRunError({ code: "no_publish_run", message: NO_PUBLISH_RUN_MESSAGE });
+  if (!hasCurrentSafetyChecks(run.data.results)) return noteStoppedRunError({ code: "safety_checks_outdated", message: SAFETY_CHECKS_OUTDATED_MESSAGE });
+  return null;
+}
+
 export async function publishPolicyAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction({ action: "chat_policy.publish", roles: OWNER_ROLES }, async ({ supabase }) => {
-    const { error } = await supabase.rpc("transition", { p_workflow_key: "chat_policy_status", p_record_id: z.uuid().parse(policyId), p_to_state: "published" });
+  return runQuickAction({ action: "chat_policy.publish", roles: OWNER_ROLES }, async (admin) => {
+    const draftId = z.uuid().parse(policyId);
+    const blocker = await fetchPublishBlocker(admin, draftId);
+    if (blocker) return blocker;
+    const { error } = await admin.supabase.rpc("transition", { p_workflow_key: "chat_policy_status", p_record_id: draftId, p_to_state: "published" });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     revalidatePath(POLICY_PATH);
     return getQuickSuccess("Published. The chat assistant now answers from this version.");
@@ -189,6 +228,12 @@ function noteStoppedRunError({ code, message }: { code: string; message: string 
   return getQuickError(message);
 }
 
+/** A run that spans a change to the built-in safety checks can't be trusted (Part 2 D2). */
+function noteRunSizeChangedError(): QuickResult {
+  noteProblemCause({ stage: "rule", severity: "warning", code: "run_size_changed", detail: null });
+  return getQuickError(RUN_SIZE_CHANGED_MESSAGE);
+}
+
 function noteLoadError(failure: LoadFailure, message: string): QuickResult {
   noteProblemCause({ stage: "load", severity: "error", code: failure.code ?? "database", detail: failure.detail });
   return getQuickError(message);
@@ -245,6 +290,7 @@ async function fetchBatchInputs(admin: AdminContext, { runKey, batchIndex }: { r
   const job = await fetchOwnedJob(admin, runKey);
   if ("error" in job) return job;
   const index = z.number().int().min(0).max(job.batch_count - 1).parse(batchIndex);
+  if (getBatchCount(job.test_ids) !== job.batch_count) return { error: noteRunSizeChangedError() };
   const draft = await fetchDraftToTest(admin, job.policy_id);
   if ("error" in draft) return { error: getQuickError(draft.error) };
   if (draft.updated_at !== job.policy_updated_at) return { error: noteStoppedRunError({ code: "draft_changed", message: DRAFT_CHANGED_MESSAGE }) };
@@ -324,6 +370,7 @@ export async function finishPolicyTestRunAction({ runKey }: { runKey: string }):
     if ("error" in job) return job.error;
     const results = await fetchRunResults(job);
     if ("error" in results) return results.error;
+    if (results.length !== getRunTotal(job.test_ids) || !hasCurrentChecksVersion(results)) return noteRunSizeChangedError();
     const isSameSet = await fetchIsSameQuestionSet(admin, job);
     if (typeof isSameSet !== "boolean") return isSameSet.error;
     if (!isSameSet) return noteStoppedRunError({ code: "questions_changed", message: QUESTIONS_CHANGED_MESSAGE });

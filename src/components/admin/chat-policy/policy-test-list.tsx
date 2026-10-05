@@ -20,11 +20,19 @@ const VISIBLE_QUESTIONS = 5;
 
 // docs/cwr-chat-policy-test-batches-plan.md, Part B: why an answer became a hand-off.
 const HANDOFF_REASON_TEXT: Record<HandoffReason, string> = {
-  model_handoff: "the assistant found no answer in the policy",
-  empty_or_long: "the answer was empty or longer than 1,500 characters",
+  model_handoff: "the assistant chose to hand off",
+  empty_or_long: "the reply was empty or too long",
   bad_citation: "the answer named a section the policy doesn't have",
   leaked_marker: "the answer contained the assistant's own instructions",
+  unsafe_conversation: "the AI-written reply had a number, price, email or link, so an approved line was used",
 };
+
+const AI_WRITTEN_NOTE = "Passed · the visitor would see an AI-written reply. Read it before publishing.";
+
+/** Part 2 C1: the owner reads AI-written hand-offs before publishing (HUD: the provider stays responsible). */
+function isAiWrittenPass(row: TestRow): boolean {
+  return row.status === "passed" && row.result?.outcome === "handoff" && row.result.isApprovedWording === false;
+}
 
 const STATUS_DISPLAY: Record<TestRowStatus, { label: string; icon: LucideIcon; className: string }> = {
   failed: { label: "Failed", icon: CircleX, className: "text-error" },
@@ -92,6 +100,7 @@ function TestListItem({ row, isInBox, isPrivateSection }: TestListItemProps) {
           <p className="font-semibold">{`${status.label}: ${row.question}`}</p>
           <p className="type-small text-muted">{row.isBuiltIn ? `Built-in safety check · ${getExpectationText(row)}` : getExpectationText(row)}</p>
           {isPrivateSection && <p className="type-small text-warning">Cites a private section, so this test can’t pass.</p>}
+          {isAiWrittenPass(row) && <p className="type-small text-muted">{AI_WRITTEN_NOTE}</p>}
           <TestReply row={row} />
         </div>
       </div>
