@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { fetchAssistantReply, getUnrepeatedTurnReply, type AnswerModel } from "@/lib/chat/answer-question";
 import { HANDOFF_TEXT, getHandoffReply } from "@/lib/chat/assistant-reply";
+import { EMERGENCY_TEXT } from "@/lib/chat/handoff-text";
 
 const POLICY = "# Office hours\nWe are open weekdays from 9 to 5.";
 
@@ -30,6 +31,17 @@ describe("fetchAssistantReply", () => {
 
     // Assert
     expect({ text: reply.text, calls: model.mock.calls.length }).toEqual({ text: HANDOFF_TEXT.restrictedNumber, calls: 0 });
+  });
+
+  it("gives the fixed emergency reply without asking the model", async () => {
+    // Arrange
+    const model = getFakeModel(null);
+
+    // Act
+    const reply = await fetchAssistantReply({ policyBody: `${POLICY}\n# Emergencies\nCall 911 first.`, turns: [{ role: "visitor", body: "I smell gas in my kitchen" }], model });
+
+    // Assert
+    expect({ reply, calls: model.mock.calls.length }).toEqual({ reply: { outcome: "answer", text: EMERGENCY_TEXT, citedSections: ["Emergencies"] }, calls: 0 });
   });
 
   it("gives the policy and section list to the model in its instructions", async () => {

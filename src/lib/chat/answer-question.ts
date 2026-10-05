@@ -1,5 +1,6 @@
 import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, getUnrepeatedReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
+import { getEmergencyReply, isEmergencyMessage } from "@/lib/chat/emergency";
 import { getPublicPolicy, getPublicSections } from "@/lib/chat/policy-sections";
 import { hasRestrictedNumber } from "@/lib/chat/restricted-data";
 
@@ -25,9 +26,11 @@ export function getUnrepeatedTurnReply({ reply, turns }: { reply: AssistantReply
 
 /** Throws whatever the model call throws; callers decide how to fail gracefully. */
 export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRequest): Promise<AssistantReply> {
-  if (hasRestrictedNumber(getLatestQuestion(turns))) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
+  const question = getLatestQuestion(turns);
+  if (hasRestrictedNumber(question)) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
   // Private sections are cut out here, so the model can't quote, summarize or reword them.
   const sections = getPublicSections(policyBody);
+  if (isEmergencyMessage(question)) return getEmergencyReply(sections);
   if (sections.length === 0) return getHandoffReply(HANDOFF_TEXT.unavailable);
   const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody: getPublicPolicy(policyBody), sections }), turns });
   if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.needsPerson);

@@ -25,3 +25,6 @@ export const SAFETY_HANDOFF_TEXTS: ReadonlySet<string> = new Set([HANDOFF_TEXT.n
 
 /** Every fixed wording: a hand-off with any other text was written by the AI. */
 export const FIXED_HANDOFF_TEXTS: ReadonlySet<string> = new Set(Object.values(HANDOFF_TEXT));
+
+/** Owner-approved 2026-10-05 (docs/cwr-chat-emergency-reply-plan.md): never AI-written. */
+export const EMERGENCY_TEXT = "If you're having any emergency (fire, flood, gas, etc.), call 911 first. Then call or text our office. For homes we manage, we coordinate emergency repairs 24/7.";
