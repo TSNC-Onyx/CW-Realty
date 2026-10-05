@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25) on branch `phase-5-chatbot` (from `build1`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 5, tasks 17–19).
+**Merged** into `build1` by PR #6 (`ba644ec`) on 2026-09-25.
 
 ## Goal
 

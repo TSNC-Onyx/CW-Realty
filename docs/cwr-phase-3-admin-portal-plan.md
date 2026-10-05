@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25) on branch `phase-3-admin-portal` (stacked on `phase-2-data-pages`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 3, tasks 12–14; role table; retention).
+**Merged** into `build1` by PR #3 (`cba3eab`) on 2026-09-25.
 
 ## Goal
 

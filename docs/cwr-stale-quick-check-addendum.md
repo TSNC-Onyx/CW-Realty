@@ -3,6 +3,7 @@
 Status: APPROVED rev 4 (2026-10-02) — owner said "build it"; DA1 = refresh automatically. Audit: rev 1 B+, rev 2 A-, rev 3 A-. rev 4 fixes all findings (changelog at
 the end). This addendum joins `cwr-reliability-round-plan.md` as Phase 2b, under the same rules (scope,
 DO NOT TOUCH, gates, verification).
+**Built and merged** into `build1` with the reliability round by PR #23 (`f82e5ff`) on 2026-10-02.
 
 ## Goal
 No one stays stuck on a Quick Check message because their page is old. The page either fixes itself

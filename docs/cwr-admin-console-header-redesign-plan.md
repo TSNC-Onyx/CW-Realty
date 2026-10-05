@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25), **approved by owner** (2026-09-25) from the mockup https://claude.ai/artifact/GVBwWShwiS9qbXeS9XkFwA (version 3). Gold logo ring confirmed; Sign out sits in the desktop top-right corner, email and role at the bottom of the sidebar.
 Branch: `claude/admin-console-header-redesign-6a6ccd`.
+**Merged** into `build1` on 2026-09-25 (fast-forward, no pull request; branch tip `412f1cd`).
 
 ## Goal
 

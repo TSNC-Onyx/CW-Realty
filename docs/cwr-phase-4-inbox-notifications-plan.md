@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25) on branch `phase-4-inbox-notifications` (stacked on `phase-3-admin-portal`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 4, tasks 15–16).
+**Merged** into `build1` by PR #4 (`f7319d7`) on 2026-09-25.
 
 ## Goal
 
