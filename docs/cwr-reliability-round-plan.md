@@ -3,6 +3,7 @@
 Status: APPROVED rev 4 (2026-10-02) — owner said "build it"; picks D1–D4 as recommended. Audit: rev 1 B-, rev 2 A-/B+, rev 3 A-; rev 4 fixes
 the last two findings (changelog at the end). Kept outside the repo until the owner says "build it"
 (memory: no-changes-unless-explicit). On approval it is copied to `docs/cwr-reliability-round-plan.md`.
+**Built and merged** into `build1` by PR #23 (`f82e5ff`) on 2026-10-02.
 
 Base: `build1` @ 6289a63. Branch: `claude/captcha-properties-chatbot-audit-94fda6` (worktree
 `functional-test-loop-prompt-5e6c57`). Baseline checks on this base (2026-10-02): `npm test` 466/466,

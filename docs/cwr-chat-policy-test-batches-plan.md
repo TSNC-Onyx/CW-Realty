@@ -4,6 +4,7 @@ Status: **BUILT 2026-10-03** on branch `claude/chat-policy-test-batches` (owner 
 - **Part A** was asked for by the owner ("plan auto-refresh plus batches") and is handed off to a new session.
 - **Part B is decided by the owner (2026-10-02):** "if it's an answer that's already found on the visitor facing site, that's completely different, and must be allowed." The policy copy filter goes; private notes are kept away from the AI instead. It still needs the owner's "build it".
 - Nothing is built until the owner says "build it" (memory: no-changes-unless-explicit).
+- **Merged** into `build1` by PR #25 (`496064f`) on 2026-10-03, with Parts A, B and C all built (see Implementation notes).
 
 Base: `build1` @ f82e5ff (after PR #23). Branch: `claude/chat-policy-test-batches`.
 

@@ -1,6 +1,7 @@
 # Seller consulting page — plan
 
 > Owner decisions 2026-09-26: design Option A (side-by-side plan cards), its own page, plan prices shown as "Ask for pricing", the Well advised label reads "Best Value", and the page is link-only (not in the menu, sitemap, or search results) until a companion page the owner cannot name yet launches. Owner asked to build it and merge to `build1`.
+> **Superseded** by `docs/cwr-selected-services-plan.md`: PR #22 (`8eb5d5b`, 2026-10-02) replaced this page with Selected services, and `/services/seller-consulting` now redirects there (301).
 
 ## Goal
 

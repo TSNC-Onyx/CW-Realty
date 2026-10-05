@@ -2,6 +2,7 @@
 
 Status: **decisions approved by owner 2026-09-27** (D1–D6, see Human Approval Gate), revision 9. **Built 2026-09-27 except the Problems page**, which the owner deferred ("defer the Problems page, while implementing the remaining elements"). Deferred with it: the page's list, search, group detail and "Mark resolved" UI, the `resolve_problem_group` function and the owners-only navigation entry. Until then, owners look problems up by reference with the SQL in `docs/runbooks/problem-alerts.md`. The dashboard card and the dead-man notices are built. **Problem emails paused 2026-09-30** (owner decision): the Cloudflare account's Workers Free plan has no free Cron Trigger, so the 5-minute sender is unscheduled until one is available (`docs/runbooks/problem-alerts.md`).
 Owner rule (2026-09-27): every problem a staff member or admin sees must be recorded, not only crashes.
+**Merged** into `build1` by PR #16 (`2948743`) on 2026-09-30; the email pause by PR #17 (`6289a63`) the same day.
 
 ## Goal
 

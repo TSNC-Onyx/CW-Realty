@@ -1,6 +1,7 @@
 # Site Review Round — Implementation Plan
 
 > Owner review of 2026-09-26. Every page below was approved by the owner in a full-page browser mockup after an automated audit (WCAG 2.2 AA contrast, text size, tap targets, no sideways scroll at 375/820/1440px; Style §11 tokens, fonts, square corners, gold only on dark). Nothing here is built yet. **Do not start until the owner explicitly says "build."** Work goes on a branch from `build1`, and a pull request targets `build1`; nothing merges without the owner's explicit approval. `main` is never touched.
+> **Built and merged** into `build1` by PR #11 (`159701d`) on 2026-09-27.
 
 ## Goal
 
@@ -172,6 +173,7 @@ Risk: low, provided tests are updated in the same PR.
 # Round 2 — Homework page and Admin → Homework (approved 2026-09-27)
 
 > Owner approved the public Homework page mockup and the three Admin → Homework screens (`docs/reference/design/site-review-2026-09-26/homework*.html`). Decisions: videos at 480p (approved); link the NC Real Estate Commission's official brochure instead of the old copy (approved); keep the Spanish PowerPoint as-is (no PDF); video captions moved to open items. **Do not start until the owner says "build."** Same branch (`site-review-round`) and PR #11; nothing merges without explicit approval.
+> **Built and merged** into `build1` by PR #11 (`159701d`) on 2026-09-27.
 
 ## Goal
 

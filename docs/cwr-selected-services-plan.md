@@ -1,6 +1,7 @@
 # Selected services page — plan
 
 > Owner said "build it" on 2026-10-02 after choosing version B (carousels on phones and tablets). Charlie Ward Sr. (broker in charge) approved the "Not included" and "How every plan works" wording on 2026-10-02 (21 NCAC 58A .0105). Source content: the owner's deck "Selected Services Content for Website Sept 2026.pptx". Decisions were made over previews built from the site's own stylesheet (2026-09-30 → 2026-10-02); this file is the consolidated final spec. No database change.
+> **Built and merged** into `build1` by PR #22 (`8eb5d5b`) on 2026-10-02.
 
 ## Goal
 

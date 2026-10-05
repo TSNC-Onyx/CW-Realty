@@ -4,7 +4,7 @@ Governs: Infra §7 ("a written runbook for each critical system"). Design: `docs
 
 ## What gets recorded
 
-Every problem someone sees in the admin portal or on the sign-in pages is saved in `cwr.problem_events`, and counted in `cwr.problem_groups` (one row per kind of problem). Each has a reference code like `CWR-7F3-K2Q`.
+Every problem someone sees in the admin portal, on the sign-in pages, or on the public website (origins `server_visitor` and `browser_visitor`) is saved in `cwr.problem_events`, and counted in `cwr.problem_groups` (one row per kind of problem). Each has a reference code like `CWR-7F3-K2Q`.
 
 People see that code on screen for anything worse than a typing mistake, for example "(Ref CWR-…)" or "Reference: CWR-…".
 
@@ -42,11 +42,11 @@ Each background check watches another one, so a stopped check is caught by the n
 
 | Notice | Checked by | What to do |
 |---|---|---|
-| Problem emails aren't being checked | Database watchdog (every 15 min) sees the Worker's 5-minute heartbeat is over 20 min old | Cloudflare → `cw-realty` → Triggers: the `*/5 * * * *` Cron Trigger must exist; check the Worker's logs for `scheduled` errors |
-| Database clean-up checks aren't running | The Worker sees the database watchdog is over 45 min old | Supabase → Database → Cron Jobs: `cwr_check_scheduled_jobs` must be active; see `cron.job_run_details` |
+| Problem emails aren't being checked | Database watchdog (every 15 min) sees the Worker's 5-minute heartbeat is over 20 min old. Can't appear while problem emails are paused (the heartbeat is removed) | Cloudflare → `cw-realty` → Triggers: the `*/5 * * * *` Cron Trigger must exist; check the Worker's logs for `scheduled` errors |
+| Database clean-up checks aren't running | The dashboard sees the database watchdog is over 45 min old. While problem emails are on, the Worker's 5-minute run also records it as a critical problem | Supabase → Database → Cron Jobs: `cwr_check_scheduled_jobs` must be active; see `cron.job_run_details` |
 | The nightly photo clean-up hasn't finished | Database watchdog: no successful run in 36 h | GitHub → Actions → "Clean up unused photo files": a skipped run means the repository secret `SUPABASE_SERVICE_ROLE_KEY` or variable `NEXT_PUBLIC_SUPABASE_URL` is missing |
-| Problem log isn't saving | Database watchdog / the app | Usually the Worker secret `SUPABASE_SERVICE_ROLE_KEY` is missing (build plan open item 1); problems then reach the Workers log only |
-| Problem emails are being refused | Alert sender | The MailerSend key or sender address is wrong or revoked; fix it in the Worker's secrets. Pending problems go out on the next run (retries back off up to an hour) |
+| The problem log couldn't save a problem | Database watchdog / the app | Usually the Worker secret `SUPABASE_SERVICE_ROLE_KEY` is missing; problems then reach the Workers log only |
+| Problem emails are failing | Alert sender | The MailerSend key or sender address is wrong or revoked; fix it in the Worker's secrets. Pending problems go out on the next run (retries back off up to an hour) |
 
 A failed or stuck (over 30 min) `cwr_*` scheduled job becomes a critical problem named "Nightly database clean-up". Its `detail` holds the job name and Postgres's message.
 
