@@ -9,14 +9,12 @@ import { modelReplySchema, type ModelReply } from "@/lib/chat/assistant-reply";
 // Claude, called from the server only (Phase 5 plan, decision 1). The API key is a Worker
 // secret; without it the assistant is simply "not ready" and chat hands off to a person.
 
-const CHAT_MODEL = "claude-opus-5";
-// Short policy answers: low effort keeps replies quick without changing the model.
-const CHAT_EFFORT = "low";
+// Owner chose Haiku 4.5 for cost (2026-10-04). Haiku 4.5 takes no adaptive thinking, effort,
+// or server-side fallbacks; a refusal still ends as a handoff through getNoAnswerReason.
+const CHAT_MODEL = "claude-haiku-4-5";
 const MAX_REPLY_TOKENS = 4096;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 1;
-// If Claude declines a request, the API retries it on its recommended fallback model.
-const FALLBACK_BETA = "server-side-fallback-2026-07-01";
 const UNREADABLE_REPLY = "unreadable";
 
 /** Why Claude gave no usable answer: its stop reason (for example "refusal" or "max_tokens"), or "unreadable". */
@@ -41,10 +39,7 @@ async function fetchClaudeReply({ client, request, onNoAnswer }: { client: Anthr
   const response = await client.beta.messages.parse({
     model: CHAT_MODEL,
     max_tokens: MAX_REPLY_TOKENS,
-    betas: [FALLBACK_BETA],
-    fallbacks: "default",
-    thinking: { type: "adaptive" },
-    output_config: { effort: CHAT_EFFORT, format: betaZodOutputFormat(modelReplySchema) },
+    output_config: { format: betaZodOutputFormat(modelReplySchema) },
     system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
     messages: getMessages(turns),
   });
