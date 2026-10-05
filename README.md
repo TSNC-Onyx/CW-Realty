@@ -3,7 +3,7 @@ Refreshed CWRealty website
 
 ## Branches
 
-- **`build1`** — all development work. Pull requests target `build1`, and CI runs on every push and pull request to it.
+- **`build1`** — all development work. Pull requests target `build1`. CI runs on every pull request and on every push to `build1` or `main`.
 - **`main`** — the live site. It is **not merged into or used until go-live day**; merging into `main` deploys to production (see `.github/workflows/deploy.yml`).
 
 ## Configuration
@@ -12,6 +12,7 @@ Public build settings (GitHub repository **variables**, also set locally in `.en
 
 - `NEXT_PUBLIC_SUPABASE_URL` — the Supabase project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` — the Supabase publishable (anon) key. Safe to expose: Row Level Security limits it to published content.
+- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` — the Quick Check site key. Set in Cloudflare → Workers & Pages → `cw-realty` → Settings → Build → Variables and secrets (`docs/runbooks/chatbot-launch.md`); `.github/workflows/deploy.yml` doesn't pass it yet.
 
 Without them the site still runs, but phone, email, office address, and database redirects are hidden or skipped.
 

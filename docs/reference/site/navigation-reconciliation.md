@@ -21,15 +21,15 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | Menu item | Contains |
 |---|---|
 | Home | Home page (`/`); the footer reaches it through the logo instead of a column |
-| Listings | Featured Properties (`/listings`), Property Search (`/property-search`) |
-| Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property Management (`/services/property-management`); overview at `/services` |
-| Team | CWR Team (`/team`) and member pages |
+| Listings | Featured properties (`/listings`), Property search (`/property-search`) |
+| Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property management (`/services/property-management`); overview at `/services` |
+| Team | `/team` and member pages (the footer link reads "CWR team") |
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
-| About | About Us (`/about`), Contact (`/contact`) |
+| About | About us (`/about`), Contact (`/contact`) |
 
 Link-only pages (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`): none at the moment. The former link-only Seller consulting page became the listed Selected services page on 2026-10-02; `/services/seller-consulting` redirects there (301, `next.config.ts`).
 
-Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above plus Privacy Policy, Cookie settings, Equal Housing Opportunity, NC "Working with Real Estate Agents".
+Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above except Home, plus links to Privacy policy, Cookie settings, and NC "Working with Real Estate Agents", and an "Equal Housing Opportunity" line (text, not a link).
 
 ## Pages and redirects
 
@@ -57,6 +57,7 @@ Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the
 | `/listings/3826-burlington-rd-greensboro-nc` | `/3826-burlington-rd-greensboro-nc-27405`, `/listings/3826-burlington-rd-greensboro-nc-27405` |
 | `/property-search` | — |
 | `/services` | — (overview page since 2026-09-26) |
+| `/services/selected-services` | `/services/seller-consulting` (301, `next.config.ts`) |
 | `/services/cwr-touchup` | `/cwrtouchup` |
 | `/services/property-management` | — |
 | `/connections` | `/sell` |
