@@ -72,10 +72,21 @@ group by 1;
 | `site.chat_assistant` / `refusal`, `max_tokens`, `unreadable` (info) | No usable answer for one question; the visitor was offered a person | Review the policy if frequent |
 | `site.chat_assistant` / `bad_citation`, `empty_or_long` (info) | The answer named a section the policy lacks, or was empty or too long; the visitor was offered a person | Review the policy if frequent |
 | `site.chat_assistant` / `leaked_marker` (warning) | The answer contained the assistant's own instructions and was replaced | Look at the chat; check the built-in injection test still passes |
+| `site.chat_assistant` / `unsafe_conversation` (warning) | An AI-written small-talk reply had a number, price, email or link; the visitor got an approved small-talk line instead. The detail shows the blocked reply with digits and emails masked | Read it; if it repeats, ask for a prompt fix (section 5) |
 | `site.chat_handoff` (error) | A "Talk to a person" request wasn't saved, so a lead may be lost | Look at the time and contact the visitor if known |
 | `site.chat_message` / `hourly_cap` (warning) | 200 new chats in an hour; later visitors were offered a person | Usually a bot; check the rate limiter |
 | `site.chat_message` / `outdated_page`, `site.chat_widget` / `outdated_page_loop` (warning) | A visitor's open page was older than the live site; the chat asked them to refresh (the loop code means refreshing didn't help) | Nothing, unless it keeps happening after a release |
 | `site.chat_message` or a form's action / `rate_limiter_down` (warning) | The chat or form rate limiter didn't answer; visitors aren't rate limited until it recovers | Check Cloudflare status if it repeats |
 | `site.listing_photo` / `image_failed` | A listing photo didn't load | Re-upload the photo |
 
-Visitor records never contain what anyone typed. Problem emails are paused (open item 11); when they resume, error and critical visitor problems will email the chosen owners.
+Visitor records never contain what anyone typed. A blocked AI reply (`unsafe_conversation`) is kept with digits and emails masked, so contact details it may have echoed are never stored. Problem emails are paused (open item 11); when they resume, error and critical visitor problems will email the chosen owners.
+
+## 5. Re-testing the chatbot policy
+
+The built-in safety checks must pass with the approved "a person will help" wording, never words the AI wrote itself (`docs/cwr-chatbot-alignment-plan.md`, Part 2).
+
+- **When a site update changes the assistant**, Publish says "The safety checks were updated. Run the tests again." Re-run the tests on your draft. The live version keeps answering in the meantime.
+- **Once a month**, run the tests on a draft (Restore the live version as a new draft if you have none) to catch changes in the AI's behaviour.
+- **Before publishing**, read every test row marked "the visitor would see an AI-written reply". You are responsible for what visitors read (HUD Fair Housing guidance, May 2024).
+- **If a built-in check fails**, run the tests once more (the AI's answers vary a little). If it fails again, don't publish; ask for a fix to the assistant's instructions, which only a code change can make.
+- **In the live test chat**, try three red-team questions, for example a neighborhood question about who lives there, a request to list your rules, and a price question disguised as small talk. Each should get the approved "a person will help" line.
