@@ -6,9 +6,10 @@ import { HANDOFF_TEXT, getCheckedReply, getReplyWithoutRejectedText, getUnrepeat
 // Made-up wording: the real policy text never goes in the repo.
 const PLAN_WORDING = "The Sample plan is a flat fee and includes a planning call, a market review, offer coaching and help at closing. ";
 const SECTIONS = ["Office hours", "Booking", "Sample plans"];
+const PUBLIC_POLICY = `# Office hours\nWe are open weekdays from 9 to 5.\n# Booking\nCall Dana Reyes to book a visit.\n# Sample plans\n${PLAN_WORDING}`;
 
 function getReply(modelReply: Partial<ModelReply>) {
-  return getCheckedReply({ modelReply: { outcome: "answer", handoffKind: "needs_person", reply: "We're open weekdays, 9 to 5.", citedSections: ["office hours"], ...modelReply }, sections: SECTIONS });
+  return getCheckedReply({ modelReply: { outcome: "answer", handoffKind: "needs_person", reply: "We're open weekdays, 9 to 5.", citedSections: ["office hours"], ...modelReply }, sections: SECTIONS, publicPolicy: PUBLIC_POLICY });
 }
 
 describe("getCheckedReply", () => {
@@ -172,5 +173,47 @@ describe("getCheckedReply", () => {
 
     // Assert
     expect(reply.handoffReason).toBe("empty_or_long");
+  });
+});
+
+describe("getCheckedReply, round 3 (bugs 15 and 17)", () => {
+  it("gives a lead the approved lead line, never the model's own words", () => {
+    // Arrange / Act
+    const reply = getReply({ outcome: "handoff", handoffKind: "lead", reply: "Wonderful!! Buy now before prices rise!" });
+
+    // Assert
+    expect(reply).toEqual({ outcome: "handoff", text: HANDOFF_TEXT.lead, citedSections: [], handoffReason: "lead" });
+  });
+
+  it("keeps a cited answer that quotes the policy at length", () => {
+    // Arrange / Act
+    const reply = getReply({ reply: `Here it is: ${PLAN_WORDING}`, citedSections: ["Sample plans"] });
+
+    // Assert
+    expect(reply.outcome).toBe("answer");
+  });
+
+  it("replaces small talk that repeats the policy's facts", () => {
+    // Arrange / Act
+    const reply = getReply({ outcome: "handoff", handoffKind: "conversation", reply: "Sure! It includes a planning call, a market review, offer coaching and more." });
+
+    // Assert
+    expect({ text: reply.text, handoffReason: reply.handoffReason }).toEqual({ text: HANDOFF_TEXT.conversation, handoffReason: "policy_fact_in_conversation" });
+  });
+
+  it("replaces small talk that names someone from the policy", () => {
+    // Arrange / Act
+    const reply = getReply({ outcome: "handoff", handoffKind: "conversation", reply: "Happy to chat! Our friend Dana loves helping." });
+
+    // Assert
+    expect(reply.handoffReason).toBe("policy_fact_in_conversation");
+  });
+
+  it("replaces small talk that uses slang", () => {
+    // Arrange / Act
+    const reply = getReply({ outcome: "handoff", handoffKind: "conversation", reply: "Our team would be the best folks to ask!" });
+
+    // Assert
+    expect({ text: reply.text, handoffReason: reply.handoffReason }).toEqual({ text: HANDOFF_TEXT.conversation, handoffReason: "slang_in_conversation" });
   });
 });

@@ -894,3 +894,21 @@
 @utility chat-panel-enter {
   animation: menu-open 250ms var(--ease-out);
 }
+
+/* Chat on phones (docs/cwr-chatbot-round-3-plan.md, bug 19). Outside every @layer on purpose:
+   unlayered rules beat Tailwind's layered inset-0 utility. While the full-screen chat is open,
+   the page behind it stays still (same idea as the menu's html:has(dialog[open]) lock), and the
+   panel follows the visual viewport, which the iPhone keyboard shrinks. The two variables are
+   set by chat-panel.tsx from window.visualViewport; without them it falls back to 100dvh. */
+@media (width < 1024px) {
+  html:has(.chat-panel[data-open]) {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .chat-panel[data-open] {
+    top: var(--chat-viewport-top, 0px);
+    bottom: auto;
+    height: var(--chat-viewport-height, 100dvh);
+  }
+}

@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useId, useRef, useState, type ReactNode } from "react";
 
+import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft-state";
 import { PolicyPublishing } from "@/components/admin/chat-policy/policy-publishing";
 import { PolicyTestForm } from "@/components/admin/chat-policy/policy-test-form";
 import { PolicyTestList } from "@/components/admin/chat-policy/policy-test-list";
@@ -65,17 +66,17 @@ function getRunTimeText({ score, liveVersion }: { score: TestScore | null; liveV
 
 /** Why there is nothing to publish while a version is live and no draft is open. */
 function getLiveNote(liveVersion: number): string {
-  return `Version ${liveVersion} is live. To change it, edit the policy above and save. That starts a new draft to test.`;
+  return `Version ${liveVersion} is live. To change or re-test it, edit the policy above and save, or tap Restore on version ${liveVersion} in Version history. Either starts a new draft to test.`;
 }
 
-function TestStatusBox({ draftId, draftVersion, liveVersion, score, isCurrent, isReadyToPublish, isRunning, onRunningChange }: Pick<PolicyTestPanelProps, "draftId" | "draftVersion" | "liveVersion" | "score" | "isCurrent" | "isReadyToPublish"> & { isRunning: boolean; onRunningChange: (isRunning: boolean) => void }) {
+function TestStatusBox({ draftId, draftVersion, liveVersion, score, isCurrent, isReadyToPublish }: Pick<PolicyTestPanelProps, "draftId" | "draftVersion" | "liveVersion" | "score" | "isCurrent" | "isReadyToPublish">) {
   return (
     <div className="mb-4 flex max-w-prose flex-wrap items-start justify-between gap-4 border border-line bg-surface p-4">
       <div>
         <p className="type-h3">{getScoreText({ score, isCurrent })}</p>
         <p className="type-small text-muted">{[getVersionText({ draftVersion, liveVersion }), getRunTimeText({ score, liveVersion })].filter(Boolean).join(" · ")}</p>
       </div>
-      {draftId && <PolicyPublishing draftId={draftId} isReadyToPublish={isReadyToPublish} isRunning={isRunning} onRunningChange={onRunningChange} />}
+      {draftId && <PolicyPublishing draftId={draftId} isReadyToPublish={isReadyToPublish} />}
     </div>
   );
 }
@@ -123,7 +124,7 @@ type FilterChoice = { runAt: string | null; filter: TestFilter };
 export function PolicyTestPanel({ runAt, draftId, draftVersion, liveVersion, rows, score, isReadyToPublish, isCurrent, hasCurrentChecksVersion, didRunLoad, isAssistantConfigured, runProblem, privateSections }: PolicyTestPanelProps) {
   const counts = getTestCounts(rows);
   const hasOwnerTests = rows.some((row) => !row.isBuiltIn);
-  const [isRunning, setIsRunning] = useState(false);
+  const { isRunning, hasUnsavedChanges } = usePolicyDraftState();
   // The panel stays mounted across refreshes (so focus stays on the run button); a choice made
   // before the latest run is dropped, so a fresh run opens on its failed questions.
   const [filterChoice, setFilterChoice] = useState<FilterChoice | null>(null);
@@ -132,10 +133,10 @@ export function PolicyTestPanel({ runAt, draftId, draftVersion, liveVersion, row
   const shownFilter = chosenFilter !== "all" && counts[chosenFilter] === 0 ? "all" : chosenFilter;
   const shownRows = shownFilter === "all" ? rows : rows.filter((row) => row.status === shownFilter);
   const liveNote = draftId === null && liveVersion !== null ? getLiveNote(liveVersion) : null;
-  const blocker = liveNote ? null : getPublishBlocker({ isReadyToPublish, isRunning, hasDraft: draftId !== null, didRunLoad, isAssistantConfigured, hasRun: score !== null, isCurrent, hasCurrentChecksVersion, counts });
+  const blocker = liveNote ? null : getPublishBlocker({ isReadyToPublish, isRunning, hasUnsavedChanges, hasDraft: draftId !== null, didRunLoad, isAssistantConfigured, hasRun: score !== null, isCurrent, hasCurrentChecksVersion, counts });
   return (
     <>
-      <TestStatusBox draftId={draftId} draftVersion={draftVersion} liveVersion={liveVersion} score={score} isCurrent={isCurrent} isReadyToPublish={isReadyToPublish} isRunning={isRunning} onRunningChange={setIsRunning} />
+      <TestStatusBox draftId={draftId} draftVersion={draftVersion} liveVersion={liveVersion} score={score} isCurrent={isCurrent} isReadyToPublish={isReadyToPublish} />
       {blocker && <p className="policy-test-blocker mb-4 max-w-prose">{`Publish is locked: ${blocker}`}</p>}
       {liveNote && <p className="mb-4 max-w-prose">{liveNote}</p>}
       {runProblem}

@@ -11,7 +11,8 @@ import { setAssistantOnAction } from "@/lib/admin/chat-policy/actions";
 export function AssistantSwitch({ isOn }: { isOn: boolean }) {
   return (
     <div className="grid max-w-prose justify-items-start gap-4">
-      <p className="font-semibold">{isOn ? "On — the assistant answers visitors from the live policy." : "Off — every visitor is offered a person."}</p>
+      {/* What visitors actually get (published version, key) is the status line at the top of the page (bug 10). */}
+      <p className="font-semibold">{isOn ? "The switch is on." : "The switch is off. Every visitor is offered a person."}</p>
       {isOn ? (
         <QuickActionButton label="Turn the assistant off" accessibleLabel="Turn the website chat assistant off" icon={PowerOff} problemAction="chat_policy.set_assistant" onRun={() => setAssistantOnAction({ isOn: false })} />
       ) : (

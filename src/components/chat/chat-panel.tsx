@@ -7,6 +7,7 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatHandoffForm } from "@/components/chat/chat-handoff-form";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { useChatConversation } from "@/components/chat/use-chat-conversation";
+import { FULL_SCREEN_QUERY, useIsFullScreenChat, useVisualViewportFit } from "@/components/chat/use-phone-chat-layout";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -14,11 +15,11 @@ import type { ContactLinks } from "@/lib/site/contact-links";
 
 // Style §11.13 AI chat window: 380px panel on desktop, full screen on phones; labeled
 // "AI · NOT A PERSON"; "Talk to a person" always visible. Escape closes it. While it covers
-// the whole screen, Tab stays inside it (the page behind cannot be seen).
+// the whole screen, Tab stays inside it (the page behind cannot be seen), it is a modal, the
+// page behind it doesn't scroll, and it fits above the on-screen keyboard (bug 19).
 
 type ChatView = "chat" | "handoff";
 
-const FULL_SCREEN_QUERY = "(width < 1024px)";
 const FOCUSABLE_SELECTOR = "a[href], button:not([disabled]), textarea, input:not([type='hidden']), select, [tabindex]:not([tabindex='-1'])";
 
 function getFocusTarget({ panel, isBackward }: { panel: HTMLElement; isBackward: boolean }): HTMLElement | null {
@@ -65,6 +66,9 @@ export function ChatPanel({ isOpen, contact, onClose }: ChatPanelProps) {
   const conversation = useChatConversation();
   const [view, setView] = useState<ChatView>("chat");
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const isFullScreen = useIsFullScreenChat();
+  useVisualViewportFit({ panelRef, isActive: isOpen && isFullScreen });
 
   useEffect(() => {
     if (isOpen && view === "chat") inputRef.current?.focus();
@@ -81,11 +85,14 @@ export function ChatPanel({ isOpen, contact, onClose }: ChatPanelProps) {
 
   return (
     <section
+      ref={panelRef}
       role="dialog"
       aria-labelledby="chat-title"
+      aria-modal={isOpen && isFullScreen ? true : undefined}
+      data-open={isOpen ? "" : undefined}
       hidden={!isOpen}
       onKeyDown={handleKeyDown}
-      className="chat-panel-enter fixed inset-0 z-50 flex flex-col border border-line bg-page lg:inset-auto lg:right-8 lg:bottom-8 lg:h-160 lg:max-h-[calc(100dvh-var(--header-height))] lg:w-95"
+      className="chat-panel chat-panel-enter fixed inset-0 z-50 flex flex-col border border-line bg-page lg:inset-auto lg:right-8 lg:bottom-8 lg:h-160 lg:max-h-[calc(100dvh-var(--header-height))] lg:w-95"
     >
       <ChatHeader onClose={onClose} />
       {view === "chat" ? (
@@ -99,7 +106,7 @@ export function ChatPanel({ isOpen, contact, onClose }: ChatPanelProps) {
           <ChatComposer isStartingChat={conversation.sessionId === null} isOutdated={conversation.isOutdated} botCheckKey={conversation.botCheckKey} contact={contact} inputRef={inputRef} onSubmitQuestion={conversation.submitQuestion} />
         </>
       ) : (
-        <div className="flex flex-1 flex-col overflow-y-auto">
+        <div className="flex flex-1 flex-col overflow-y-auto overscroll-contain">
           <ChatHandoffForm sessionId={conversation.sessionId} question={conversation.latestQuestion} contact={contact} />
         </div>
       )}

@@ -27,7 +27,7 @@ export async function fetchPolicyVersions({ supabase, tenantId }: AdminContext):
   return getQueryLoad({ part: "policy versions", result, empty: [] });
 }
 
-async function fetchPolicyBody({ supabase, tenantId }: AdminContext, policyId: string): Promise<LoadResult<PolicyBody | null>> {
+export async function fetchPolicyBody({ supabase, tenantId }: AdminContext, policyId: string): Promise<LoadResult<PolicyBody | null>> {
   const result = await supabase.from("chat_policies").select("body, updated_at").eq("tenant_id", tenantId).eq("id", policyId).maybeSingle<PolicyBody>();
   return getQueryLoad({ part: "policy text", result, empty: null });
 }

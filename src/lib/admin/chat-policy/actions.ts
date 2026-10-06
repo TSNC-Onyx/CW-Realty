@@ -12,7 +12,7 @@ import { MAX_TESTS, TEST_LIMIT_MESSAGE, isAtTestLimit } from "@/lib/admin/chat-p
 import { fetchTestResults } from "@/lib/admin/chat-policy/test-runner";
 import { getRunSummary, hasCurrentChecksVersion, hasCurrentSafetyChecks, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 import { getDatabaseErrorMessage, isUniqueViolation } from "@/lib/admin/database-errors";
-import { getQueryLoad, type LoadFailure, type LoadResult } from "@/lib/admin/load-result";
+import { getLoaded, getLoadFailure, getQueryLoad, type LoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
 import { OWNER_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
@@ -35,8 +35,13 @@ const QUESTIONS_CHANGED_MESSAGE = "The test questions changed while the tests ra
 const RUN_SIZE_CHANGED_MESSAGE = "The safety checks changed during this run. Run the tests again.";
 const NO_PUBLISH_RUN_MESSAGE = "Run the tests and pass them on this draft before publishing.";
 const SAFETY_CHECKS_OUTDATED_MESSAGE = "Run the tests again: the safety checks were updated since the last run.";
+const LATEST_RUN_FAILED_MESSAGE = "Your latest test run had failures. Fix them and run the tests again.";
+const DRAFT_CHANGED_ELSEWHERE_MESSAGE = "This draft changed in another window or by a restore. Copy your edits, then reload the page.";
 
-type DraftRow = { id: string; version: number };
+type DraftRow = { id: string; version: number; updated_at: string };
+
+/** What a restore reports, so the page can offer Undo only when the open draft was replaced. */
+export type RestoreResult = QuickResult & { draftId?: string; updatedAt?: string; didReplace?: boolean };
 
 type DatabaseError = { code?: string; message: string };
 
@@ -48,13 +53,46 @@ function noteLoadCause(error: DatabaseError): void {
   noteProblemCause({ stage: "load", severity: "error", code: error.code ?? "database", detail: error.message });
 }
 
-async function updateDraft({ supabase, tenantId }: AdminContext, { draftId, body }: { draftId: string; body: string }): Promise<DraftUpdate> {
-  const result = await supabase.from("chat_policies").update({ body }).eq("tenant_id", tenantId).eq("id", draftId).eq("status", "draft").select("id, version").maybeSingle<DraftRow>();
+/** expectedUpdatedAt: save only over the text the editor last saw (two windows, or a restore since; bug 12). */
+async function updateDraft({ supabase, tenantId }: AdminContext, { draftId, body, expectedUpdatedAt }: { draftId: string; body: string; expectedUpdatedAt?: string }): Promise<DraftUpdate> {
+  const query = supabase.from("chat_policies").update({ body }).eq("tenant_id", tenantId).eq("id", draftId).eq("status", "draft");
+  const guarded = expectedUpdatedAt ? query.eq("updated_at", expectedUpdatedAt) : query;
+  const result = await guarded.select("id, version, updated_at").maybeSingle<DraftRow>();
   return { updated: result.data, error: result.error };
 }
 
 async function insertDraft({ supabase, tenantId }: AdminContext, body: string) {
-  return supabase.from("chat_policies").insert({ tenant_id: tenantId, body }).select("id, version").single<DraftRow>();
+  return supabase.from("chat_policies").insert({ tenant_id: tenantId, body }).select("id, version, updated_at").single<DraftRow>();
+}
+
+/** Whether the draft is still open: a guarded save that matched nothing then means it changed since. */
+async function fetchIsStillDraft({ supabase, tenantId }: AdminContext, draftId: string): Promise<LoadResult<boolean>> {
+  const result = await supabase.from("chat_policies").select("id").eq("tenant_id", tenantId).eq("id", draftId).eq("status", "draft").maybeSingle<{ id: string }>();
+  if (result.error) return getLoadFailure("draft to save", result.error);
+  return getLoaded(result.data !== null);
+}
+
+type DraftSave = { admin: AdminContext; values: Record<string, string>; body: string };
+
+/** The saved draft's state, or null when there is no open draft to save over (then a new one starts). */
+async function fetchSavedOverDraft({ admin, values, body }: DraftSave): Promise<ActionState | null> {
+  const draftId = z.uuid().safeParse(values.draftId).data;
+  if (!draftId) return null;
+  const expectedUpdatedAt = values.expectedUpdatedAt || undefined;
+  const { updated, error } = await updateDraft(admin, { draftId, body, expectedUpdatedAt });
+  if (error) return getErrorState({ message: getDatabaseErrorMessage(error), values });
+  if (updated) return getSuccessState(`Draft version ${updated.version} saved. Run the tests before publishing.`);
+  if (!expectedUpdatedAt) return null;
+  const isStillDraft = await fetchIsStillDraft(admin, draftId);
+  if (!isStillDraft.isLoaded) return getErrorState({ message: "We couldn't check the draft. Try again in a moment.", values });
+  // Still a draft: someone changed it since. Published or gone: start a new draft, as before.
+  return isStillDraft.data ? getErrorState({ message: DRAFT_CHANGED_ELSEWHERE_MESSAGE, values }) : null;
+}
+
+async function fetchSavedNewDraft({ admin, values, body }: DraftSave): Promise<ActionState> {
+  const { data, error } = await insertDraft(admin, body);
+  if (error || !data) return getErrorState({ message: error ? getDatabaseErrorMessage(error) : "The draft was not saved.", values });
+  return getSuccessState(`Saved as draft version ${data.version}. Run the tests before publishing.`);
 }
 
 /** Saves over the open draft, or starts a new version when there is none (or it was published meanwhile). */
@@ -63,42 +101,70 @@ export async function savePolicyDraftAction(_state: ActionState, formData: FormD
     const values = getFormValues(formData);
     const parsed = policyBodySchema.safeParse(values.body ?? "");
     if (!parsed.success) return getErrorState({ message: "Fix the policy text.", fieldErrors: { body: parsed.error.issues[0]?.message ?? "Check the policy text" }, values });
-    const draftId = z.uuid().safeParse(values.draftId).data;
-    const { updated, error: updateError } = draftId ? await updateDraft(admin, { draftId, body: parsed.data }) : { updated: null, error: null };
-    if (updateError) return getErrorState({ message: getDatabaseErrorMessage(updateError), values });
-    if (updated) {
-      revalidatePath(POLICY_PATH);
-      return getSuccessState(`Draft version ${updated.version} saved. Run the tests before publishing.`);
-    }
-    const { data, error } = await insertDraft(admin, parsed.data);
-    if (error || !data) return getErrorState({ message: error ? getDatabaseErrorMessage(error) : "The draft was not saved.", values });
-    revalidatePath(POLICY_PATH);
-    return getSuccessState(`Saved as draft version ${data.version}. Run the tests before publishing.`);
+    const save = { admin, values, body: parsed.data };
+    const state = (await fetchSavedOverDraft(save)) ?? (await fetchSavedNewDraft(save));
+    if (state.status === "success") revalidatePath(POLICY_PATH);
+    return state;
   });
 }
 
-export async function restorePolicyVersionAction(policyId: string): Promise<QuickResult> {
-  return runQuickAction({ action: "chat_policy.restore_version", roles: OWNER_ROLES }, async (admin) => {
-    const { data: source, error: readError } = await admin.supabase.from("chat_policies").select("body, version").eq("tenant_id", admin.tenantId).eq("id", z.uuid().parse(policyId)).maybeSingle<{ body: string; version: number }>();
+type RestoreSource = { id: string; body: string; version: number };
+
+/** The open working draft: the newest version, when it is a draft (the same rule as the page's editor). */
+async function fetchWorkingDraftId({ supabase, tenantId }: AdminContext): Promise<LoadResult<string | null>> {
+  const result = await supabase.from("chat_policies").select("id, status").eq("tenant_id", tenantId).order("version", { ascending: false }).limit(1).maybeSingle<{ id: string; status: string }>();
+  if (result.error) return getLoadFailure("open draft", result.error);
+  return getLoaded(result.data?.status === "draft" ? result.data.id : null);
+}
+
+/** Copies the source into the open draft; null when it was published meanwhile (then a new draft starts). */
+async function fetchReplacedDraft(admin: AdminContext, { source, draftId }: { source: RestoreSource; draftId: string }): Promise<RestoreResult | null> {
+  const { updated, error } = await updateDraft(admin, { draftId, body: source.body });
+  if (error) return getQuickError(getDatabaseErrorMessage(error));
+  if (!updated) return null;
+  const message = `Version ${source.version} copied into your open draft (version ${updated.version}). Run the tests again before publishing.`;
+  return { ...getQuickSuccess(message), draftId: updated.id, updatedAt: updated.updated_at, didReplace: true };
+}
+
+async function fetchInsertedDraft(admin: AdminContext, source: RestoreSource): Promise<RestoreResult> {
+  const { data, error } = await insertDraft(admin, source.body);
+  if (error || !data) return getQuickError(error ? getDatabaseErrorMessage(error) : "The version was not restored.");
+  return { ...getQuickSuccess(`Version ${source.version} copied into new draft version ${data.version}. Test it, then publish.`), draftId: data.id, updatedAt: data.updated_at, didReplace: false };
+}
+
+/** Restore (bug 12): into the open draft when there is one, otherwise as a new draft. */
+async function fetchRestoredDraft(admin: AdminContext, source: RestoreSource): Promise<RestoreResult> {
+  const workingDraftId = await fetchWorkingDraftId(admin);
+  if (!workingDraftId.isLoaded) return noteLoadError(workingDraftId.failure, "We couldn't load your open draft. Try again in a moment.");
+  if (workingDraftId.data === source.id) return getQuickError("That version is already your open draft.");
+  const replaced = workingDraftId.data ? await fetchReplacedDraft(admin, { source, draftId: workingDraftId.data }) : null;
+  return replaced ?? (await fetchInsertedDraft(admin, source));
+}
+
+export async function restorePolicyVersionAction(policyId: string): Promise<RestoreResult> {
+  return runQuickAction<RestoreResult>({ action: "chat_policy.restore_version", roles: OWNER_ROLES }, async (admin) => {
+    const { data: source, error: readError } = await admin.supabase.from("chat_policies").select("id, body, version").eq("tenant_id", admin.tenantId).eq("id", z.uuid().parse(policyId)).maybeSingle<RestoreSource>();
     if (readError) {
       noteLoadCause(readError);
       return getQuickError("We couldn't load that version. Try again in a moment.");
     }
     if (!source) return getQuickError("That version no longer exists.");
-    const { data, error } = await insertDraft(admin, source.body);
-    if (error || !data) return getQuickError(error ? getDatabaseErrorMessage(error) : "The version was not restored.");
-    revalidatePath(POLICY_PATH);
-    return getQuickSuccess(`Version ${source.version} copied into new draft version ${data.version}. Test it, then publish.`);
+    const result = await fetchRestoredDraft(admin, source);
+    if (result.status === "success") revalidatePath(POLICY_PATH);
+    return result;
   });
 }
 
 type PublishDraft = { updated_at: string };
 
-/** The draft's newest passing run with the database's own stamps (cwr.publish_chat_policy), or null. */
+/**
+ * The draft's newest run with the database's own stamps (cwr.publish_chat_policy), passed or not,
+ * or null. Bug 14: a later failed run blocks publishing, as the page already shows.
+ */
 async function fetchPublishRunResults(admin: AdminContext, { policyId, draft, testsChangedAt }: { policyId: string; draft: PublishDraft; testsChangedAt: string | null }) {
-  const base = admin.supabase.from("chat_policy_test_runs").select("results").eq("tenant_id", admin.tenantId).eq("policy_id", policyId).eq("is_passed", true).eq("policy_updated_at", draft.updated_at);
+  const base = admin.supabase.from("chat_policy_test_runs").select("is_passed, results").eq("tenant_id", admin.tenantId).eq("policy_id", policyId).eq("policy_updated_at", draft.updated_at);
   const stamped = testsChangedAt === null ? base.is("tests_updated_at", null) : base.eq("tests_updated_at", testsChangedAt);
-  const result = await stamped.order("ran_at", { ascending: false }).limit(1).maybeSingle<{ results: PolicyTestResult[] }>();
+  const result = await stamped.order("ran_at", { ascending: false }).limit(1).maybeSingle<{ is_passed: boolean; results: PolicyTestResult[] }>();
   return getQueryLoad({ part: "test run to publish", result, empty: null });
 }
 
@@ -121,6 +187,7 @@ async function fetchPublishBlocker(admin: AdminContext, policyId: string): Promi
   const run = await fetchPublishRunResults(admin, { policyId, draft: draft.data, testsChangedAt: testsChangedAt.data });
   if (!run.isLoaded) return noteLoadError(run.failure, "We couldn't load the last test run. Try again in a moment.");
   if (!run.data) return noteStoppedRunError({ code: "no_publish_run", message: NO_PUBLISH_RUN_MESSAGE });
+  if (!run.data.is_passed) return noteStoppedRunError({ code: "latest_run_failed", message: LATEST_RUN_FAILED_MESSAGE });
   if (!hasCurrentSafetyChecks(run.data.results)) return noteStoppedRunError({ code: "safety_checks_outdated", message: SAFETY_CHECKS_OUTDATED_MESSAGE });
   return null;
 }

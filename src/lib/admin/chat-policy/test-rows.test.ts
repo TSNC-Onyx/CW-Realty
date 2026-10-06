@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPublishBlocker, getTestCounts, getTestRows, isAtTestLimit, MAX_TESTS, type OwnerTest, type PublishBlockerInput } from "@/lib/admin/chat-policy/test-rows";
+import { getHistoryWhenLabel, getPublishBlocker, getRestoreState, getTestCounts, getTestRows, isAtTestLimit, MAX_TESTS, SAVE_FIRST_REASON, type OwnerTest, type PublishBlockerInput } from "@/lib/admin/chat-policy/test-rows";
 import { BUILT_IN_TEST_CASES, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 
 const OPEN_HOURS: OwnerTest = { id: "t1", question: "When are you open?", expectedOutcome: "answer", expectedSection: "Office hours" };
@@ -8,7 +8,7 @@ const PRICE: OwnerTest = { id: "t2", question: "What does it cost?", expectedOut
 
 const NO_COUNTS = { all: 0, failed: 0, untested: 0, stale: 0, passed: 0 };
 
-const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, hasCurrentChecksVersion: true, counts: NO_COUNTS };
+const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasUnsavedChanges: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, hasCurrentChecksVersion: true, counts: NO_COUNTS };
 
 function getResult({ testCase, isPassed }: { testCase: PolicyTestCase; isPassed: boolean }): PolicyTestResult {
   return { ...testCase, outcome: "answer", reply: "Reply.", citedSections: [], isPassed };
@@ -209,6 +209,55 @@ describe("getPublishBlocker and the safety checks version", () => {
 
     // Assert
     expect(blocker).toBe("1 question failed. Fix the draft or the questions, then run the tests again.");
+  });
+});
+
+describe("unsaved changes and Restore (bugs 11–12)", () => {
+  it("asks to save first before anything else, even when Publish would be ready", () => {
+    // Arrange / Act
+    const blocker = getPublishBlocker({ ...READY_INPUT, isReadyToPublish: true, hasUnsavedChanges: true });
+
+    // Assert
+    expect(blocker).toBe(SAVE_FIRST_REASON);
+  });
+
+  it("hides Restore on the open draft itself", () => {
+    // Arrange / Act
+    const state = getRestoreState({ hasUnsavedChanges: false, isRunning: false, isWorkingDraft: true });
+
+    // Assert
+    expect(state.isShown).toBe(false);
+  });
+
+  it("locks Restore while a test run is going", () => {
+    // Arrange / Act
+    const state = getRestoreState({ hasUnsavedChanges: false, isRunning: true, isWorkingDraft: false });
+
+    // Assert
+    expect(state).toEqual({ isShown: true, isDisabled: true });
+  });
+
+  it("locks Restore while the editor holds unsaved text", () => {
+    // Arrange / Act
+    const state = getRestoreState({ hasUnsavedChanges: true, isRunning: false, isWorkingDraft: false });
+
+    // Assert
+    expect(state.isDisabled).toBe(true);
+  });
+});
+
+describe("getHistoryWhenLabel (bug 14)", () => {
+  it.each([
+    [{ status: "published" as const, isWorkingDraft: false }, "Live now · published Oct 4"],
+    [{ status: "archived" as const, isWorkingDraft: false }, "Earlier live version · published Oct 4"],
+    [{ status: "draft" as const, isWorkingDraft: true }, "Draft · last saved Oct 5"],
+    [{ status: "draft" as const, isWorkingDraft: false }, "Unused draft · last saved Oct 5"],
+  ])("labels %o as %s", (row, label) => {
+    // Arrange / Act
+    const whenLabel = getHistoryWhenLabel({ ...row, savedText: "Oct 5", publishedText: "Oct 4" });
+
+    // Assert
+    expect(whenLabel).toBe(label);
   });
 });
 

@@ -14,7 +14,7 @@ const EDITOR_COUNTS: EditorCounts = {
   trashItems: 0,
   people: 1,
   weekChats: 14,
-  policySummary: "Version 1 is live",
+  policySummary: "On: visitors get answers from version 1.",
   closedDeals: 0,
   trackingSummary: "Off — no tracking on the website",
 };
