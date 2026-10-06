@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 
+import { useChatTopics, type TopicEntry } from "@/components/chat/use-chat-topics";
+
 import { sendChatMessageAction } from "@/lib/chat/chat-actions";
 import type { AssistantReply } from "@/lib/chat/assistant-reply";
 import type { SendChatResult } from "@/lib/chat/chat-results";
@@ -20,9 +22,11 @@ const STORAGE_KEY = "cwr-chat";
 const EXPIRED_NOTICE = "I'm sorry, that chat timed out. Just send your question again and we'll start fresh.";
 const UNREACHABLE_NOTICE = "I'm sorry, I couldn't get your message through. Please try again, or tap “Talk to a person”.";
 
-export type ChatEntry = { id: string; role: "visitor" | "assistant"; text: string; citedSections: string[] };
+/** source "guided": a topic button or its answer; topicId: the topic an answer belongs to (its page link). */
+export type ChatEntry = { id: string; role: "visitor" | "assistant"; text: string; citedSections: string[]; source?: "guided"; topicId?: string };
 
-type StoredChat = { sessionId: string | null; entries: ChatEntry[] };
+/** topicId: where the visitor is in the topic buttons, so a page change keeps their place. */
+type StoredChat = { sessionId: string | null; entries: ChatEntry[]; topicId?: string };
 
 const EMPTY_CHAT: StoredChat = { sessionId: null, entries: [] };
 
@@ -85,15 +89,30 @@ export function useChatConversation() {
     writeStoredChat(chat);
   }, [chat]);
 
+  const topics = useChatTopics({
+    sessionId: chat.sessionId,
+    topicId: chat.topicId,
+    isBlocked: pendingQuestion !== null,
+    onEntries: (entries: TopicEntry[]) => setChat((current) => ({ ...current, entries: [...current.entries, ...entries.map((entry) => ({ ...entry, id: crypto.randomUUID(), source: "guided" as const }))] })),
+    onSessionId: (sessionId) => setChat((current) => ({ ...current, sessionId })),
+    onTopicId: (topicId) => setChat((current) => ({ ...current, topicId })),
+  });
+
+  // A chat started by topic buttons still runs the Quick Check before its first typed question.
+  const hasTypedQuestion = chat.entries.some((entry) => entry.role === "visitor" && entry.source !== "guided");
+
   /** Resolves true when the question was answered, so the composer can clear its text. */
   const submitQuestion = async ({ question, turnstileToken, botCheckKey }: { question: string; turnstileToken: string; botCheckKey: string }): Promise<boolean> => {
     setPendingQuestion(question);
     setNotice(null);
-    const result = await fetchChatResult({ sessionId: chat.sessionId, message: question, turnstileToken, botCheckKey });
+    // A tap still being saved may be starting this chat: wait for it, so both land in one chat.
+    const sessionId = await topics.whenSaved();
+    const result = await fetchChatResult({ sessionId, message: question, turnstileToken, botCheckKey });
     setPendingQuestion(null);
     setIsOutdated(isOutdatedPageResult(result));
-    if (chat.sessionId === null) setBotCheckKey(crypto.randomUUID());
-    if (result.status === "replied") setChat((current) => ({ sessionId: result.sessionId, entries: [...current.entries, ...getEntries({ question: result.question, reply: result.reply })] }));
+    // A new key re-runs the Quick Check whenever this send was a chat's first typed question.
+    if (chat.sessionId === null || !hasTypedQuestion) setBotCheckKey(crypto.randomUUID());
+    if (result.status === "replied") setChat((current) => ({ ...current, sessionId: result.sessionId, entries: [...current.entries, ...getEntries({ question: result.question, reply: result.reply })] }));
     // Features §3 key event "chats": a question the assistant received (sent only after consent).
     if (result.status === "replied") pushKeyEvent({ name: "cwr_chat_question", eventId: crypto.randomUUID() });
     if (result.status === "expired") setChat((current) => ({ ...current, sessionId: null }));
@@ -103,5 +122,5 @@ export function useChatConversation() {
 
   const latestQuestion = getRedactedText(pendingQuestion ?? chat.entries.findLast((entry) => entry.role === "visitor")?.text ?? "");
 
-  return { sessionId: chat.sessionId, entries: chat.entries, pendingQuestion, notice, isOutdated, botCheckKey, latestQuestion, submitQuestion, dismissNotice: () => setNotice(null) };
+  return { sessionId: chat.sessionId, entries: chat.entries, pendingQuestion, notice, isOutdated, botCheckKey, latestQuestion, hasTypedQuestion, topics, submitQuestion, dismissNotice: () => setNotice(null) };
 }

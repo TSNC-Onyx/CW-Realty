@@ -107,3 +107,17 @@ export function getMatchingSection(sections: string[], citedTitle: string): stri
   const wanted = getNormalizedTitle(citedTitle);
   return sections.find((section) => getNormalizedTitle(section) === wanted) ?? null;
 }
+
+/**
+ * The text under a public section heading, up to the next heading, or null when the policy
+ * has no such public section (chat topic buttons, docs/cwr-chat-guided-options-plan.md §3).
+ */
+export function getPublicSectionText(policyBody: string, title: string): string | null {
+  const wanted = getNormalizedTitle(title);
+  const lines = getPolicyLines(policyBody);
+  const start = lines.findIndex((line) => !line.isPrivate && line.heading !== null && getNormalizedTitle(line.heading.title) === wanted);
+  if (start === -1) return null;
+  const end = lines.findIndex((line, index) => index > start && line.heading !== null);
+  const body = lines.slice(start + 1, end === -1 ? undefined : end).filter((line) => !line.isPrivate);
+  return body.map((line) => line.text.trim()).filter((text) => text.length > 0).join(" ");
+}

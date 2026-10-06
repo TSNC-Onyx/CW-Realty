@@ -15,6 +15,7 @@ vi.mock("@/lib/chat/chat-log", () => ({
   fetchOpenChatSession: vi.fn(),
   fetchPublishedPolicy: vi.fn(),
   isOverHourlyChatLimit: vi.fn(),
+  markFirstQuestion: vi.fn(),
   recordChatExchange: vi.fn(),
   startChatSession: vi.fn(),
 }));
@@ -25,7 +26,7 @@ vi.mock("@/lib/observability/report-visitor-problem", () => ({ reportVisitorProb
 
 const SESSION_ID = "0b6f7c1e-2f4a-4b8e-9a51-6c1d2e3f4a5b";
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
-const SESSION = { id: SESSION_ID, tenantId: "tenant", visitorMessageCount: 0, turns: [] };
+const SESSION = { id: SESSION_ID, tenantId: "tenant", typedQuestionCount: 1, guidedStepCount: 0, turns: [] };
 const POLICY = { id: "policy", body: "# Office hours\nWeekdays 9 to 5.\n# Emergencies\nIf anyone is in danger, call 911 first." };
 const EMERGENCY_QUESTION = "There's a gas leak at my rental. What do I do?";
 
@@ -85,7 +86,7 @@ describe("sendChatMessage", () => {
 
   it("stops a chat at the message limit", async () => {
     // Arrange
-    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, visitorMessageCount: 20 });
+    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, typedQuestionCount: 20 });
 
     // Act
     const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
@@ -157,7 +158,7 @@ describe("sendChatMessage", () => {
     // Arrange
     const model = vi.fn().mockResolvedValue(null);
     const turns = Array.from({ length: 30 }, (_unused, index) => ({ role: index % 2 === 0 ? ("visitor" as const) : ("assistant" as const), body: `turn ${index}` }));
-    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, visitorMessageCount: 15, turns });
+    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...SESSION, typedQuestionCount: 15, turns });
     vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(model);
 
     // Act
@@ -338,6 +339,71 @@ describe("sendChatMessage", () => {
 
       // Assert
       expect(result.status === "replied" && result.reply.text).toBe(HANDOFF_TEXT.restrictedNumber);
+    });
+  });
+
+  describe("chats started by topic buttons", () => {
+    const BUTTON_SESSION = { ...SESSION, typedQuestionCount: 0, guidedStepCount: 3 };
+
+    it("runs the Quick Check before the chat's first typed question", async () => {
+      // Arrange
+      vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue(BUTTON_SESSION);
+      vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockClear();
+
+      // Act
+      const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+      // Assert
+      expect({ status: result.status, checks: vi.mocked(visitorBotCheck.passesVisitorBotCheck).mock.calls.length }).toEqual({ status: "replied", checks: 1 });
+    });
+
+    it("refuses the first typed question when the Quick Check fails", async () => {
+      // Arrange
+      vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue(BUTTON_SESSION);
+      vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(false);
+
+      // Act
+      const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+      // Assert
+      expect({ status: result.status, logged: vi.mocked(chatLog.recordChatExchange).mock.calls.length }).toEqual({ status: "error", logged: 0 });
+    });
+
+    it("joins the hourly limit at the chat's first typed question, and is turned away when it's full", async () => {
+      // Arrange
+      vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue(BUTTON_SESSION);
+      vi.mocked(chatLog.markFirstQuestion).mockClear();
+      const marked = await sendChatMessage({ input: getInput(), visitor: VISITOR }).then(() => vi.mocked(chatLog.markFirstQuestion).mock.calls.length);
+      vi.mocked(chatLog.isOverHourlyChatLimit).mockResolvedValue(true);
+
+      // Act
+      const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+      // Assert
+      expect({ marked, reply: result.status === "replied" && result.reply.text }).toEqual({ marked: 1, reply: HANDOFF_TEXT.unavailable });
+    });
+
+    it("skips the Quick Check once the chat has a typed question", async () => {
+      // Arrange
+      vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...BUTTON_SESSION, typedQuestionCount: 1 });
+      vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockClear();
+
+      // Act
+      await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+      // Assert
+      expect(vi.mocked(visitorBotCheck.passesVisitorBotCheck)).not.toHaveBeenCalled();
+    });
+
+    it("never counts taps toward the 20-question limit", async () => {
+      // Arrange
+      vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ ...BUTTON_SESSION, typedQuestionCount: 19, guidedStepCount: 30 });
+
+      // Act
+      const result = await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+      // Assert
+      expect(result.status).toBe("replied");
     });
   });
 });

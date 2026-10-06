@@ -53,6 +53,22 @@ test("the phone action bar's Chat button opens the chat full screen", async ({ p
   expect((await panel.boundingBox())?.width).toBe(VIEWPORTS.phone.width);
 });
 
+test("on a tablet, the chat floats above the action bar instead of covering the page", async ({ page }) => {
+  // Arrange
+  await page.setViewportSize(VIEWPORTS.tablet);
+  await page.goto("/about");
+
+  // Act
+  await page.getByRole("navigation", { name: "Quick contact" }).getByRole("link", { name: "Chat" }).click();
+
+  // Assert
+  const panel = page.getByRole("dialog", { name: "CWR Assistant" });
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  const actionBar = await page.getByRole("navigation", { name: "Quick contact" }).boundingBox();
+  expect({ width: box?.width, isAboveActionBar: (box?.y ?? 0) + (box?.height ?? 0) <= (actionBar?.y ?? 0), modal: await panel.getAttribute("aria-modal"), overflow: await page.evaluate(() => getComputedStyle(document.documentElement).overflow) }).toEqual({ width: 380, isAboveActionBar: true, modal: null, overflow: "visible" });
+});
+
 test("on a phone, Tab stays inside the full-screen chat", async ({ page }) => {
   // Arrange
   await page.setViewportSize(VIEWPORTS.phone);
@@ -191,9 +207,15 @@ test("on desktop, the page still scrolls with the chat open", async ({ page }) =
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
 });
 
+/** The panel's 250ms opening fade briefly dims its text; a scan mid-fade would measure that. */
+async function waitForChatToSettle(page: Page): Promise<void> {
+  await page.getByRole("dialog", { name: "CWR Assistant" }).evaluate((panel) => Promise.all(panel.getAnimations({ subtree: true }).filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity).map((animation) => animation.finished)));
+}
+
 test("the open chat has no WCAG 2.2 AA violations", async ({ page }) => {
   // Arrange
   await openChatOnDesktop(page);
+  await waitForChatToSettle(page);
 
   // Act
   const results = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(WCAG_TAGS).analyze();

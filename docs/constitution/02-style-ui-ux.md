@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`). §11.8, §11.9, §11.10, §11.12, and §11.13 corrected to describe the built site with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`).
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`). §11.8, §11.9, §11.10, §11.12, and §11.13 corrected to describe the built site with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`). §11.3, §11.5, and §11.13 (chat topic buttons and chat window B) amended with owner approval on 2026-10-06 (`docs/cwr-chat-guided-options-plan.md`).
 
 ## 1. Brand Identity
 
@@ -146,7 +146,7 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.3 Shape, borders, and elevation
 
-- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags
+- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners
 - Circles only for the logo, 64px round icon badges, and the 8px status dot
 - Borders: 1px `field-border` on inputs; 2px on buttons and invalid/valid fields; 2px `ink` rule on top of cards
 - No shadows and no gradients; depth comes from `dark` bands and `surface-soft` sections
@@ -168,7 +168,7 @@ Status colors (always with an icon and words, never color alone):
 |---|---|---|---|---|
 | L | 56px | 28px | 17px | Main page actions; full width on mobile |
 | M | 48px | 22px | 16px | Default |
-| S | 44px | 22px | 15px | Header, messages, cookie banner, chat |
+| S | 44px | 22px (12px on chat topic buttons, owner choice 2026-10-06) | 15px | Header, messages, cookie banner, chat |
 
 | Variant | Light background | Dark background |
 |---|---|---|
@@ -273,7 +273,7 @@ Status colors (always with an icon and words, never color alone):
 ### 11.13 Other components
 
 - **Empty state**: 1px dashed `field-border` box, 40×24px padding, centered; 64px round `dark` badge with a 30px gold icon; H3 at 24px; one line on what belongs here and the next step (16px, 420px max width); one M main button
-- **AI chat window**: 380px wide panel (full screen on mobile); `dark` header with 32px logo, "CWR Assistant", and "AI · NOT A PERSON" in 14px gold bold; visitor messages on `dark` with white text, right aligned; assistant messages on `surface-soft`, left aligned, ending with a 14px `muted` "Source: Policy [section]" line; "Talk to a person" S secondary button always visible; on desktop, an M gold "Chat with us" launcher sits 32px from the bottom-right corner
+- **AI chat window** (window B, owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): full screen on mobile; on tablet and desktop a 380px wide panel with a 1px `field-border` edge, 640px tall growing with the screen up to 880px, floating above the tablet action bar; `dark` header with 32px logo, "CWR Assistant", and "AI · NOT A PERSON" in 14px gold bold; visitor messages on `dark` with white text, right aligned; assistant messages on `surface-soft`, left aligned, ending with a 14px `muted` "Source: Policy [section]" line; a new answer scrolls to its first line; above the question box, a topic tray on `page` with a 1px `line` top border, a 14px `ink` eyebrow, and S `ink` topic buttons (6px corners, 12px side padding, two per row, a lone last button fills its row; the one place several main buttons share a section), with Back and All topics text links; a topic answer follows a 0.7–1.5s pause shown as three fading dots (none for Emergency help); "Talk to a person" S secondary button always visible under the question box; on desktop, an M gold "Chat with us" launcher sits 32px from the bottom-right corner
 - **Listing photo gallery** (owner choice 2026-10-02, `docs/cwr-reliability-round-plan.md` D2): one 3:2 photo at a time with the status tag over it; swipe (native scroll-snap), the 48×48px ‹ › arrows (1px `line` border, `page` fill, faded to 40% at the ends, no wrap-around), a 16px "3 of 8" counter between them, a row of 72×48px thumbnail buttons (2px `ink` ring on the current one, the row scrolls on its own), or ←/→ keys; W3C carousel roles; nothing moves by itself; one photo shows no controls; a photo that fails to load shows the placeholder
 - **Full-screen photo viewer**: tapping the gallery photo opens a full-window `dark` modal dialog with the whole photo (not cropped), a "3 of 8" counter and a 48px Close button at the top, ‹ › arrows below, swipe and ←/→ keys; Esc, Close, or a phone's Back button close it and return to the listing
 - **Cookie banner**: `dark` panel at the bottom of the screen above the action bar; 16px white text; "Accept all" and "Reject all" as equal S gold main buttons, plus a "Cookie settings" text link

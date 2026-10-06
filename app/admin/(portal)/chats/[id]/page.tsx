@@ -12,8 +12,11 @@ export const metadata: Metadata = { title: "Chat" };
 
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
+// Topic buttons are tagged "Button": the visitor tapped one, and the reply is its fixed answer, not AI.
 function getMessageNote(message: ChatMessageRow): string {
-  if (message.role === "visitor") return "Visitor";
+  const isButton = message.source === "guided";
+  if (message.role === "visitor") return isButton ? "Visitor · Button" : "Visitor";
+  if (isButton) return `Button answer · cited ${message.cited_sections.join(", ") || "no section"}`;
   if (message.outcome === "handoff") return "Assistant (AI) · offered a person";
   return `Assistant (AI) · cited ${message.cited_sections.join(", ")}`;
 }

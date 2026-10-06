@@ -408,3 +408,84 @@ test("a chat hand-off reaches the inbox with the conversation, and the chat is i
   await page.getByRole("link", { name: /Do you handle rentals\?/ }).first().click();
   await expect(page.getByRole("link", { name: /open the inbox message/ })).toBeVisible();
 });
+
+// Chat topic buttons (docs/cwr-chat-guided-options-plan.md). Last in this serial file: it
+// publishes a policy with quick answers, which turns the buttons on for the rest of the run.
+// Made-up answers: the real policy text never goes in the repo.
+const QUICK_ANSWER_POLICY = [
+  "# Emergencies",
+  "If anyone is in danger, call 911 first.",
+  "# Quick answer: What does it cost?",
+  "Nothing up front. The cost is taken out at closing.",
+  "# Quick answer: About our team",
+  "Our team helps you buy and sell. Each member has a profile on our Team page.",
+].join("\n");
+
+test("topic buttons answer from the published policy, and each tap is logged as a button", async ({ page, browser }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await saveDraft(page, QUICK_ANSWER_POLICY);
+  await expect(page.getByRole("status").filter({ hasText: /draft version \d+ saved/i })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("listitem").filter({ hasText: "# Quick answer: What does it cost?" })).toContainText("Ready");
+  await expect(page.getByRole("listitem").filter({ hasText: "# Quick answer: Buying a home" })).toContainText("Missing");
+  await recordPassingRun();
+  await page.reload();
+  await page.getByRole("button", { name: "Publish this draft to the website chat" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
+  const visitor = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+
+  // Act
+  await visitor.goto("/about");
+  await visitor.getByRole("button", { name: "Chat with us" }).click();
+  const topics = visitor.getByRole("group", { name: "Chat topics" });
+  await expect(topics.getByRole("button")).toHaveText(["Rentals & management", "CWR TouchUp", "Something else"]);
+  await topics.getByRole("button", { name: "CWR TouchUp" }).click();
+  await topics.getByRole("button", { name: "What does it cost?" }).click();
+
+  // Assert
+  const log = visitor.getByRole("log", { name: "Chat messages" });
+  await expect(log.getByText("Nothing up front. The cost is taken out at closing.")).toBeVisible();
+  await expect(log.getByText("Source: Policy · Quick answer: What does it cost?")).toBeVisible();
+  await expect(log.getByRole("link", { name: "Learn about TouchUp" })).toHaveAttribute("href", "/services/cwr-touchup");
+  await expect(visitor.getByLabel("Or type your question")).toBeVisible();
+  await expect.poll(() => visitor.evaluate(() => JSON.parse(window.sessionStorage.getItem("cwr-chat") ?? "{}").sessionId ?? null)).not.toBeNull();
+  await page.goto("/admin/chats");
+  await page.getByRole("link", { name: /What does it cost\?/ }).first().click();
+  await expect(page.getByText(/^Visitor · Button · /)).toBeVisible();
+  await expect(page.getByText(/^Button answer · cited Quick answer: What does it cost\? · /)).toBeVisible();
+  await visitor.close();
+});
+
+test("a page link in a topic answer keeps the chat open on the next page on a computer", async ({ page }) => {
+  // Arrange
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/about");
+  await page.getByRole("button", { name: "Chat with us" }).click();
+  const topics = page.getByRole("group", { name: "Chat topics" });
+  await topics.getByRole("button", { name: "Something else" }).click();
+  await topics.getByRole("button", { name: "About our team" }).click();
+
+  // Act
+  await page.getByRole("log", { name: "Chat messages" }).getByRole("link", { name: "Meet the team" }).click();
+
+  // Assert
+  await expect(page).toHaveURL(/\/team$/);
+  await expect(page.getByRole("dialog", { name: "CWR Assistant" })).toBeVisible();
+});
+
+test("the emergency button answers at once, with no pause", async ({ page }) => {
+  // Arrange
+  await page.goto("/about");
+  await page.getByRole("button", { name: "Chat with us" }).click();
+  const topics = page.getByRole("group", { name: "Chat topics" });
+  await topics.getByRole("button", { name: "Rentals & management" }).click();
+  await topics.getByRole("button", { name: "I'm a tenant" }).click();
+
+  // Act
+  await topics.getByRole("button", { name: "Emergency help" }).click();
+
+  // Assert
+  await expect(page.getByRole("log", { name: "Chat messages" }).getByText(/If you're having any emergency/)).toBeVisible({ timeout: 500 });
+});
