@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HANDOFF_TEXT } from "@/lib/chat/assistant-reply";
+import { EMERGENCY_TEXT } from "@/lib/chat/handoff-text";
 import * as reporting from "@/lib/observability/report-visitor-problem";
 import * as chatLog from "@/lib/chat/chat-log";
 import * as claudeModel from "@/lib/chat/claude-model";
@@ -25,7 +26,8 @@ vi.mock("@/lib/observability/report-visitor-problem", () => ({ reportVisitorProb
 const SESSION_ID = "0b6f7c1e-2f4a-4b8e-9a51-6c1d2e3f4a5b";
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
 const SESSION = { id: SESSION_ID, tenantId: "tenant", visitorMessageCount: 0, turns: [] };
-const POLICY = { id: "policy", body: "# Office hours\nWeekdays 9 to 5." };
+const POLICY = { id: "policy", body: "# Office hours\nWeekdays 9 to 5.\n# Emergencies\nIf anyone is in danger, call 911 first." };
+const EMERGENCY_QUESTION = "There's a gas leak at my rental. What do I do?";
 
 function getInput(overrides: Partial<{ sessionId: string | null; message: string }> = {}) {
   return { sessionId: SESSION_ID, message: "When are you open?", turnstileToken: "token", ...overrides };
@@ -289,5 +291,53 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect(reporting.reportVisitorProblem).not.toHaveBeenCalled();
+  });
+
+  describe("emergencies", () => {
+    it.each([
+      ["the assistant answers normally", () => undefined],
+      ["the owner has turned the assistant off", () => vi.mocked(chatLog.fetchIsAssistantOn).mockResolvedValue(false)],
+      ["no API key is set", () => vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(null)],
+    ])("gives the fixed emergency reply, citing the policy, when %s", async (_case, arrange) => {
+      // Arrange
+      arrange();
+
+      // Act
+      const result = await sendChatMessage({ input: getInput({ message: EMERGENCY_QUESTION }), visitor: VISITOR });
+
+      // Assert
+      expect(result.status === "replied" && result.reply).toEqual({ outcome: "answer", text: EMERGENCY_TEXT, citedSections: ["Emergencies"] });
+    });
+
+    it("never asks the model about an emergency", async () => {
+      // Arrange
+      const model = vi.fn();
+      vi.mocked(claudeModel.getClaudeAnswerModel).mockReturnValue(model);
+
+      // Act
+      await sendChatMessage({ input: getInput({ message: EMERGENCY_QUESTION }), visitor: VISITOR });
+
+      // Assert
+      expect(model).not.toHaveBeenCalled();
+    });
+
+    it("gives the emergency reply even once the hourly limit is reached", async () => {
+      // Arrange
+      vi.mocked(chatLog.isOverHourlyChatLimit).mockResolvedValue(true);
+
+      // Act
+      const result = await sendChatMessage({ input: getInput({ sessionId: null, message: EMERGENCY_QUESTION }), visitor: VISITOR });
+
+      // Assert
+      expect(result.status === "replied" && result.reply.text).toBe(EMERGENCY_TEXT);
+    });
+
+    it("still keeps a restricted number out, even in an emergency", async () => {
+      // Arrange / Act
+      const result = await sendChatMessage({ input: getInput({ message: "Gas leak! My SSN is 123-45-6789" }), visitor: VISITOR });
+
+      // Assert
+      expect(result.status === "replied" && result.reply.text).toBe(HANDOFF_TEXT.restrictedNumber);
+    });
   });
 });

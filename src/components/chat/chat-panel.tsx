@@ -97,7 +97,7 @@ export function ChatPanel({ isOpen, contact, onClose }: ChatPanelProps) {
       <ChatHeader onClose={onClose} />
       {view === "chat" ? (
         <>
-          <ChatMessageList entries={conversation.entries} pendingQuestion={conversation.pendingQuestion} />
+          <ChatMessageList entries={conversation.entries} pendingQuestion={conversation.pendingQuestion} contact={contact} />
           {conversation.notice && (
             <div className="px-4 pb-2">
               <Message tone="error" title={conversation.notice} onDismiss={conversation.dismissNotice} />

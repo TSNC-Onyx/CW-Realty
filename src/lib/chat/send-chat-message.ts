@@ -7,7 +7,9 @@ import { fetchChatTenantId, fetchIsAssistantOn, fetchOpenChatSession, fetchPubli
 import type { SendChatResult } from "@/lib/chat/chat-results";
 import { CHAT_TURNSTILE_ACTION, MAX_VISITOR_MESSAGES_PER_CHAT, chatMessageSchema, type ChatMessageInput } from "@/lib/chat/chat-schemas";
 import { getClaudeAnswerModel, type NoAnswerReason } from "@/lib/chat/claude-model";
-import { getRedactedText } from "@/lib/chat/restricted-data";
+import { getEmergencyReply, isEmergencyMessage } from "@/lib/chat/emergency";
+import { getPublicSections } from "@/lib/chat/policy-sections";
+import { getRedactedText, hasRestrictedNumber } from "@/lib/chat/restricted-data";
 import type { ProblemSeverity } from "@/lib/observability/problem-types";
 import { reportVisitorProblem } from "@/lib/observability/report-visitor-problem";
 import { isOutdatedBotCheckKey } from "@/lib/security/bot-check-key";
@@ -42,6 +44,11 @@ const REJECTED_DETAIL = "The assistant's reply failed a server check; the visito
 const DIGIT_PATTERN = /\p{Nd}/gu;
 const EMAIL_PATTERN = /\S+@\S+/g;
 
+/** An emergency gets the fixed reply even when the assistant is off, busy or failing. Restricted numbers still come first. */
+function isEmergencyQuestion(question: string): boolean {
+  return isEmergencyMessage(question) && !hasRestrictedNumber(question);
+}
+
 type OpenedSession = { session: ChatSession } | { result: SendChatResult };
 
 type NewSessionRequest = { question: string; turnstileToken: string; botCheckKey?: string; visitor: Visitor };
@@ -53,7 +60,8 @@ async function getOutdatedPageResult(): Promise<SendChatResult> {
 
 async function getBusyResult(question: string): Promise<SendChatResult> {
   await reportVisitorProblem({ action: "site.chat_message", stage: "rule", severity: "warning", code: "hourly_cap", detail: "The site-wide hourly chat limit was reached; the visitor was offered a person." });
-  return { status: "replied", sessionId: null, question: getRedactedText(question), reply: getHandoffReply(HANDOFF_TEXT.unavailable) };
+  const reply = isEmergencyQuestion(question) ? getEmergencyReply([]) : getHandoffReply(HANDOFF_TEXT.unavailable);
+  return { status: "replied", sessionId: null, question: getRedactedText(question), reply };
 }
 
 async function openNewSession({ question, turnstileToken, botCheckKey, visitor }: NewSessionRequest): Promise<OpenedSession> {
@@ -113,7 +121,13 @@ async function fetchModelReply({ policyBody, turns }: { policyBody: string; turn
   return reply;
 }
 
+async function fetchEmergencyReply(tenantId: string): Promise<AssistantReply> {
+  const policy = await fetchPublishedPolicy(tenantId);
+  return getEmergencyReply(policy ? getPublicSections(policy.body) : []);
+}
+
 async function fetchReplyOrHandoff({ tenantId, turns }: { tenantId: string; turns: ChatTurn[] }): Promise<AssistantReply> {
+  if (isEmergencyQuestion(turns.at(-1)?.body ?? "")) return fetchEmergencyReply(tenantId);
   if (!(await fetchIsAssistantOn(tenantId))) return getHandoffReply(HANDOFF_TEXT.unavailable);
   const policy = await fetchPublishedPolicy(tenantId);
   if (!policy) return reportNotReady("no_published_policy");
