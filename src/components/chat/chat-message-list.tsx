@@ -72,7 +72,7 @@ export function ChatMessageList({ entries, pendingQuestion, contact }: ChatMessa
   }, [entries.length, pendingQuestion]);
 
   return (
-    <div role="log" aria-live="polite" aria-label="Chat messages" className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+    <div role="log" aria-live="polite" aria-label="Chat messages" className="flex flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-4">
       <AssistantBubble text={GREETING} citedSections={[]} />
       {entries.map((entry) => (entry.role === "visitor" ? <VisitorBubble key={entry.id} text={entry.text} /> : <AssistantBubble key={entry.id} text={entry.text} citedSections={entry.citedSections} contact={entry.id === latestEmergencyId ? contact : null} />))}
       {pendingQuestion !== null && (

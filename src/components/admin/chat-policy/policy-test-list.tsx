@@ -25,6 +25,10 @@ const HANDOFF_REASON_TEXT: Record<HandoffReason, string> = {
   bad_citation: "the answer named a section the policy doesn't have",
   leaked_marker: "the answer contained the assistant's own instructions",
   unsafe_conversation: "the AI-written reply had a number, price, email or link, so an approved line was used",
+  lead: "the visitor sounded ready to buy, sell, rent or have a home managed, so the lead line offered a broker",
+  lead_downgraded: "the question tied who lives somewhere to where to live, so the plain hand-off line was used instead of the lead line",
+  policy_fact_in_conversation: "the AI-written small talk repeated facts or names from the policy, so an approved line was used",
+  slang_in_conversation: "the AI-written small talk used slang, so an approved line was used",
 };
 
 const AI_WRITTEN_NOTE = "Passed · the visitor would see an AI-written reply. Read it before publishing.";

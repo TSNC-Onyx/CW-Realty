@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { policyBodySchema } from "@/lib/admin/chat-policy/policy-schema";
 import { AdminAccessError, OWNER_ROLES, requireAdmin } from "@/lib/admin/require-admin";
-import { fetchAssistantReply, getUnrepeatedTurnReply, type AnswerRequest } from "@/lib/chat/answer-question";
+import { fetchAssistantReply, getRepairedTurnReply, type AnswerRequest } from "@/lib/chat/answer-question";
 import { getReplyWithoutRejectedText, type AssistantReply } from "@/lib/chat/assistant-reply";
 import { MAX_CHAT_MESSAGE_LENGTH, MAX_VISITOR_MESSAGES_PER_CHAT } from "@/lib/chat/chat-schemas";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
@@ -49,7 +49,7 @@ async function reportTestChatError({ stage, severity, code, message }: TestChatP
 async function fetchModelReply(request: AnswerRequest): Promise<TestChatResult> {
   try {
     const reply = getReplyWithoutRejectedText(await fetchAssistantReply(request));
-    return { status: "replied", reply: getUnrepeatedTurnReply({ reply, turns: request.turns }) };
+    return { status: "replied", reply: getRepairedTurnReply({ reply, turns: request.turns }) };
   } catch (error) {
     return reportTestChatError({ stage: "external", severity: "error", code: getErrorName(error), message: NO_REPLY_MESSAGE });
   }

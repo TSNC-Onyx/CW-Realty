@@ -11,9 +11,10 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 // The run button stays on the page and keeps keyboard focus; when Stop goes away at the end
 // of a run, focus moves back to the run button instead of being lost (WCAG 2.4.3).
 
-type PolicyTestRunButtonProps = { draftId: string; onRunningChange: (isRunning: boolean) => void };
+/** isBlocked: the editor holds unsaved text, so a run would test something other than what's on screen (bug 11). */
+type PolicyTestRunButtonProps = { draftId: string; isBlocked: boolean; onRunningChange: (isRunning: boolean) => void };
 
-export function PolicyTestRunButton({ draftId, onRunningChange }: PolicyTestRunButtonProps) {
+export function PolicyTestRunButton({ draftId, isBlocked, onRunningChange }: PolicyTestRunButtonProps) {
   const runButtonRef = useRef<HTMLButtonElement>(null);
   const stopButtonRef = useRef<HTMLButtonElement>(null);
   const handleRunningChange = (isRunning: boolean) => {
@@ -25,7 +26,7 @@ export function PolicyTestRunButton({ draftId, onRunningChange }: PolicyTestRunB
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-3">
-        <button ref={runButtonRef} type="button" onClick={startRun} aria-disabled={isRunning} aria-busy={isRunning} aria-label={isRunning ? "Testing the saved draft" : "Run the tests on the saved draft"} className={buttonClassName}>
+        <button ref={runButtonRef} type="button" onClick={isBlocked ? undefined : startRun} aria-disabled={isRunning || isBlocked} aria-busy={isRunning} aria-label={isRunning ? "Testing the saved draft" : "Run the tests on the saved draft"} className={buttonClassName}>
           {isRunning ? <LoaderCircle aria-hidden size={ICON_SIZE.button} className="animate-spin" /> : <FlaskConical aria-hidden size={ICON_SIZE.button} />}
           {isRunning ? "Testing…" : "Run the tests"}
         </button>

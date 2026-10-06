@@ -2,6 +2,7 @@
 
 import { MessageCircle } from "lucide-react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
@@ -20,6 +21,15 @@ export function ChatLauncher({ contact }: { contact: ContactLinks | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const [shownPathname, setShownPathname] = useState(pathname);
+
+  // Leaving the page closes the chat, so its phone scroll lock never outlives the page (bug 19).
+  // Focus belongs to the new page, so it isn't moved back to the launcher.
+  if (pathname !== shownPathname) {
+    setShownPathname(pathname);
+    if (isOpen) setIsOpen(false);
+  }
 
   useEffect(() => {
     const handleOpen = () => {

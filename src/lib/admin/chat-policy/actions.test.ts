@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { finishPolicyTestRunAction, publishPolicyAction, runPolicyTestBatchAction, startPolicyTestRunAction } from "@/lib/admin/chat-policy/actions";
+import { finishPolicyTestRunAction, publishPolicyAction, restorePolicyVersionAction, runPolicyTestBatchAction, savePolicyDraftAction, startPolicyTestRunAction } from "@/lib/admin/chat-policy/actions";
+import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import * as queries from "@/lib/admin/chat-policy/queries";
 import { BATCH_SIZE } from "@/lib/admin/chat-policy/test-batches";
 import type { TestJob } from "@/lib/admin/chat-policy/test-jobs";
@@ -17,8 +18,10 @@ const OWNER_IDS = ["a0000000-0000-4000-8000-000000000001", "a0000000-0000-4000-8
 
 type TableResult = { data: unknown; error: { code?: string; message: string } | null; count?: number };
 
-const { tableResults, queryCalls, jobs, models, rpc, adminRpc, reportProblem } = vi.hoisted(() => ({
+const { tableResults, tableQueues, queryCalls, jobs, models, rpc, adminRpc, reportProblem } = vi.hoisted(() => ({
   tableResults: new Map<string, TableResult>(),
+  /** Results handed out one call at a time (oldest first) before falling back to tableResults. */
+  tableQueues: new Map<string, TableResult[]>(),
   queryCalls: [] as { table: string; method: string; args: unknown[] }[],
   jobs: {
     insertTestJob: vi.fn(),
@@ -36,9 +39,10 @@ const { tableResults, queryCalls, jobs, models, rpc, adminRpc, reportProblem } =
 
 /** A chainable stand-in for a Supabase query: every filter returns itself; awaiting it gives the table's result. */
 function getFakeQuery(table: string) {
-  const result = () => tableResults.get(table) ?? { data: [], error: null };
+  const queued = tableQueues.get(table)?.shift();
+  const result = () => queued ?? tableResults.get(table) ?? { data: [], error: null };
   const query: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "is", "in", "order", "limit", "returns", "insert"]) {
+  for (const method of ["select", "eq", "is", "in", "order", "limit", "returns", "insert", "update", "single"]) {
     query[method] = (...args: unknown[]) => {
       queryCalls.push({ table, method, args });
       return query;
@@ -74,12 +78,12 @@ function getPassingResults(testCases: PolicyTestCase[]): PolicyTestResult[] {
   return testCases.map((testCase) => ({ ...testCase, outcome: testCase.expectedOutcome, reply: "Reply.", citedSections: [], isPassed: true }));
 }
 
-/** The 7 built-in checks, passed with the approved wording; no checksVersion means a run from before the change. */
+/** The built-in checks, passed with the approved wording; no checksVersion means a run from before the change. */
 function getBuiltInResults(checksVersion?: string): PolicyTestResult[] {
   return BUILT_IN_TEST_CASES.map((testCase) => ({ ...testCase, outcome: "handoff", reply: HANDOFF_TEXT.needsPerson, citedSections: [], isPassed: true, isApprovedWording: true, ...(checksVersion ? { checksVersion } : {}) }));
 }
 
-/** A whole run of the 2 owner questions in its 2 batches: 7 built-ins + 1 owner, then 1 owner. null: built-ins from before the change. */
+/** A whole run of the 2 owner questions in its 2 batches: the 8 built-ins, then the 2 owner questions. null: built-ins from before the change. */
 function getCompleteParts(checksVersion: string | null = SAFETY_CHECKS_VERSION) {
   const ownerResults = getPassingResults(getQuestionRows(OWNER_IDS).map((row) => ({ question: row.question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false })));
   const results = [...getBuiltInResults(checksVersion ?? undefined), ...ownerResults];
@@ -92,6 +96,7 @@ function getCompleteParts(checksVersion: string | null = SAFETY_CHECKS_VERSION) 
 beforeEach(() => {
   vi.clearAllMocks();
   tableResults.clear();
+  tableQueues.clear();
   queryCalls.length = 0;
   tableResults.set("chat_policies", { data: DRAFT, error: null });
   models.getClaudeAnswerModel.mockReturnValue({});
@@ -122,7 +127,7 @@ describe("startPolicyTestRunAction", () => {
 
     // Assert
     expect({ result, testIds: jobs.insertTestJob.mock.calls[0]?.[0].testIds, modelCalls: models.fetchTestResults.mock.calls.length }).toEqual({
-      result: expect.objectContaining({ status: "success", runKey: RUN_KEY, batchCount: 2, total: 9 }),
+      result: expect.objectContaining({ status: "success", runKey: RUN_KEY, batchCount: 2, total: 10 }),
       testIds: [OWNER_IDS[1], OWNER_IDS[0]],
       modelCalls: 0,
     });
@@ -168,7 +173,7 @@ describe("runPolicyTestBatchAction", () => {
     tableResults.set("chat_policy_tests", { data: getQuestionRows([OWNER_IDS[1] as string]), error: null });
 
     // Act
-    const result = await runPolicyTestBatchAction({ runKey: RUN_KEY, batchIndex: 0 });
+    const result = await runPolicyTestBatchAction({ runKey: RUN_KEY, batchIndex: 1 });
 
     // Assert
     expect({ message: result.message, modelCalls: models.fetchTestResults.mock.calls.length }).toEqual({ message: expect.stringContaining("The test questions changed"), modelCalls: 0 });
@@ -215,7 +220,7 @@ describe("runPolicyTestBatchAction", () => {
     const result = await runPolicyTestBatchAction({ runKey: RUN_KEY, batchIndex: 1 });
 
     // Assert
-    expect({ result, questionsAsked: models.fetchTestResults.mock.calls[0]?.[0].testCases.length }).toEqual({ result: expect.objectContaining({ status: "success", done: 16, total: 27 }), questionsAsked: BATCH_SIZE });
+    expect({ result, questionsAsked: models.fetchTestResults.mock.calls[0]?.[0].testCases.length }).toEqual({ result: expect.objectContaining({ status: "success", done: 16, total: 28 }), questionsAsked: BATCH_SIZE });
   });
 
   it("saves the results the server got, never anything from the browser", async () => {
@@ -315,7 +320,7 @@ describe("runPolicyTestBatchAction when the safety checks changed mid-run", () =
 describe("publishPolicyAction", () => {
   it("refuses a run saved before the current safety checks", async () => {
     // Arrange
-    tableResults.set("chat_policy_test_runs", { data: { results: getBuiltInResults() }, error: null });
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: true, results: getBuiltInResults() }, error: null });
 
     // Act
     const result = await publishPolicyAction(DRAFT_ID);
@@ -327,7 +332,7 @@ describe("publishPolicyAction", () => {
   it("refuses a run where a built-in check got words the AI wrote", async () => {
     // Arrange
     const results = getBuiltInResults(SAFETY_CHECKS_VERSION).map((result, index) => (index === 2 ? { ...result, reply: "Lots of young families love the west side!", isApprovedWording: false } : result));
-    tableResults.set("chat_policy_test_runs", { data: { results }, error: null });
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: true, results }, error: null });
 
     // Act
     const result = await publishPolicyAction(DRAFT_ID);
@@ -338,7 +343,7 @@ describe("publishPolicyAction", () => {
 
   it("publishes a draft whose run passed every current safety check with approved wording", async () => {
     // Arrange
-    tableResults.set("chat_policy_test_runs", { data: { results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: true, results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
 
     // Act
     const result = await publishPolicyAction(DRAFT_ID);
@@ -350,12 +355,139 @@ describe("publishPolicyAction", () => {
   it("looks for a run with no question stamp when no question was ever saved", async () => {
     // Arrange
     vi.mocked(queries.fetchTestsChangedAt).mockResolvedValueOnce({ isLoaded: true, data: null });
-    tableResults.set("chat_policy_test_runs", { data: { results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: true, results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
 
     // Act
     await publishPolicyAction(DRAFT_ID);
 
     // Assert
     expect(queryCalls.filter((call) => call.table === "chat_policy_test_runs" && call.method === "is")).toEqual([{ table: "chat_policy_test_runs", method: "is", args: ["tests_updated_at", null] }]);
+  });
+});
+
+describe("publishPolicyAction and the newest run (bug 14)", () => {
+  it("refuses when the newest run for this save failed, even after an earlier pass", async () => {
+    // Arrange
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: false, results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
+
+    // Act
+    const result = await publishPolicyAction(DRAFT_ID);
+
+    // Assert
+    expect({ message: result.message, isPublished: adminRpc.mock.calls.length > 0 }).toEqual({ message: expect.stringContaining("Your latest test run had failures."), isPublished: false });
+  });
+
+  it("no longer filters the run lookup to passing runs", async () => {
+    // Arrange
+    tableResults.set("chat_policy_test_runs", { data: { is_passed: true, results: getBuiltInResults(SAFETY_CHECKS_VERSION) }, error: null });
+
+    // Act
+    await publishPolicyAction(DRAFT_ID);
+
+    // Assert
+    expect(queryCalls.some((call) => call.table === "chat_policy_test_runs" && call.method === "eq" && call.args[0] === "is_passed")).toBe(false);
+  });
+});
+
+function getSaveForm(fields: Record<string, string>): FormData {
+  const formData = new FormData();
+  for (const [name, value] of Object.entries({ body: "# Office hours\nWeekdays.", ...fields })) formData.set(name, value);
+  return formData;
+}
+
+const SAVED_ROW = { id: DRAFT_ID, version: 3, updated_at: "2026-10-05T12:00:00Z" };
+
+describe("savePolicyDraftAction with the save guard (bug 12)", () => {
+  it("saves over the draft when its stamp still matches", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: SAVED_ROW, error: null }]);
+
+    // Act
+    const state = await savePolicyDraftAction(IDLE_ACTION_STATE, getSaveForm({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at }));
+
+    // Assert
+    expect({ status: state.status, isGuarded: queryCalls.some((call) => call.method === "eq" && call.args[0] === "updated_at" && call.args[1] === DRAFT.updated_at) }).toEqual({ status: "success", isGuarded: true });
+  });
+
+  it("refuses when the draft changed since the editor last saw it", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: null, error: null }, { data: { id: DRAFT_ID }, error: null }]);
+
+    // Act
+    const state = await savePolicyDraftAction(IDLE_ACTION_STATE, getSaveForm({ draftId: DRAFT_ID, expectedUpdatedAt: "2026-10-01T00:00:00Z" }));
+
+    // Assert
+    expect({ status: state.status, message: state.message }).toEqual({ status: "error", message: expect.stringContaining("This draft changed in another window or by a restore.") });
+  });
+
+  it("starts a new draft when the open one was published meanwhile", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: null, error: null }, { data: null, error: null }, { data: { ...SAVED_ROW, version: 4 }, error: null }]);
+
+    // Act
+    const state = await savePolicyDraftAction(IDLE_ACTION_STATE, getSaveForm({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at }));
+
+    // Assert
+    expect(state.message).toBe("Saved as draft version 4. Run the tests before publishing.");
+  });
+
+  it("saves as before when no stamp is sent", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: SAVED_ROW, error: null }]);
+
+    // Act
+    const state = await savePolicyDraftAction(IDLE_ACTION_STATE, getSaveForm({ draftId: DRAFT_ID }));
+
+    // Assert
+    expect({ status: state.status, isGuarded: queryCalls.some((call) => call.method === "eq" && call.args[0] === "updated_at") }).toEqual({ status: "success", isGuarded: false });
+  });
+});
+
+const SOURCE_ID = "33333333-3333-4333-8333-333333333333";
+const SOURCE = { id: SOURCE_ID, body: "# Office hours\nOld text.", version: 1 };
+
+describe("restorePolicyVersionAction (bug 12)", () => {
+  it("copies the version into the open draft and reports it for Undo", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: SOURCE, error: null }, { data: { id: DRAFT_ID, status: "draft" }, error: null }, { data: SAVED_ROW, error: null }]);
+
+    // Act
+    const result = await restorePolicyVersionAction(SOURCE_ID);
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "success", draftId: DRAFT_ID, updatedAt: SAVED_ROW.updated_at, didReplace: true, message: "Version 1 copied into your open draft (version 3). Run the tests again before publishing." }));
+  });
+
+  it("starts a new draft, with no Undo, when no draft is open", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: SOURCE, error: null }, { data: { id: "live", status: "published" }, error: null }, { data: { ...SAVED_ROW, version: 4 }, error: null }]);
+
+    // Act
+    const result = await restorePolicyVersionAction(SOURCE_ID);
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "success", didReplace: false, message: "Version 1 copied into new draft version 4. Test it, then publish." }));
+  });
+
+  it("reports no replacement when the open draft was published in another tab meanwhile", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: SOURCE, error: null }, { data: { id: DRAFT_ID, status: "draft" }, error: null }, { data: null, error: null }, { data: { ...SAVED_ROW, version: 4 }, error: null }]);
+
+    // Act
+    const result = await restorePolicyVersionAction(SOURCE_ID);
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "success", didReplace: false }));
+  });
+
+  it("won't restore the open draft onto itself", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: { ...SOURCE, id: DRAFT_ID }, error: null }, { data: { id: DRAFT_ID, status: "draft" }, error: null }]);
+
+    // Act
+    const result = await restorePolicyVersionAction(DRAFT_ID);
+
+    // Assert
+    expect(result.message).toContain("already your open draft");
   });
 });

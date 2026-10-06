@@ -226,7 +226,7 @@ test("after a passing run the owner publishes, then restores an old version as a
   // Assert
   await expect(page.getByRole("status").filter({ hasText: /copied into new draft version/ })).toBeVisible();
   await page.reload();
-  await expect(page.getByText(/^Version \d+ is live, published/)).toBeVisible();
+  await expect(page.getByText(/^(On: visitors get answers from version \d+\.|Not connected: the AI key is missing)/)).toBeVisible();
   await expect(page.getByRole("heading", { name: /^Editing draft version \d+$/ })).toBeVisible();
 });
 
@@ -247,7 +247,7 @@ test("after publishing, the test list shows the live version's passing results i
   await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
   const rowText = await page.getByRole("listitem").filter({ hasText: question }).textContent();
   const statusText = await page.getByText(/^Live version \d+ · tested /).isVisible();
-  const isNoteShown = await page.getByText(/^Version \d+ is live\. To change it, edit the policy above and save\./).isVisible();
+  const isNoteShown = await page.getByText(/^Version \d+ is live\. To change or re-test it, edit the policy above and save, or tap Restore on version \d+ in Version history\./).isVisible();
   const lockedCount = await page.getByText(/^Publish is locked: /).count();
   await client.from("chat_policy_tests").delete().eq("id", added?.id);
 
@@ -288,6 +288,97 @@ test("a passed hand-off test answered in the AI's own words is marked for the ow
 
   // Assert
   expect(rowText).toContain("Passed · the visitor would see an AI-written reply. Read it before publishing.");
+});
+
+test("with unsaved edits, Publish says to save first and Restore waits", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+
+  // Act
+  await page.getByLabel("Policy text").fill(`# Office hours\nUnsaved text ${Date.now()}`);
+
+  // Assert
+  await expect(page.getByText("Publish is locked: Save your changes first, so the tests check what you see.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Restore version \d+ /u }).first()).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Run the tests on the saved draft" })).toHaveAttribute("aria-disabled", "true");
+});
+
+test("restoring into the open draft shows the restored text, and Undo puts the earlier text back", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: live } = await client.from("chat_policies").select("version, body").eq("status", "published").single();
+  const draftText = `# Office hours\nDraft text before restore ${Date.now()}`;
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await saveDraft(page, draftText);
+  await expect(page.getByRole("status").filter({ hasText: /draft version \d+ saved/i })).toBeVisible();
+  await page.reload();
+
+  // Act
+  await page.getByRole("button", { name: `Restore version ${live?.version} into your open draft` }).click();
+  await expect(page.getByRole("status").filter({ hasText: /copied into your open draft/ })).toBeVisible();
+  // Forms send line breaks as CRLF; a text box shows them as LF.
+  const liveText = (live?.body ?? "").replace(/\r\n/g, "\n");
+  await expect.poll(() => page.getByLabel("Policy text").inputValue()).toBe(liveText);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Your draft's earlier text is back." })).toBeVisible();
+  await page.reload();
+
+  // Assert
+  await expect(page.getByLabel("Policy text")).toHaveValue(draftText);
+});
+
+test("Undo after a restore is refused once the draft was saved again", async ({ page }) => {
+  // Arrange
+  const { data: live } = await getServiceClient().from("chat_policies").select("version").eq("status", "published").single();
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  await page.getByRole("button", { name: `Restore version ${live?.version} into your open draft` }).click();
+  await expect(page.getByRole("status").filter({ hasText: /copied into your open draft/ })).toBeVisible();
+
+  // Act
+  await saveDraft(page, `# Office hours\nSaved after the restore ${Date.now()}`);
+  await page.getByRole("button", { name: "Undo" }).first().click();
+
+  // Assert
+  await expect(page.getByText("This draft changed in another window or by a restore. Copy your edits, then reload the page.")).toBeVisible();
+});
+
+test("a save from a window with unsaved edits never overwrites a newer save from another window", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  const otherWindow = await page.context().newPage();
+  await otherWindow.goto(POLICY_PATH);
+  await page.getByLabel("Policy text").fill(`# Office hours\nWindow A edit ${Date.now()}`);
+  await saveDraft(otherWindow, `# Office hours\nWindow B save ${Date.now()}`);
+  await expect(otherWindow.getByRole("status").filter({ hasText: /draft version \d+ saved/i })).toBeVisible();
+  // Something else on window A's page refreshes it while its edits stay unsaved.
+  await page.getByRole("button", { name: "Turn the website chat assistant off" }).click();
+  await page.getByRole("button", { name: "Turn the website chat assistant on" }).click();
+  await expect(page.getByText("The switch is on.")).toBeVisible();
+
+  // Act
+  await page.getByRole("button", { name: "Save draft" }).click();
+
+  // Assert
+  await expect(page.getByText("This draft changed in another window or by a restore. Copy your edits, then reload the page.")).toBeVisible();
+  await otherWindow.close();
+});
+
+test("the version history says what each date means and offers no Restore on the open draft", async ({ page }) => {
+  // Arrange
+  await signInFully(page, owner);
+
+  // Act
+  await page.goto(POLICY_PATH);
+
+  // Assert
+  const history = page.getByRole("region", { name: "Version history" }).or(page.locator('section[aria-labelledby="history-heading"]'));
+  await expect(history.getByText(/· Draft · last saved /)).toBeVisible();
+  await expect(history.getByText(/· Live now · published /)).toBeVisible();
+  await expect(history.getByRole("listitem").filter({ hasText: "· Draft · last saved" }).getByRole("button")).toHaveCount(0);
 });
 
 test("a chat hand-off reaches the inbox with the conversation, and the chat is in the history", async ({ page }) => {
