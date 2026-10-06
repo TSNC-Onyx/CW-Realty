@@ -5,6 +5,7 @@ import { PolicyDraftStateProvider } from "@/components/admin/chat-policy/policy-
 import { PolicyEditor } from "@/components/admin/chat-policy/policy-editor";
 import { PolicyHistory, type PolicyVersionRow } from "@/components/admin/chat-policy/policy-history";
 import { PolicyTestPanel, type TestScore } from "@/components/admin/chat-policy/policy-test-panel";
+import { QuickAnswerChecklist } from "@/components/admin/chat-policy/quick-answer-checklist";
 import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import {
@@ -31,6 +32,7 @@ import type { AdminContext } from "@/lib/admin/require-admin";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getAssistantStatus } from "@/lib/chat/assistant-status";
+import { getQuickAnswerStatuses } from "@/lib/chat/guided-steps";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
 
 export const metadata: Metadata = { title: "Chatbot policy" };
@@ -163,6 +165,10 @@ export default async function ChatPolicyPage() {
             <LoadProblem notice={notice} />
           </>
         )}
+      </section>
+      <section aria-labelledby="topics-heading" className="mb-12 border-t-2 border-ink pt-6">
+        <h2 id="topics-heading" className="type-h3 mb-2">Chat topic buttons</h2>
+        {working.isLoaded ? <QuickAnswerChecklist statuses={getQuickAnswerStatuses(working.data.body)} /> : <LoadProblem notice={notice} />}
       </section>
       <section aria-labelledby="publish-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="publish-heading" className="type-h3 mb-2">Test and publish</h2>

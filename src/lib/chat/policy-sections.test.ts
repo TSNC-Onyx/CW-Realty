@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getMatchingSection, getPolicySections, getPrivateSections, getPublicPolicy, getPublicSections } from "@/lib/chat/policy-sections";
+import { getMatchingSection, getPolicySections, getPrivateSections, getPublicPolicy, getPublicSections, getPublicSectionText } from "@/lib/chat/policy-sections";
 
 describe("getPolicySections", () => {
   it("lists every Markdown heading as a section", () => {
@@ -181,5 +181,45 @@ describe("getPublicSections and getPrivateSections", () => {
 
     // Assert
     expect(sections).toHaveLength(6);
+  });
+});
+
+describe("getPublicSectionText", () => {
+  const POLICY = [
+    "# Office hours",
+    "We are open weekdays.",
+    "",
+    "## Quick answer: Buying a home",
+    "We guide buyers to the keys.",
+    "  Plans start at $500.  ",
+    "## Selling a home",
+    "We help sellers.",
+    "# Owner notes (private)",
+    "## Quick answer: Get started",
+    "Never shown.",
+  ].join("\n");
+
+  it("joins a section's lines up to the next heading", () => {
+    // Arrange / Act
+    const text = getPublicSectionText(POLICY, "quick answer: buying a home");
+
+    // Assert
+    expect(text).toBe("We guide buyers to the keys. Plans start at $500.");
+  });
+
+  it("never reads a section inside a private one, and returns null for a missing one", () => {
+    // Arrange / Act
+    const results = [getPublicSectionText(POLICY, "Quick answer: Get started"), getPublicSectionText(POLICY, "Quick answer: Team")];
+
+    // Assert
+    expect(results).toEqual([null, null]);
+  });
+
+  it("gives an empty text for a heading with nothing under it", () => {
+    // Arrange / Act
+    const text = getPublicSectionText("# Quick answer: Team\n# Office hours\nWeekdays.", "Quick answer: Team");
+
+    // Assert
+    expect(text).toBe("");
   });
 });

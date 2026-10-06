@@ -7,7 +7,7 @@ import type { ConsentChoice } from "@/lib/tracking/consent";
 export const DEFAULT_TAG_SCRIPT_ORIGIN = "https://www.googletagmanager.com";
 const CONSENT_UPDATE_WAIT_MS = 500;
 
-export type KeyEventName = "cwr_call" | "cwr_text" | "cwr_contact_form" | "cwr_booking_request" | "cwr_chat_question" | "cwr_chat_handoff";
+export type KeyEventName = "cwr_call" | "cwr_text" | "cwr_contact_form" | "cwr_booking_request" | "cwr_chat_question" | "cwr_chat_topic" | "cwr_chat_handoff";
 
 /** Enhanced Conversions fields: SHA-256 hashes only, never the plain email or phone. */
 export type GoogleUserData = { sha256_email_address?: string; sha256_phone_number?: string };

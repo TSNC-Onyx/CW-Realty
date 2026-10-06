@@ -2,16 +2,17 @@
 
 import { useEffect, useState, type RefObject } from "react";
 
-// Bug 19 (docs/cwr-chatbot-round-3-plan.md): below 1024px the chat covers the whole screen.
+// Bug 19 (docs/cwr-chatbot-round-3-plan.md): on phones (below 768px) the chat covers the whole
+// screen; tablets get the floating window (docs/cwr-chat-guided-options-plan.md §4).
 // While it is open there it is a modal, and it follows the visual viewport, so the iPhone
 // keyboard never hides the question box. The CSS that uses these values is in globals.css.
 
-export const FULL_SCREEN_QUERY = "(width < 1024px)";
+export const FULL_SCREEN_QUERY = "(width < 768px)";
 
 const HEIGHT_PROPERTY = "--chat-viewport-height";
 const TOP_PROPERTY = "--chat-viewport-top";
 
-/** True while the chat would cover the whole screen (phones and small tablets). */
+/** True while the chat would cover the whole screen (phones). */
 export function useIsFullScreenChat(): boolean {
   const [isFullScreen, setIsFullScreen] = useState(() => window.matchMedia(FULL_SCREEN_QUERY).matches);
   useEffect(() => {

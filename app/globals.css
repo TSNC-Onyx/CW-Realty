@@ -415,7 +415,7 @@
       color 200ms var(--ease-out),
       transform 200ms var(--ease-out);
   }
-  .btn:active:not(:disabled, [aria-busy="true"]) {
+  .btn:active:not(:disabled, [aria-busy="true"], [aria-disabled="true"]) {
     transform: translateY(1px);
   }
   .btn[aria-busy="true"] {
@@ -435,6 +435,15 @@
     min-height: 44px;
     padding-inline: 22px;
     font-size: 15px;
+  }
+  /* Chat topic buttons only (owner-approved exception to §11.3 and §11.5, 2026-10-06;
+     docs/cwr-chat-guided-options-plan.md §4): subtly rounded, 12px side padding so every
+     label fits two per row on a 320px phone, and room for a label to wrap to two lines. */
+  .btn-chat-topic {
+    border-radius: 6px;
+    padding: 8px 12px;
+    line-height: 1.25;
+    text-align: center;
   }
   .btn-main {
     background: var(--color-ink);
@@ -895,12 +904,60 @@
   animation: menu-open 250ms var(--ease-out);
 }
 
+/* Chat topic replies (docs/cwr-chat-guided-options-plan.md §4): three dots fade in turn,
+   opacity only (Style §7); still dots when the visitor prefers reduced motion. */
+@keyframes chat-typing-dot {
+  from {
+    opacity: 0.25;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@utility chat-typing-dot {
+  animation: chat-typing-dot 600ms ease-in-out infinite alternate;
+  &:nth-child(2) {
+    animation-delay: 200ms;
+  }
+  &:nth-child(3) {
+    animation-delay: 400ms;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat-typing-dot {
+    animation: none;
+  }
+}
+
+/* Chat window B on tablets and computers (docs/cwr-chat-guided-options-plan.md §4). Outside
+   every @layer, like the phone rules below, so it beats the layered inset-0 utility. A 380px
+   window that grows with the screen, from 640px up to 880px, so long answers aren't cut off;
+   it never runs under the site header, and on tablets it floats above the action bar. */
+@media (width >= 768px) {
+  .chat-panel {
+    inset: auto;
+    right: 32px;
+    bottom: calc(var(--action-bar-space) + 16px);
+    width: 380px;
+    height: clamp(640px, calc(100dvh - var(--header-height) - var(--action-bar-space) - 48px), 880px);
+    max-height: calc(100dvh - var(--header-height) - var(--action-bar-space) - 32px);
+  }
+}
+@media (width >= 1024px) {
+  .chat-panel {
+    bottom: 32px;
+    height: clamp(640px, calc(100dvh - var(--header-height) - 64px), 880px);
+    max-height: calc(100dvh - var(--header-height) - 32px);
+  }
+}
+
 /* Chat on phones (docs/cwr-chatbot-round-3-plan.md, bug 19). Outside every @layer on purpose:
    unlayered rules beat Tailwind's layered inset-0 utility. While the full-screen chat is open,
    the page behind it stays still (same idea as the menu's html:has(dialog[open]) lock), and the
    panel follows the visual viewport, which the iPhone keyboard shrinks. The two variables are
-   set by chat-panel.tsx from window.visualViewport; without them it falls back to 100dvh. */
-@media (width < 1024px) {
+   set by chat-panel.tsx from window.visualViewport; without them it falls back to 100dvh.
+   Phones only: tablets get the floating window (docs/cwr-chat-guided-options-plan.md §4). */
+@media (width < 768px) {
   html:has(.chat-panel[data-open]) {
     overflow: hidden;
     overscroll-behavior: none;

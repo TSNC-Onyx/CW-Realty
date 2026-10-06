@@ -47,6 +47,11 @@ export async function isOverChatLimit(visitorKey: string | null): Promise<boolea
   return isOverLimit({ bindingName: CHAT_RATE_LIMITER, keyPrefix: "chat", visitorKey, problemAction: "site.chat_message" });
 }
 
+/** Chat topic buttons: a separate count on the chat limiter, so taps never use up a visitor's typed questions. */
+export async function isOverGuidedLimit(visitorKey: string | null): Promise<boolean> {
+  return isOverLimit({ bindingName: CHAT_RATE_LIMITER, keyPrefix: "guided", visitorKey, problemAction: "site.chat_widget" });
+}
+
 export async function isOverProblemReportLimit(visitorKey: string | null): Promise<boolean> {
   return isOverLimit({ bindingName: PROBLEM_REPORT_RATE_LIMITER, keyPrefix: "problem", visitorKey });
 }

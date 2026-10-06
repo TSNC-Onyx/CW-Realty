@@ -26,19 +26,23 @@ const FORM_ID = "chat-composer";
 const DRAFT_FIELD = "question";
 
 type ChatComposerProps = {
+  /** "Or type your question" under the topic buttons; "Your question" when there are none. */
+  label: string;
   isStartingChat: boolean;
   isOutdated: boolean;
   botCheckKey: string;
   contact: ContactLinks | null;
   inputRef: Ref<HTMLTextAreaElement>;
   onSubmitQuestion: (request: { question: string; turnstileToken: string; botCheckKey: string }) => Promise<boolean>;
+  /** Phones tuck the topic buttons away while the box has text in it (opening the chat focuses the box, so focus alone can't be the signal). */
+  onTypingChange?: (isTyping: boolean) => void;
 };
 
 function getFormText(form: HTMLFormElement, name: string): string {
   return String(new FormData(form).get(name) ?? "");
 }
 
-export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact, inputRef, onSubmitQuestion }: ChatComposerProps) {
+export function ChatComposer({ label, isStartingChat, isOutdated, botCheckKey, contact, inputRef, onSubmitQuestion, onTypingChange }: ChatComposerProps) {
   const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const botCheck = useBotCheck({ problemAction: "site.bot_check_widget", reportProblem: reportVisitorClientProblem, resetKey: botCheckKey, isEnabled: isStartingChat });
@@ -51,10 +55,13 @@ export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact,
     const request = { question, turnstileToken: getFormText(form, TURNSTILE_FIELD), botCheckKey: getFormText(form, BOT_CHECK_KEY_FIELD) };
     setIsSending(true);
     setDraft("");
+    onTypingChange?.(false);
     const isAnswered = await onSubmitQuestion(request);
     setIsSending(false);
     // A failed send gives the question back, so the visitor never has to retype it.
-    if (!isAnswered) setDraft(question);
+    if (isAnswered) return;
+    setDraft(question);
+    onTypingChange?.(true);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -77,7 +84,7 @@ export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact,
     <form id={FORM_ID} onSubmit={handleSubmit} className="grid gap-2 border-t border-line p-4">
       {isOutdated && <PageRefreshNotice formId={FORM_ID} mode="button" getValues={() => ({ [DRAFT_FIELD]: draft })} onRefreshLoop={handleRefreshLoop} fallback={<ReachUsDirectly contact={contact} />} />}
       <label htmlFor="chat-question" className="text-base font-bold">
-        Your question
+        {label}
       </label>
       <div className="flex items-end gap-2">
         <textarea
@@ -87,7 +94,10 @@ export function ChatComposer({ isStartingChat, isOutdated, botCheckKey, contact,
           value={draft}
           maxLength={MAX_CHAT_MESSAGE_LENGTH}
           readOnly={isBusy}
-          onChange={(event) => setDraft(event.target.value)}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            onTypingChange?.(event.target.value.trim() !== "");
+          }}
           onKeyDown={handleKeyDown}
           className="field-input min-h-13 flex-1 resize-none"
         />

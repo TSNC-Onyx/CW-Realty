@@ -33,7 +33,7 @@ describe("submitChatHandoff", () => {
   beforeEach(() => {
     vi.mocked(intake.submitNewRequest).mockReset().mockResolvedValue("thread");
     vi.mocked(chatLog.linkChatHandoff).mockReset();
-    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ id: SESSION_ID, tenantId: "tenant", visitorMessageCount: 1, turns: [{ role: "visitor", body: "Hi" }, { role: "assistant", body: "Hello" }] });
+    vi.mocked(chatLog.fetchOpenChatSession).mockResolvedValue({ id: SESSION_ID, tenantId: "tenant", typedQuestionCount: 1, guidedStepCount: 0, turns: [{ role: "visitor", body: "Hi" }, { role: "assistant", body: "Hello" }] });
     vi.mocked(visitorBotCheck.passesVisitorBotCheck).mockResolvedValue(true);
   });
 
