@@ -2,8 +2,9 @@
 
 import { LoaderCircle, RotateCcw, SendHorizontal } from "lucide-react";
 import { unstable_rethrow } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useCallback, useRef, useState, type FormEvent } from "react";
 
+import { useTryInChatRequest } from "@/components/admin/chat-policy/policy-page-events";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
 import { sendTestChatAction, type TestChatInput, type TestChatResult } from "@/lib/admin/chat-policy/test-chat-actions";
@@ -36,6 +37,15 @@ export function PolicyTestChat({ policyBody }: { policyBody: string }) {
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // A failed test's "Try it in the test chat": the question goes in the box, ready to send.
+  const handleTryRequest = useCallback((question: string) => {
+    setDraft(question.slice(0, MAX_CHAT_MESSAGE_LENGTH));
+    inputRef.current?.focus();
+    inputRef.current?.scrollIntoView({ block: "center" });
+  }, []);
+  useTryInChatRequest(handleTryRequest);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -74,7 +84,7 @@ export function PolicyTestChat({ policyBody }: { policyBody: string }) {
       )}
       <form onSubmit={handleSubmit} className="grid max-w-prose gap-2">
         <label htmlFor="test-chat-question" className="text-base font-bold">Test question</label>
-        <input id="test-chat-question" value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} onChange={(event) => setDraft(event.target.value)} className="field-input" />
+        <input ref={inputRef} id="test-chat-question" value={draft} maxLength={MAX_CHAT_MESSAGE_LENGTH} onChange={(event) => setDraft(event.target.value)} className="field-input" />
         <div className="flex flex-wrap gap-3">
           <button type="submit" aria-busy={isPending} className={getButtonClassName({ size: "m", variant: "main" })}>
             {isPending ? <LoaderCircle aria-hidden size={ICON_SIZE.button} className="animate-spin" /> : <SendHorizontal aria-hidden size={ICON_SIZE.button} />}

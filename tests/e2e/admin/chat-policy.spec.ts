@@ -117,7 +117,7 @@ test("running the tests explains that the assistant is not connected yet", async
   await page.goto(POLICY_PATH);
   await openAddQuestionForm(page);
   await page.getByLabel("Question a visitor might ask").fill("When are you open?");
-  await page.getByLabel("Section it should cite").fill("Office hours");
+  await page.getByLabel("Section it should cite").selectOption("Office hours");
   await page.getByRole("button", { name: "Add question" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Test question added." })).toBeVisible();
 
@@ -161,7 +161,6 @@ test("after a failed run the list opens on the failed question, with its reply a
   // Act
   await page.goto(POLICY_PATH);
   const isFailedPressed = await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^Failed 1$/ }).getAttribute("aria-pressed");
-  await page.getByText(`Show reply to: ${question}`).click();
   const results = await new AxeBuilder({ page }).include('section[aria-labelledby="publish-heading"]').withTags(["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"]).analyze();
   const isReplyShown = await page.getByText("A person on our team can help with that.").isVisible();
   const reason = await page.getByText(/^Publish is locked: /).textContent();
@@ -170,31 +169,52 @@ test("after a failed run the list opens on the failed question, with its reply a
   await client.from("chat_policy_tests").delete().eq("id", added?.id);
 
   // Assert
-  expect({ isFailedPressed, isReplyShown, reason, isAllPressed, violations: results.violations }).toEqual({ isFailedPressed: "true", isReplyShown: true, reason: expect.stringMatching(/^Publish is locked: (1 question failed\.|The chat assistant isn't connected yet)/), isAllPressed: "true", violations: [] });
+  expect({ isFailedPressed, isReplyShown, reason, isAllPressed, violations: results.violations }).toEqual({ isFailedPressed: "true", isReplyShown: true, reason: expect.stringMatching(/^Publish is locked: (1 question needs your attention\.|The chat assistant isn't connected yet)/), isAllPressed: "true", violations: [] });
 });
 
-test("a test question citing a private section is flagged before and after it is added", async ({ page }) => {
+test("the section list offers only sections the assistant may cite, and an older question citing a private one is flagged", async ({ page }) => {
   // Arrange
   await signInFully(page, owner);
   await page.goto(POLICY_PATH);
   await saveDraft(page, "# Office hours\nWe are open weekdays.\n# Margins (private)\nInternal notes.");
   await expect(page.getByRole("status").filter({ hasText: /draft version \d+/i })).toBeVisible();
+  const question = `Private section question ${Date.now()}`;
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "answer", expected_section: "Margins (private)" });
   await page.reload();
   await openAddQuestionForm(page);
-  const question = `Private section question ${Date.now()}`;
 
   // Act
-  await page.getByLabel("Question a visitor might ask").fill(question);
-  await page.getByLabel("Section it should cite").fill("margins (private)");
-  const isFormWarned = await page.getByText("This section is private, so the assistant can't cite it; this test can't pass.").isVisible();
-  await page.getByRole("button", { name: "Add question" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Test question added." })).toBeVisible();
+  const sectionOptions = await page.getByLabel("Section it should cite").locator("option").allTextContents();
   await page.getByRole("group", { name: "Show" }).getByRole("button", { name: /^All \d+$/ }).click();
   const isRowWarned = await page.getByRole("listitem").filter({ hasText: question }).getByText("Cites a private section, so this test can’t pass.").isVisible();
-  await getServiceClient().from("chat_policy_tests").delete().eq("question", question);
+  await client.from("chat_policy_tests").delete().eq("question", question);
 
   // Assert
-  expect({ isFormWarned, isRowWarned }).toEqual({ isFormWarned: true, isRowWarned: true });
+  expect({ sectionOptions, isRowWarned }).toEqual({ sectionOptions: ["Any section", "Office hours"], isRowWarned: true });
+});
+
+test("a failed question explains why and offers a one-click fix with Undo", async ({ page }) => {
+  // Arrange
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const question = `Am I talking to a real person? ${Date.now()}`;
+  const { data: added } = await client.from("chat_policy_tests").insert({ tenant_id: tenant?.id, question, expected_outcome: "answer", expected_section: "Office hours" }).select("id").single();
+  await recordRun({ isPassed: false, results: [...getBuiltInResults(), { question, expectedOutcome: "answer", expectedSection: "Office hours", isBuiltIn: false, outcome: "handoff", reply: "No, I'm the CWR Assistant, an AI helper.", citedSections: [], isPassed: false, isApprovedWording: false }] });
+  await signInFully(page, owner);
+  await page.goto(POLICY_PATH);
+  const row = page.getByRole("listitem").filter({ hasText: question });
+  await expect(row.getByText("The assistant offered a person instead of answering.")).toBeVisible();
+
+  // Act
+  await row.getByRole("button", { name: `Accept a friendly reply for: ${question}` }).click();
+  await expect(page.getByText("Question updated. Run the tests again before publishing.")).toBeVisible();
+  const { data: updated } = await client.from("chat_policy_tests").select("allows_friendly_reply").eq("id", added?.id).single();
+  await client.from("chat_policy_tests").delete().eq("id", added?.id);
+
+  // Assert
+  expect(updated?.allows_friendly_reply).toBe(true);
 });
 
 test("closing the add form returns focus to its button", async ({ page }) => {
@@ -417,8 +437,6 @@ const QUICK_ANSWER_POLICY = [
   "If anyone is in danger, call 911 first.",
   "# Quick answer: What does it cost?",
   "Nothing up front. The cost is taken out at closing.",
-  "# Quick answer: About our team",
-  "Our team helps you buy and sell. Each member has a profile on our Team page.",
 ].join("\n");
 
 test("topic buttons answer from the published policy, and each tap is logged as a button", async ({ page, browser }) => {
@@ -428,8 +446,12 @@ test("topic buttons answer from the published policy, and each tap is logged as 
   await saveDraft(page, QUICK_ANSWER_POLICY);
   await expect(page.getByRole("status").filter({ hasText: /draft version \d+ saved/i })).toBeVisible();
   await page.reload();
-  await expect(page.getByRole("listitem").filter({ hasText: "# Quick answer: What does it cost?" })).toContainText("Ready");
-  await expect(page.getByRole("listitem").filter({ hasText: "# Quick answer: Buying a home" })).toContainText("Missing");
+  await page.getByRole("textbox", { name: "About our team" }).fill("Our team helps you buy and sell. Each member has a profile on our Team page.");
+  await page.getByRole("button", { name: "Save topic answers" }).click();
+  await expect(page.getByText(/^Topic answers saved in draft version \d+\./)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "What does it cost?" })).toHaveValue("Nothing up front. The cost is taken out at closing.");
+  await expect(page.locator("#quick-answer-buying-status")).toContainText("Missing");
   await recordPassingRun();
   await page.reload();
   await page.getByRole("button", { name: "Publish this draft to the website chat" }).click();

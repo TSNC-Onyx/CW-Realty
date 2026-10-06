@@ -17,6 +17,8 @@ export type TestJob = {
   policy_updated_at: string;
   tests_updated_at: string | null;
   test_ids: string[];
+  /** The batch size the run started with: a run that spans a site update with a new size stops. */
+  batch_size: number;
   batch_count: number;
 };
 
@@ -67,7 +69,7 @@ export async function deleteStaleTestJobs(tenantId: string): Promise<DatabaseErr
 export async function fetchTestJob({ tenantId, userId, runKey }: JobOwner): Promise<LoadResult<TestJob | null>> {
   const result = await createServiceClient()
     .from("chat_policy_test_jobs")
-    .select("run_key, policy_id, policy_updated_at, tests_updated_at, test_ids, batch_count")
+    .select("run_key, policy_id, policy_updated_at, tests_updated_at, test_ids, batch_size, batch_count")
     .eq("tenant_id", tenantId)
     .eq("created_by", userId)
     .eq("run_key", runKey)

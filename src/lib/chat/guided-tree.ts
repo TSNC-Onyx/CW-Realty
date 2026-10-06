@@ -1,7 +1,9 @@
 // Chat topic buttons (docs/cwr-chat-guided-options-plan.md §2): the owner-approved tree of
 // labels, in-between prompts, and page links. UI copy only: each answer's wording lives in the
 // owner's chatbot policy as a public "Quick answer: <label>" section, never in this repo.
-// Imports nothing, so the chat widget can use it without the server code.
+// Imports only the browser-safe policy-section helpers, so the chat widget can use it.
+
+import { QUICK_ANSWER_PREFIX } from "@/lib/chat/policy-sections";
 
 export type GuidedLink = { label: string; href: string };
 
@@ -9,7 +11,6 @@ export type GuidedLink = { label: string; href: string };
 export type GuidedNode = { id: string; label: string; prompt?: string; children?: string[]; link?: GuidedLink; isEmergency?: boolean };
 
 export const GUIDED_ROOT_ID = "root";
-const QUICK_ANSWER_PREFIX = "Quick answer: ";
 
 // A pause before a topic answer, sized to its length, so it reads like a reply rather than a
 // page jump (owner request 2026-10-06). Emergencies never wait.

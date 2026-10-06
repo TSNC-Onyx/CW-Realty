@@ -5,8 +5,8 @@ import type { QuickResult } from "@/lib/admin/quick-result";
 // question list is fixed when it starts, and each request tests one batch of it, so no
 // request goes past the Cloudflare Workers Free limit of 50 outside calls.
 
-/** 8 questions × (1 answer + 1 retry) = 16 model calls, keeping a batch request at 27 calls or fewer. */
-export const BATCH_SIZE = 8;
+/** 6 questions × up to 2 tries × (1 answer + 1 SDK retry) = 24 model calls, keeping a batch request well under 50. */
+export const BATCH_SIZE = 6;
 
 /** One place in the run's list: a built-in safety check, or an owner question by id. */
 export type TestSlot = { kind: "built_in"; testCase: PolicyTestCase } | { kind: "owner"; testId: string };

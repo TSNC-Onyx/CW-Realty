@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getMatchingSection, getPolicySections, getPrivateSections, getPublicPolicy, getPublicSections, getPublicSectionText } from "@/lib/chat/policy-sections";
+import { getAssistantPolicy, getAssistantSections, getMatchingSection, getPolicySections, getPrivateSections, getPublicPolicy, getPublicSections, getPublicSectionText } from "@/lib/chat/policy-sections";
 
 describe("getPolicySections", () => {
   it("lists every Markdown heading as a section", () => {
@@ -221,5 +221,17 @@ describe("getPublicSectionText", () => {
 
     // Assert
     expect(text).toBe("");
+  });
+});
+
+describe("getAssistantSections and getAssistantPolicy", () => {
+  const POLICY = ["# Office hours", "Weekdays.", "# Quick answer: Buying a home", "Button text.", "# Selling a home", "We help sellers.", "# Notes (private)", "Secret."].join("\n");
+
+  it("leave out quick-answer and private sections, and nothing else", () => {
+    // Arrange / Act
+    const result = { sections: getAssistantSections(POLICY), policy: getAssistantPolicy(POLICY) };
+
+    // Assert
+    expect(result).toEqual({ sections: ["Office hours", "Selling a home"], policy: "# Office hours\nWeekdays.\n# Selling a home\nWe help sellers." });
   });
 });

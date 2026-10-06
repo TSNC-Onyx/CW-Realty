@@ -37,7 +37,8 @@ export type HandoffReason =
   | "lead"
   | "lead_downgraded"
   | "policy_fact_in_conversation"
-  | "slang_in_conversation";
+  | "slang_in_conversation"
+  | "safety_wording";
 
 /** handoffReason and rejectedText are server-only: callers strip them before anything reaches a browser. */
 export type AssistantReply = { outcome: ChatOutcome; text: string; citedSections: string[]; handoffReason?: HandoffReason; rejectedText?: string };

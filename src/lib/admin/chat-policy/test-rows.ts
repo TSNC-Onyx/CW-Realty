@@ -9,6 +9,9 @@ export const MAX_TESTS = 500;
 
 export const TEST_LIMIT_MESSAGE = `You can have up to ${MAX_TESTS} test questions. Remove one first.`;
 
+/** Publish waits on a failed safety check, which the owner can't fix from the policy. */
+export const SAFETY_FAILED_REASON = "A built-in safety check failed. Your developer has been notified automatically; no action is needed from you.";
+
 /** Why tests, Publish, Restore and Undo wait while the editor holds unsaved text (bug 11). */
 export const SAVE_FIRST_REASON = "Save your changes first, so the tests check what you see.";
 
@@ -16,7 +19,7 @@ const STATUS_ORDER = ["failed", "untested", "stale", "passed"] as const;
 
 export type TestRowStatus = (typeof STATUS_ORDER)[number];
 
-export type OwnerTest = { id: string; question: string; expectedOutcome: PolicyTestCase["expectedOutcome"]; expectedSection: string | null };
+export type OwnerTest = { id: string; question: string; expectedOutcome: PolicyTestCase["expectedOutcome"]; expectedSection: string | null; allowsFriendlyReply: boolean; mustMention: string[] };
 
 /** testId: null for a built-in safety check, which can't be removed. */
 export type TestRow = PolicyTestCase & { key: string; testId: string | null; status: TestRowStatus; result: PolicyTestResult | null };
@@ -38,6 +41,8 @@ export type PublishBlockerInput = {
   /** Every current built-in safety check was tested under the current version (pass or fail). */
   hasCurrentChecksVersion: boolean;
   counts: TestCounts;
+  /** Failed built-in safety checks: only the developer can fix these. */
+  safetyFailedCount: number;
 };
 
 function getRowCases(tests: OwnerTest[]): RowCase[] {
@@ -46,8 +51,15 @@ function getRowCases(tests: OwnerTest[]): RowCase[] {
   return [...ownerCases, ...builtInCases];
 }
 
+/** Runs saved before the optional checks existed tested them as off. */
+function hasSameChecks(testCase: PolicyTestCase, result: PolicyTestResult): boolean {
+  const isSameFriendly = (result.allowsFriendlyReply ?? false) === testCase.allowsFriendlyReply;
+  return isSameFriendly && JSON.stringify(result.mustMention ?? []) === JSON.stringify(testCase.mustMention);
+}
+
 function isSameCase(testCase: PolicyTestCase, result: PolicyTestResult): boolean {
-  return result.question === testCase.question && result.expectedOutcome === testCase.expectedOutcome && result.expectedSection === testCase.expectedSection && result.isBuiltIn === testCase.isBuiltIn;
+  const isSameQuestion = result.question === testCase.question && result.isBuiltIn === testCase.isBuiltIn;
+  return isSameQuestion && result.expectedOutcome === testCase.expectedOutcome && result.expectedSection === testCase.expectedSection && hasSameChecks(testCase, result);
 }
 
 /** Each result is used once, so two identical questions never share one result. */
@@ -85,6 +97,24 @@ export function getTestCounts(rows: TestRow[]): TestCounts {
   return rows.reduce((total, row) => ({ ...total, [row.status]: total[row.status] + 1 }), counts);
 }
 
+/** The results summary (docs/cwr-chat-quick-answers-and-tests-plan.md §F): who needs to act. */
+/** noReply: failures with no reply (a connection problem): running again is the fix, not the owner's edits. */
+export type AttentionCounts = { needsYou: number; developerNotified: number; noReply: number; passed: number; unstable: number };
+
+export function getAttentionCounts(rows: TestRow[]): AttentionCounts {
+  const failedRows = rows.filter((row) => row.status === "failed");
+  const passedRows = rows.filter((row) => row.status === "passed");
+  const developerNotified = failedRows.filter((row) => row.isBuiltIn).length;
+  const noReply = failedRows.filter((row) => !row.isBuiltIn && row.result?.outcome === null).length;
+  return { needsYou: failedRows.length - developerNotified - noReply, developerNotified, noReply, passed: passedRows.length, unstable: passedRows.filter((row) => row.result?.isUnstable).length };
+}
+
+/** Sections no owner question expects, so the owner can see what isn't tested yet. */
+export function getUncoveredSections({ sections, tests }: { sections: string[]; tests: OwnerTest[] }): string[] {
+  const coveredTitles = new Set(tests.flatMap((test) => (test.expectedSection ? [test.expectedSection.trim().toLowerCase()] : [])));
+  return sections.filter((section) => !coveredTitles.has(section.trim().toLowerCase()));
+}
+
 export function getQuestionCountText(count: number): string {
   return count === 1 ? "1 question" : `${count} questions`;
 }
@@ -95,9 +125,12 @@ function getUntestedBlocker(counts: TestCounts): string | null {
   return `${getQuestionCountText(counts.untested)} ${verb} tested yet. Run the tests again.`;
 }
 
-function getFailedBlocker(counts: TestCounts): string | null {
+function getFailedBlocker({ counts, safetyFailedCount }: { counts: TestCounts; safetyFailedCount: number }): string | null {
   if (counts.failed === 0) return null;
-  return `${getQuestionCountText(counts.failed)} failed. Fix the draft or the questions, then run the tests again.`;
+  if (safetyFailedCount === counts.failed) return SAFETY_FAILED_REASON;
+  const ownerFailedCount = counts.failed - safetyFailedCount;
+  const safetyNote = safetyFailedCount > 0 ? " A safety check also failed; your developer has been notified." : "";
+  return `${getQuestionCountText(ownerFailedCount)} ${ownerFailedCount === 1 ? "needs" : "need"} your attention. Use the fixes beside each one, then run the tests again.${safetyNote}`;
 }
 
 function getSetupBlocker(input: PublishBlockerInput): string | null {
@@ -141,7 +174,7 @@ export function getPublishBlocker(input: PublishBlockerInput): string | null {
   if (input.isRunning) return "Tests are running…";
   if (input.hasUnsavedChanges) return SAVE_FIRST_REASON;
   if (input.isReadyToPublish) return null;
-  return getSetupBlocker(input) ?? getRunBlocker(input) ?? getFailedBlocker(input.counts) ?? getUntestedBlocker(input.counts) ?? "Run the tests again to check the current questions.";
+  return getSetupBlocker(input) ?? getRunBlocker(input) ?? getFailedBlocker(input) ?? getUntestedBlocker(input.counts) ?? "Run the tests again to check the current questions.";
 }
 
 export function isAtTestLimit(activeCount: number): boolean {

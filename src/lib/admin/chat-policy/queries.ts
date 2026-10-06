@@ -16,7 +16,7 @@ export type PolicyVersion = { id: string; version: number; status: PolicyStatus;
 
 export type WorkingPolicy = { draftId: string | null; draftVersion: number | null; body: string; updatedAt: string | null };
 
-export type PolicyTest = { id: string; question: string; expected_outcome: ChatOutcome; expected_section: string | null };
+export type PolicyTest = { id: string; question: string; expected_outcome: ChatOutcome; expected_section: string | null; allows_friendly_reply: boolean; must_mention: string[] };
 
 type PolicyBody = { body: string; updated_at: string };
 
@@ -43,7 +43,7 @@ export async function fetchWorkingPolicy(admin: AdminContext, versions: PolicyVe
 }
 
 export async function fetchPolicyTests({ supabase, tenantId }: AdminContext): Promise<LoadResult<PolicyTest[]>> {
-  const result = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
+  const result = await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section, allows_friendly_reply, must_mention").eq("tenant_id", tenantId).eq("is_active", true).order("created_at").limit(MAX_TESTS).returns<PolicyTest[]>();
   return getQueryLoad({ part: "test questions", result, empty: [] });
 }
 

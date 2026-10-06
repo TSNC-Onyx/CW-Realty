@@ -11,6 +11,9 @@ const HEADING_LINE = /^#{1,6}[ \t]+(.+?)[ \t#]*$/gm;
 const SECTION_HEADING = /^(#{1,6})[ \t]+(.+?)[ \t#]*$/;
 const FENCE_LINE = /^[ \t]*(`{3,}|~{3,})/;
 const PRIVATE_TITLE = /\(\s*private\s*\)$/i;
+
+/** Chat topic button answers (docs/cwr-chat-guided-options-plan.md §3): "Quick answer: <button label>". */
+export const QUICK_ANSWER_PREFIX = "Quick answer: ";
 const MAX_SECTION_TITLE_LENGTH = 200;
 
 type Heading = { level: number; title: string };
@@ -121,3 +124,45 @@ export function getPublicSectionText(policyBody: string, title: string): string 
   const body = lines.slice(start + 1, end === -1 ? undefined : end).filter((line) => !line.isPrivate);
   return body.map((line) => line.text.trim()).filter((text) => text.length > 0).join(" ");
 }
+
+function isQuickAnswerTitle(title: string): boolean {
+  return getNormalizedTitle(title).startsWith(getNormalizedTitle(QUICK_ANSWER_PREFIX));
+}
+
+/** Public lines outside quick-answer sections (each runs to the next heading of any level). */
+function getAssistantLines(policyBody: string): PolicyLine[] {
+  let isInQuickAnswer = false;
+  return getPolicyLines(policyBody).filter((line) => {
+    if (line.heading) isInQuickAnswer = isQuickAnswerTitle(line.heading.title);
+    return !line.isPrivate && !isInQuickAnswer;
+  });
+}
+
+/**
+ * What the AI reads and may cite: the public policy without quick-answer sections. Those
+ * repeat other sections for the topic buttons; if the AI cited them, owner tests expecting
+ * the original section would start failing (docs/cwr-chat-quick-answers-and-tests-plan.md §B).
+ */
+export function getAssistantPolicy(policyBody: string): string {
+  return getAssistantLines(policyBody)
+    .map((line) => line.text)
+    .join("\n");
+}
+
+export function getAssistantSections(policyBody: string): string[] {
+  return getHeadingTitles(getAssistantLines(policyBody));
+}
+
+/** A real heading line (outside code fences): its line number, title, and whether it is private. */
+export type HeadingLine = { index: number; title: string; isPrivate: boolean };
+
+/** Every real heading, in order; line numbers match the text split on line breaks (\n or \r\n). */
+export function getHeadingLines(policyBody: string): HeadingLine[] {
+  return getPolicyLines(policyBody).flatMap((line, index) => (line.heading ? [{ index, title: line.heading.title, isPrivate: line.isPrivate }] : []));
+}
+
+/** Whether two section titles are the same, ignoring spacing and capital letters. */
+export function isSameTitle({ first, second }: { first: string; second: string }): boolean {
+  return getNormalizedTitle(first) === getNormalizedTitle(second);
+}
+
