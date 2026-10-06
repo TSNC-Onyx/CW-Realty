@@ -129,10 +129,11 @@ test("an owner can turn the chat assistant off and back on", async ({ page }) =>
 
   // Act
   await page.getByRole("button", { name: "Turn the website chat assistant off" }).click();
-  await expect(page.getByText("Off — every visitor is offered a person.")).toBeVisible();
+  await expect(page.getByText("The switch is off. Every visitor is offered a person.")).toBeVisible();
+  await expect(page.getByText(/^Off: every visitor is offered a person\./)).toBeVisible();
   const isOnAfterOff = await fetchIsAssistantOn();
   await page.getByRole("button", { name: "Turn the website chat assistant on" }).click();
-  await expect(page.getByText("On — the assistant answers visitors from the live policy.")).toBeVisible();
+  await expect(page.getByText("The switch is on.")).toBeVisible();
 
   // Assert
   expect({ isOnAfterOff, isOnAfterOn: await fetchIsAssistantOn() }).toEqual({ isOnAfterOff: false, isOnAfterOn: true });

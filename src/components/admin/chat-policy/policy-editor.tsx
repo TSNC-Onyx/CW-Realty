@@ -1,8 +1,9 @@
 "use client";
 
 import { CircleAlert, Upload } from "lucide-react";
-import { useState, type ChangeEvent } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 
+import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft-state";
 import { PolicyTestChat } from "@/components/admin/chat-policy/policy-test-chat";
 import { SaveBar } from "@/components/admin/save-bar";
 import { useAdminForm } from "@/components/admin/use-admin-form";
@@ -13,17 +14,40 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Admin §6 "upload or edit the policy file with a live test chat". Uploading reads a text
 // file into the editor in the browser; nothing is stored until the owner saves.
+// Bug 12 (docs/cwr-chatbot-round-3-plan.md): when the saved draft changes (a restore, a publish,
+// another window) and nothing here is unsaved, the editor shows the new saved text; a save only
+// goes over the text this editor last saw (expectedUpdatedAt).
 
 const ACCEPTED_FILES = ".txt,.md,text/plain,text/markdown";
 const MAX_FILE_BYTES = 400_000;
 
-type PolicyEditorProps = { draftId: string | null; initialBody: string };
+/** updatedAt: when the open draft was last saved, or null when there is no draft. */
+type PolicyEditorProps = { draftId: string | null; initialBody: string; updatedAt: string | null };
 
-export function PolicyEditor({ draftId, initialBody }: PolicyEditorProps) {
+export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorProps) {
   const [body, setBody] = useState(initialBody);
+  const [seenUpdatedAt, setSeenUpdatedAt] = useState(updatedAt);
+  // The saved draft this editor's text is based on: what a save may go over (the save guard).
+  const [base, setBase] = useState({ draftId, updatedAt });
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(savePolicyDraftAction, { problemAction: "chat_policy.save_draft" });
+  const { setHasUnsavedChanges } = usePolicyDraftState();
   const error = state.fieldErrors.body ?? uploadError;
+
+  // Adjusting state when a prop changes, during render (no remount, so the test chat and focus stay).
+  // The base moves only when the editor takes the new saved text (or already shows it, after its
+  // own save); while unsaved text stays, it keeps the old base, so the guard catches a newer save.
+  if (updatedAt !== seenUpdatedAt) {
+    setSeenUpdatedAt(updatedAt);
+    if (!isDirty || body === initialBody) {
+      setBody(initialBody);
+      setBase({ draftId, updatedAt });
+    }
+  }
+
+  useEffect(() => {
+    setHasUnsavedChanges(isDirty);
+  }, [isDirty, setHasUnsavedChanges]);
 
   const handleBodyChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setBody(event.target.value);
@@ -46,7 +70,8 @@ export function PolicyEditor({ draftId, initialBody }: PolicyEditorProps) {
   return (
     <>
       <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid gap-4">
-        <input type="hidden" name="draftId" value={draftId ?? ""} />
+        <input type="hidden" name="draftId" value={base.draftId ?? ""} />
+        <input type="hidden" name="expectedUpdatedAt" value={base.updatedAt ?? ""} />
         <div>
           <label htmlFor="policy-body" className="mb-1 block text-base font-bold">Policy text</label>
           <p id="policy-body-helper" className="type-small mb-2 text-muted">Start each section with a heading line such as “# Office hours”. The assistant cites these headings. Sections whose heading ends in (private) are never shown to the assistant.</p>

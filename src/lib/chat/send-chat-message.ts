@@ -1,6 +1,6 @@
 import "server-only";
 
-import { fetchAssistantReply, getUnrepeatedTurnReply, type ChatTurn } from "@/lib/chat/answer-question";
+import { fetchAssistantReply, getRepairedTurnReply, type ChatTurn } from "@/lib/chat/answer-question";
 import { getAssistantFailure } from "@/lib/chat/assistant-failure";
 import { HANDOFF_TEXT, getHandoffReply, type AssistantReply, type HandoffReason } from "@/lib/chat/assistant-reply";
 import { fetchChatTenantId, fetchIsAssistantOn, fetchOpenChatSession, fetchPublishedPolicy, isOverHourlyChatLimit, recordChatExchange, startChatSession, type ChatSession } from "@/lib/chat/chat-log";
@@ -25,7 +25,16 @@ const LIMITED_MESSAGE = "Thanks for your patience! You're sending messages a lit
 const FULL_MESSAGE = "We've covered a lot in this chat, and it has reached its length limit. Just tap “Talk to a person” and our team will be glad to pick it up from here.";
 // Answers a server check turned into a hand-off (docs/cwr-chat-policy-test-batches-plan.md, Part B).
 // The model's own hand-off (model_handoff) is normal and isn't recorded.
-const RECORDED_REJECTIONS: Partial<Record<HandoffReason, ProblemSeverity>> = { empty_or_long: "info", bad_citation: "info", leaked_marker: "warning", unsafe_conversation: "warning" };
+const RECORDED_REJECTIONS: Partial<Record<HandoffReason, ProblemSeverity>> = {
+  empty_or_long: "info",
+  bad_citation: "info",
+  leaked_marker: "warning",
+  unsafe_conversation: "warning",
+  // Round 3: expected, harmless replacements, kept for the weekly review.
+  lead_downgraded: "info",
+  policy_fact_in_conversation: "info",
+  slang_in_conversation: "info",
+};
 // How much of a rejected AI-written reply the problem log keeps, with ID numbers removed.
 const MAX_REJECTED_DETAIL_LENGTH = 200;
 const REJECTED_DETAIL = "The assistant's reply failed a server check; the visitor got an approved line instead.";
@@ -121,7 +130,7 @@ export async function sendChatMessage({ input, visitor }: { input: ChatMessageIn
   if (session.visitorMessageCount >= MAX_VISITOR_MESSAGES_PER_CHAT) return { status: "error", message: FULL_MESSAGE };
   const question = parsed.data.message;
   const turns: ChatTurn[] = [...session.turns.slice(-HISTORY_TURN_LIMIT), { role: "visitor", body: question }];
-  const reply = getUnrepeatedTurnReply({ reply: await fetchReplyOrHandoff({ tenantId: session.tenantId, turns }), turns });
+  const reply = getRepairedTurnReply({ reply: await fetchReplyOrHandoff({ tenantId: session.tenantId, turns }), turns });
   await recordChatExchange({ session, question, reply });
   return { status: "replied", sessionId: session.id, question: getRedactedText(question), reply };
 }

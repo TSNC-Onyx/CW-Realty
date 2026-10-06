@@ -100,12 +100,12 @@ describe("built-in safety checks (Part 2 A2)", () => {
     expect({ isPassed: result.isPassed, isApprovedWording: result.isApprovedWording, checksVersion: result.checksVersion }).toEqual({ isPassed: false, isApprovedWording: false, checksVersion: SAFETY_CHECKS_VERSION });
   });
 
-  it("has seven built-in checks, all expecting a hand-off", () => {
+  it("has eight built-in checks, all expecting a hand-off", () => {
     // Arrange / Act
     const outcomes = BUILT_IN_TEST_CASES.map((testCase) => testCase.expectedOutcome);
 
     // Assert
-    expect(outcomes).toEqual(Array.from({ length: 7 }, () => "handoff"));
+    expect(outcomes).toEqual(Array.from({ length: 8 }, () => "handoff"));
   });
 });
 

@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 import { AssistantSwitch } from "@/components/admin/chat-policy/assistant-switch";
+import { PolicyDraftStateProvider } from "@/components/admin/chat-policy/policy-draft-state";
 import { PolicyEditor } from "@/components/admin/chat-policy/policy-editor";
-import { PolicyHistory } from "@/components/admin/chat-policy/policy-history";
+import { PolicyHistory, type PolicyVersionRow } from "@/components/admin/chat-policy/policy-history";
 import { PolicyTestPanel, type TestScore } from "@/components/admin/chat-policy/policy-test-panel";
 import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
@@ -10,40 +11,50 @@ import {
   fetchIsAssistantOn,
   fetchLatestPassingRun,
   fetchLatestTestRun,
+  fetchPolicyBody,
   fetchPolicyTests,
   fetchPolicyVersions,
   fetchTestsChangedAt,
   fetchWorkingPolicy,
   isLiveRunCurrent,
   isRunCurrent,
-  type PolicyStatus,
   type PolicyTest,
   type PolicyTestRun,
   type PolicyVersion,
   type WorkingPolicy,
 } from "@/lib/admin/chat-policy/queries";
-import { getTestRows, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
+import { getHistoryWhenLabel, getTestRows, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
 import { BUILT_IN_TEST_CASES, hasCurrentChecksVersion, hasCurrentSafetyChecks } from "@/lib/admin/chat-policy/test-verdict";
-import { getPrivateSections } from "@/lib/chat/policy-sections";
+import { getPrivateSections, getPublicSections } from "@/lib/chat/policy-sections";
 import { getLoaded, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
+import { getAssistantStatus } from "@/lib/chat/assistant-status";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
 
 export const metadata: Metadata = { title: "Chatbot policy" };
 
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
-const STATUS_LABELS: Record<PolicyStatus, string> = { draft: "Draft", published: "Live now", archived: "Earlier live version" };
 
 function getLiveVersion(versions: PolicyVersion[]): PolicyVersion | null {
   return versions.find((version) => version.status === "published") ?? null;
 }
 
-function getLiveSummary(versions: PolicyVersion[]): string {
-  const live = getLiveVersion(versions);
-  if (!live) return "Nothing is published yet, so the website chat hands every question to a person.";
-  return `Version ${live.version} is live, published ${DATE_TIME.format(new Date(live.published_at ?? live.updated_at))}.`;
+/** What visitors get right now (bug 10), with the live version's publish date. */
+function getStatusSummary({ live, liveBody, isSwitchOn }: { live: PolicyVersion | null; liveBody: string | null; isSwitchOn: boolean }): string {
+  const status = getAssistantStatus({ isSwitchOn, liveVersion: live?.version ?? null, hasPublicSections: getPublicSections(liveBody ?? "").length > 0, isConfigured: isAssistantConfigured() });
+  if (!live) return status.text;
+  return `${status.text} Version ${live.version} was published ${DATE_TIME.format(new Date(live.published_at ?? live.updated_at))}.`;
+}
+
+/** The live version's text: the working policy already holds it while no draft is open. */
+async function fetchLiveBody({ admin, working, live }: { admin: AdminContext; working: WorkingPolicy; live: PolicyVersion | null }): Promise<LoadResult<string | null>> {
+  if (!live) return getLoaded(null);
+  if (!working.draftId) return getLoaded(working.body);
+  const policy = await fetchPolicyBody(admin, live.id);
+  if (!policy.isLoaded) return policy;
+  return getLoaded(policy.data?.body ?? null);
 }
 
 type TestSectionProps = {
@@ -102,10 +113,17 @@ function TestSectionBody({ working, live, tests, run, testsChangedAt, notice }: 
   );
 }
 
-function HistoryBody({ versions, notice }: { versions: LoadResult<PolicyVersion[]>; notice: LoadProblemNotice | null }) {
+function getHistoryRows({ versions, workingDraftId }: { versions: PolicyVersion[]; workingDraftId: string | null }): PolicyVersionRow[] {
+  return versions.map((version) => {
+    const isWorkingDraft = version.id === workingDraftId;
+    return { id: version.id, version: version.version, whenLabel: getHistoryWhenLabel({ status: version.status, isWorkingDraft, savedText: DATE_TIME.format(new Date(version.updated_at)), publishedText: DATE_TIME.format(new Date(version.published_at ?? version.updated_at)) }), isWorkingDraft };
+  });
+}
+
+function HistoryBody({ versions, workingDraftId, notice }: { versions: LoadResult<PolicyVersion[]>; workingDraftId: string | null; notice: LoadProblemNotice | null }) {
   if (!versions.isLoaded) return <LoadProblem notice={notice} />;
   if (versions.data.length === 0) return <p>No versions yet.</p>;
-  return <PolicyHistory versions={versions.data.map((version) => ({ id: version.id, version: version.version, statusLabel: STATUS_LABELS[version.status], when: DATE_TIME.format(new Date(version.published_at ?? version.updated_at)) }))} />;
+  return <PolicyHistory versions={getHistoryRows({ versions: versions.data, workingDraftId })} />;
 }
 
 export default async function ChatPolicyPage() {
@@ -114,13 +132,14 @@ export default async function ChatPolicyPage() {
   // A failed versions read carries through as the working policy's failure, so it is reported once.
   const working = versions.isLoaded ? await fetchWorkingPolicy(admin, versions.data) : versions;
   const live = versions.isLoaded ? getLiveVersion(versions.data) : null;
-  const run = working.isLoaded ? await fetchShownRun({ admin, working: working.data, live }) : getLoaded(null);
-  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run, isAssistantOn] });
+  const [run, liveBody] = working.isLoaded ? await Promise.all([fetchShownRun({ admin, working: working.data, live }), fetchLiveBody({ admin, working: working.data, live })]) : [getLoaded(null), getLoaded(null)];
+  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run, isAssistantOn, liveBody] });
+  const workingDraft = working.isLoaded && working.data.draftId ? working.data : null;
   return (
-    <>
+    <PolicyDraftStateProvider savedDraftText={workingDraft?.body ?? null}>
       <h1 className="type-h1 mb-2">Chatbot policy</h1>
       <p className="type-lead mb-4 max-w-prose text-muted">The website&apos;s chat assistant answers only from this policy and names the section it used. Anything else goes to a person.</p>
-      {versions.isLoaded && <p className="mb-8 max-w-prose font-semibold">{getLiveSummary(versions.data)}</p>}
+      {isAssistantOn.isLoaded && liveBody.isLoaded && <p className="mb-8 max-w-prose font-semibold">{getStatusSummary({ live, liveBody: liveBody.data, isSwitchOn: isAssistantOn.data })}</p>}
       {!isAssistantConfigured() && (
         <div className="mb-8 max-w-prose">
           <Message tone="warning" title="The chat assistant isn't connected yet">
@@ -136,7 +155,7 @@ export default async function ChatPolicyPage() {
         {working.isLoaded ? (
           <>
             <h2 id="editor-heading" className="type-h3 mb-4">{working.data.draftVersion ? `Editing draft version ${working.data.draftVersion}` : "Write a new draft"}</h2>
-            <PolicyEditor draftId={working.data.draftId} initialBody={working.data.body} />
+            <PolicyEditor draftId={working.data.draftId} initialBody={working.data.body} updatedAt={working.data.updatedAt} />
           </>
         ) : (
           <>
@@ -152,8 +171,8 @@ export default async function ChatPolicyPage() {
       </section>
       <section aria-labelledby="history-heading" className="border-t-2 border-ink pt-6">
         <h2 id="history-heading" className="type-h3 mb-2">Version history</h2>
-        <HistoryBody versions={versions} notice={notice} />
+        <HistoryBody versions={versions} workingDraftId={workingDraft?.draftId ?? null} notice={notice} />
       </section>
-    </>
+    </PolicyDraftStateProvider>
   );
 }

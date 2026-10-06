@@ -9,6 +9,9 @@ export const MAX_TESTS = 500;
 
 export const TEST_LIMIT_MESSAGE = `You can have up to ${MAX_TESTS} test questions. Remove one first.`;
 
+/** Why tests, Publish, Restore and Undo wait while the editor holds unsaved text (bug 11). */
+export const SAVE_FIRST_REASON = "Save your changes first, so the tests check what you see.";
+
 const STATUS_ORDER = ["failed", "untested", "stale", "passed"] as const;
 
 export type TestRowStatus = (typeof STATUS_ORDER)[number];
@@ -25,6 +28,8 @@ type RowCase = PolicyTestCase & { key: string; testId: string | null };
 export type PublishBlockerInput = {
   isReadyToPublish: boolean;
   isRunning: boolean;
+  /** The editor holds text that isn't saved: tests and Publish would use the saved text instead. */
+  hasUnsavedChanges: boolean;
   hasDraft: boolean;
   didRunLoad: boolean;
   isAssistantConfigured: boolean;
@@ -115,8 +120,26 @@ function getRunBlocker(input: PublishBlockerInput): string | null {
  * progress), so it never says "nothing is wrong" while Publish is greyed, or names a problem
  * while it is enabled.
  */
+/** A version's status with the date that matters for it (bug 14): published for live versions, last saved for drafts. */
+export function getHistoryWhenLabel({ status, isWorkingDraft, savedText, publishedText }: { status: "draft" | "published" | "archived"; isWorkingDraft: boolean; savedText: string; publishedText: string }): string {
+  if (status === "published") return `Live now · published ${publishedText}`;
+  if (status === "archived") return `Earlier live version · published ${publishedText}`;
+  return `${isWorkingDraft ? "Draft" : "Unused draft"} · last saved ${savedText}`;
+}
+
+export type RestoreState = { isShown: boolean; isDisabled: boolean };
+
+/**
+ * A version's Restore button (bugs 11–12, docs/cwr-chatbot-round-3-plan.md): never on the open
+ * draft itself, and not while unsaved edits or a test run could be overwritten.
+ */
+export function getRestoreState({ hasUnsavedChanges, isRunning, isWorkingDraft }: { hasUnsavedChanges: boolean; isRunning: boolean; isWorkingDraft: boolean }): RestoreState {
+  return { isShown: !isWorkingDraft, isDisabled: hasUnsavedChanges || isRunning };
+}
+
 export function getPublishBlocker(input: PublishBlockerInput): string | null {
   if (input.isRunning) return "Tests are running…";
+  if (input.hasUnsavedChanges) return SAVE_FIRST_REASON;
   if (input.isReadyToPublish) return null;
   return getSetupBlocker(input) ?? getRunBlocker(input) ?? getFailedBlocker(input.counts) ?? getUntestedBlocker(input.counts) ?? "Run the tests again to check the current questions.";
 }
