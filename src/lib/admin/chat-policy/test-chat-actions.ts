@@ -5,8 +5,8 @@ import { z } from "zod";
 
 import { policyBodySchema } from "@/lib/admin/chat-policy/policy-schema";
 import { AdminAccessError, OWNER_ROLES, requireAdmin } from "@/lib/admin/require-admin";
-import { fetchAssistantReply, type AnswerRequest } from "@/lib/chat/answer-question";
-import type { AssistantReply } from "@/lib/chat/assistant-reply";
+import { fetchAssistantReply, getRepairedTurnReply, type AnswerRequest } from "@/lib/chat/answer-question";
+import { getReplyWithoutRejectedText, type AssistantReply } from "@/lib/chat/assistant-reply";
 import { MAX_CHAT_MESSAGE_LENGTH, MAX_VISITOR_MESSAGES_PER_CHAT } from "@/lib/chat/chat-schemas";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
 import { runInActionContext } from "@/lib/observability/action-context";
@@ -48,7 +48,8 @@ async function reportTestChatError({ stage, severity, code, message }: TestChatP
 // Boundary around the model provider: only the error's class is kept, never its text.
 async function fetchModelReply(request: AnswerRequest): Promise<TestChatResult> {
   try {
-    return { status: "replied", reply: await fetchAssistantReply(request) };
+    const reply = getReplyWithoutRejectedText(await fetchAssistantReply(request));
+    return { status: "replied", reply: getRepairedTurnReply({ reply, turns: request.turns }) };
   } catch (error) {
     return reportTestChatError({ stage: "external", severity: "error", code: getErrorName(error), message: NO_REPLY_MESSAGE });
   }

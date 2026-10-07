@@ -65,7 +65,8 @@ test("the listings page shows statuses in the owner's order", async ({ page }) =
   await page.goto("/listings");
 
   // Act
-  const tagTexts = await page.locator("main .type-tag").allTextContents();
+  // Status tags only: cards also carry a "3 photos" badge in the same tag style.
+  const tagTexts = await page.locator("main [data-listing-status]").allTextContents();
   const ranks = tagTexts.map((text) => statusOrder.indexOf(text));
 
   // Assert

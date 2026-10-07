@@ -9,9 +9,11 @@ import type { AdminContext } from "@/lib/admin/require-admin";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const SERIOUS_SEVERITIES = ["error", "critical"];
+// Website visitors' problems are counted on their own line, so the team's figure keeps its meaning.
+const VISITOR_ORIGINS = ["server_visitor", "browser_visitor"];
 
-/** serious: how many were errors or worse. */
-export type ProblemCounts = { total: number; serious: number };
+/** total and serious: the team's own problems; serious = errors or worse. visitors: website visitors' problems. */
+export type ProblemCounts = { total: number; serious: number; visitors: number };
 
 /** problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4). */
 export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemCounts: LoadResult<ProblemCounts>; problemRecipientCount: LoadResult<number> };
@@ -24,10 +26,11 @@ async function fetchHealthChecks({ supabase, tenantId }: AdminContext): Promise<
 async function fetchProblemCounts({ supabase, tenantId }: AdminContext, now: Date): Promise<LoadResult<ProblemCounts>> {
   const dayAgo = new Date(now.getTime() - DAY_MS).toISOString();
   const countSince = () => supabase.from("problem_events").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("occurred_at", dayAgo);
-  const [all, serious] = await Promise.all([countSince(), countSince().in("severity", SERIOUS_SEVERITIES)]);
-  const error = all.error ?? serious.error;
+  const countTeamSince = () => countSince().not("origin", "in", `(${VISITOR_ORIGINS.join(",")})`);
+  const [all, serious, visitors] = await Promise.all([countTeamSince(), countTeamSince().in("severity", SERIOUS_SEVERITIES), countSince().in("origin", VISITOR_ORIGINS)]);
+  const error = all.error ?? serious.error ?? visitors.error;
   if (error) return getLoadFailure("problems in the last 24 hours", error);
-  return getLoaded({ total: all.count ?? 0, serious: serious.count ?? 0 });
+  return getLoaded({ total: all.count ?? 0, serious: serious.count ?? 0, visitors: visitors.count ?? 0 });
 }
 
 async function fetchProblemRecipientCount({ supabase, tenantId }: AdminContext): Promise<LoadResult<number>> {

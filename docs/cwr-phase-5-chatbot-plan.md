@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25) on branch `phase-5-chatbot` (from `build1`).
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 5, tasks 17–19).
+**Merged** into `build1` by PR #6 (`ba644ec`) on 2026-09-25.
 
 ## Goal
 
@@ -24,7 +25,7 @@ Visitors can ask the "CWR Assistant" questions and get answers drawn only from t
 
 | # | Question | Decision | Source |
 |---|---|---|---|
-| 1 | Model | `claude-opus-5` (newest Claude model, confirmed with the claude-api skill), adaptive thinking, effort `low` (chat), JSON reply via structured outputs (`messages.parse` + Zod), `fallbacks: "default"` so a declined request is retried on another model; a final refusal becomes a handoff | Handoff notes; claude-api skill defaults |
+| 1 | Model | `claude-haiku-4-5` (owner chose it for cost on 2026-10-04, replacing `claude-opus-5`; see `docs/cwr-chatbot-haiku-model-plan.md`), no thinking or effort setting (Haiku 4.5 takes neither), JSON reply via structured outputs (`messages.parse` + Zod); a refusal becomes a handoff | Handoff notes; claude-api skill defaults |
 | 2 | Where it runs | Server actions only; `ANTHROPIC_API_KEY` is a Worker secret, never `NEXT_PUBLIC_`. No new CSP host (the browser only talks to the site) | Infra §2, Features §2 |
 | 3 | Reply shape | `{ outcome: "answer" \| "handoff", reply, citedSections[] }`. The server keeps an answer only if every cited section is a real heading in the published policy and at least one is cited; otherwise it becomes a handoff | Features §2 "each answer cites" |
 | 4 | Policy sections | Every Markdown heading line (`#` … `######`) in the policy is a section. A policy needs at least one heading to be saved | Features §2 |
@@ -73,7 +74,7 @@ Parent-plan list (incl. Google Workspace records, `docs/constitution/*`, design 
 
 | # | Edge case | Solution |
 |---|---|---|
-| 1 | A visitor tricks the bot into revealing the policy or its instructions | Visitor text is only ever a question; marker and long-copy checks replace leaks with a handoff; a built-in injection test runs before every publish |
+| 1 | A visitor tricks the bot into revealing its instructions or private notes | Visitor text is only ever a question; the marker check replaces a reply quoting the instructions with a handoff; "(private)" policy sections never reach the model; public policy content may be quoted (owner decision 2026-10-02, docs/cwr-chat-policy-test-batches-plan.md Part B); a built-in injection test runs before every publish |
 | 2 | Bot gives advice outside policy (legal, lending, pricing) or steers by protected class | Rules in the system prompt, answers must cite real sections or become a handoff, built-in Fair Housing and lending tests block publishing a policy that fails them |
 | 3 | Visitor types an SSN or card number | Caught before the model, never stored, visitor told not to share it |
 | 4 | Bots run up the Anthropic bill | Turnstile per chat, per-visitor limit, 20 messages per chat, 200 new chats per hour site-wide |

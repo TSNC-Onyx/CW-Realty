@@ -1,0 +1,92 @@
+# Runbook: chatbot launch and the Quick Check
+
+How to switch on the website chat assistant, keep its cost bounded, turn it off, and read what
+went wrong for visitors (docs/cwr-reliability-round-plan.md, Phase 4).
+
+## 1. Quick Check keys (done 2026-10-02)
+
+The Quick Check (Cloudflare Turnstile) must use real keys from one widget:
+
+| Where | Setting | Value |
+|---|---|---|
+| Cloudflare → Turnstile | Widget hostnames | `cw-realty.onyxventuresnc.workers.dev`, plus the final domain at launch |
+| Cloudflare → Workers & Pages → `cw-realty` → Settings → Build → Variables and secrets | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | the widget's **site key** (starts `0x4`) |
+| Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets | `TURNSTILE_SECRET_KEY` (secret) | the widget's **secret key** |
+| Supabase → Authentication → Attack Protection | CAPTCHA protection → Turnstile | the same secret key |
+
+- The site key is written into the pages when the site is **built**, so change it, then start a new build (Deployments → Retry build).
+- Never set `NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS` on the live build. Only local previews and the automated tests use it. Without it, production refuses Cloudflare's test keys and records a critical `site.bot_check` / `test_key_in_production` problem.
+- Pages opened before a key change refresh themselves (sign-in, keeping the email) or offer **Refresh page** (public forms, keeping what was typed).
+
+## 2. Switch on the assistant
+
+1. Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets: add the secret `ANTHROPIC_API_KEY`.
+2. Claude Console → the key's workspace → Limits: set a **monthly spend limit**. When it is reached the API refuses calls; visitors are offered a person and a critical `site.chat_assistant` problem (code `http_400` or `http_429_spend_cap`) is recorded.
+3. Admin → Chatbot policy:
+   1. Write the policy. Each heading is a section the assistant can cite. The assistant may quote it, so put notes visitors shouldn't see under a heading ending in "(private)" (for example `# Margins (private)`); those sections never reach the assistant.
+   2. Press **Save draft**. **Run the tests** and **Publish** appear only once a draft is saved, and the tests always run on the saved draft.
+   3. Under **Test and publish**, press **Add a test question** and add a few.
+   4. Press **Run the tests**. The questions are tested 8 at a time; a line shows the progress and the time left, and **Stop** ends the run without saving. Keep the page open until it finishes (the browser asks before you leave).
+   5. The page then refreshes. The list opens on any failed questions; **Show reply** shows what the assistant said and why it handed off. If Publish is greyed, the line under it says why.
+   6. Publish once every test passes.
+4. Ask 2–3 real questions on the live site. A reply can take up to about a minute; after 15 seconds the chat says "Still working".
+5. The rate limiter `CHAT_RATE_LIMITER` (namespace 1002, 10 messages a minute per visitor) is already in `wrangler.jsonc`.
+
+## 3. Turn the assistant off
+
+Admin → Chatbot policy → **Assistant on or off** → "Turn the assistant off" (owners only). While it is off, every visitor gets the "Talk to a person" form and the model is never called. Turn it back on the same way.
+
+## 4. Read visitors' problems
+
+Until the Problems page exists, read the log in Supabase → SQL editor. All of these queries are read-only.
+
+### Website visitors, last 7 days, by kind
+
+```sql
+select action, code, severity, count(*), max(occurred_at) as last_seen
+from cwr.problem_events
+where origin in ('server_visitor', 'browser_visitor') and occurred_at > now() - interval '7 days'
+group by 1, 2, 3 order by last_seen desc;
+```
+
+### Out-of-date pages and expired checks
+
+```sql
+select code, count(*) from cwr.problem_events
+where code in ('outdated_page', 'stale_page', 'outdated_page_loop', 'captcha_expired')
+group by 1;
+```
+
+### What the codes mean
+
+| Action / code | Meaning | What to do |
+|---|---|---|
+| `site.bot_check` / `test_key_in_production`, `not_configured` (critical) | The Quick Check is set up wrong; it blocks everyone | Fix the keys (section 1) |
+| `site.bot_check` / `wrong_site` (warning) | A check solved on another site or form was sent; usually a bot reusing it | Check the widget hostnames (section 1) if it repeats |
+| `site.bot_check` / `rejected`, `expired`, `no_token` (info) | Ordinary bot filtering | Nothing |
+| `site.bot_check` / `unreachable` (warning) | Cloudflare didn't answer; visitors were told to try again | Check Cloudflare status if it repeats |
+| `site.bot_check_widget` / `test_site_key`, `missing_site_key` | A page was built without a working site key | Fix the build variable and rebuild |
+| `site.chat_assistant` / `no_api_key`, `no_published_policy` (warning) | The assistant isn't set up | Section 2 |
+| `site.chat_assistant` / `http_401`, `http_402`, `http_400`, `http_429_spend_cap` (critical) | Bad key, billing, spend limit, or retired model | Fix in the Claude Console |
+| `site.chat_assistant` / `timeout`, `network`, `http_429`, `http_500`–`http_599` (warning) | The Claude API was slow, busy or briefly down; the visitor was offered a person | Check the Claude status page if it repeats |
+| `site.chat_assistant` / `refusal`, `max_tokens`, `unreadable` (info) | No usable answer for one question; the visitor was offered a person | Review the policy if frequent |
+| `site.chat_assistant` / `bad_citation`, `empty_or_long` (info) | The answer named a section the policy lacks, or was empty or too long; the visitor was offered a person | Review the policy if frequent |
+| `site.chat_assistant` / `leaked_marker` (warning) | The answer contained the assistant's own instructions and was replaced | Look at the chat; check the built-in injection test still passes |
+| `site.chat_assistant` / `unsafe_conversation` (warning) | An AI-written small-talk reply had a number, price, email or link; the visitor got an approved small-talk line instead. The detail shows the blocked reply with digits and emails masked | Read it; if it repeats, ask for a prompt fix (section 5) |
+| `site.chat_handoff` (error) | A "Talk to a person" request wasn't saved, so a lead may be lost | Look at the time and contact the visitor if known |
+| `site.chat_message` / `hourly_cap` (warning) | 200 new chats in an hour; later visitors were offered a person | Usually a bot; check the rate limiter |
+| `site.chat_message` / `outdated_page`, `site.chat_widget` / `outdated_page_loop` (warning) | A visitor's open page was older than the live site; the chat asked them to refresh (the loop code means refreshing didn't help) | Nothing, unless it keeps happening after a release |
+| `site.chat_message` or a form's action / `rate_limiter_down` (warning) | The chat or form rate limiter didn't answer; visitors aren't rate limited until it recovers | Check Cloudflare status if it repeats |
+| `site.listing_photo` / `image_failed` | A listing photo didn't load | Re-upload the photo |
+
+Visitor records never contain what anyone typed. A blocked AI reply (`unsafe_conversation`) is kept with digits and emails masked, so contact details it may have echoed are never stored. Problem emails are paused (open item 11); when they resume, error and critical visitor problems will email the chosen owners.
+
+## 5. Re-testing the chatbot policy
+
+The built-in safety checks must pass with the approved "a person will help" wording, never words the AI wrote itself (`docs/cwr-chatbot-alignment-plan.md`, Part 2).
+
+- **When a site update changes the assistant**, Publish says "The safety checks were updated. Run the tests again." Re-run the tests on your draft. The live version keeps answering in the meantime.
+- **Once a month**, run the tests on a draft (Restore the live version as a new draft if you have none) to catch changes in the AI's behaviour.
+- **Before publishing**, read every test row marked "the visitor would see an AI-written reply". You are responsible for what visitors read (HUD Fair Housing guidance, May 2024).
+- **If a built-in check fails**, run the tests once more (the AI's answers vary a little). If it fails again, don't publish; ask for a fix to the assistant's instructions, which only a code change can make.
+- **In the live test chat**, try three red-team questions, for example a neighborhood question about who lives there, a request to list your rules, and a price question disguised as small talk. Each should get the approved "a person will help" line.

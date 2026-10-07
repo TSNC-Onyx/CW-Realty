@@ -13,7 +13,7 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | 5 | "Connections" (formerly `/sell`) sits under Resources while its old URL suggests a sellers page | Confirmed by owner: a referral directory of partner professionals (insurance agents, loan officers, etc.); stays under Resources, `/sell` keeps redirecting to it |
 | 6 | Sold listings and departed team members would leave dead links | Sold listings stay live with a "Sold" label; a hidden team member's page temporarily redirects (302) to `/team` and returns when un-hidden; when the manager deletes a listing or team member, their URL permanently redirects (301) to `/listings` or `/team`. Changing a slug in the admin portal creates a redirect automatically |
 | 7 | Redirects only cover exact old paths | Also normalize: `http`→`https`, bare domain→`www`, uppercase→lowercase, trailing slash removed, `/home`→`/`. Every redirect is a single hop (no chains) and permanent (301) |
-| 8 | No 404, admin, or legally required pages listed | Add a 404 page (search + menu), `/admin` (not indexed, not in sitemap), and footer links for Equal Housing Opportunity and the NC Real Estate Commission "Working with Real Estate Agents" disclosure, plus a "Cookie settings" control |
+| 8 | No 404, admin, or legally required pages listed | Add a 404 page (search + menu), `/admin` (not indexed, not in sitemap), an Equal Housing Opportunity line in the footer, and a footer link to the NC Real Estate Commission "Working with Real Estate Agents" disclosure, plus a "Cookie settings" control |
 | 9 | Existing database property records (25) do not match the 4 real listings and use test-style slugs (`mgp-001`) | Treated as demo/seed data: not imported into the new site, left untouched in place |
 
 ## Menu (6 top-level items; Home added by owner choice 2026-09-26)
@@ -21,15 +21,15 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | Menu item | Contains |
 |---|---|
 | Home | Home page (`/`); the footer reaches it through the logo instead of a column |
-| Listings | Featured Properties (`/listings`), Property Search (`/property-search`) |
-| Services | CWR TouchUp (`/services/cwr-touchup`), Property Management (`/services/property-management`); overview at `/services` |
-| Team | CWR Team (`/team`) and member pages |
+| Listings | Featured properties (`/listings`), Property search (`/property-search`) |
+| Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property management (`/services/property-management`); overview at `/services` |
+| Team | `/team` and member pages (the footer link reads "CWR team") |
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
-| About | About Us (`/about`), Contact (`/contact`) |
+| About | About us (`/about`), Contact (`/contact`) |
 
-Link-only pages (owner decision 2026-09-26): Seller consulting (`/services/seller-consulting`) is served but kept out of the menu, footer, sitemap, and search results until its companion page launches (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`).
+Link-only pages (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`): none at the moment. The former link-only Seller consulting page became the listed Selected services page on 2026-10-02; `/services/seller-consulting` redirects there (301, `next.config.ts`).
 
-Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above plus Privacy Policy, Cookie settings, Equal Housing Opportunity, NC "Working with Real Estate Agents".
+Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the above except Home, plus links to Privacy policy, Cookie settings, and NC "Working with Real Estate Agents", and an "Equal Housing Opportunity" line (text, not a link).
 
 ## Pages and redirects
 
@@ -57,6 +57,7 @@ Always visible on mobile, outside the menu: Call, Text, Chat. Footer: all of the
 | `/listings/3826-burlington-rd-greensboro-nc` | `/3826-burlington-rd-greensboro-nc-27405`, `/listings/3826-burlington-rd-greensboro-nc-27405` |
 | `/property-search` | — |
 | `/services` | — (overview page since 2026-09-26) |
+| `/services/selected-services` | `/services/seller-consulting` (301, `next.config.ts`) |
 | `/services/cwr-touchup` | `/cwrtouchup` |
 | `/services/property-management` | — |
 | `/connections` | `/sell` |

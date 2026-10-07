@@ -2,6 +2,7 @@
 
 > Owner decisions 2026-10-02: four statuses in this order — Coming Soon, For Sale, Under Contract, Sold. Coming Soon dot is white. Skips allowed. Listings page order: Coming Soon, For Sale, Under Contract, Sold. Coming Soon listing page invites "tell me when it's ready" instead of a showing. New listings start as Coming Soon.
 > Owner said "build it" on 2026-10-02. Applying the migrations to the production database needs a separate owner approval.
+> Owner said "update it" on 2026-10-07: brought up to date with build1 (32 commits). Migrations re-dated to 20261007000100 / 20261007000200 so they run after those already live; pgTAP file renumbered to 200; no newer migration touches the listing enum, trigger, or `install_default_workflows`, and production's move table matched the 2026-09-28 definition before this change.
 
 ## Goal
 
@@ -45,8 +46,8 @@ Listing page panel:
 
 ## Task breakdown
 
-1. Migration A `supabase/migrations/20261002000100_cwr_listing_status_names.sql`: rename enum values ('active'→'for_sale', 'pending'→'under_contract'); add 'coming_soon' BEFORE 'for_sale'. (Separate file because a new enum value cannot be used in the same transaction.)
-2. Migration B `20261002000200_cwr_listing_status_moves.sql`: column default → 'coming_soon'; recreate the `listings_guard_status` trigger so new rows must start as 'coming_soon' (it named 'active'); `create or replace cwr.install_default_workflows` with the new move table; delete each tenant's `listing_status` workflow (its moves cascade) and reinstall it; audit/RLS untouched.
+1. Migration A `supabase/migrations/20261007000100_cwr_listing_status_names.sql`: rename enum values ('active'→'for_sale', 'pending'→'under_contract'); add 'coming_soon' BEFORE 'for_sale'. (Separate file because a new enum value cannot be used in the same transaction.)
+2. Migration B `20261007000200_cwr_listing_status_moves.sql`: column default → 'coming_soon'; recreate the `listings_guard_status` trigger so new rows must start as 'coming_soon' (it named 'active'); `create or replace cwr.install_default_workflows` with the new move table; delete each tenant's `listing_status` workflow (its moves cascade) and reinstall it; audit/RLS untouched.
 3. New `src/lib/content/listing-statuses.ts` (no server imports, so browser components can use it): `LISTING_STATUSES` in enum order, `ListingStatus`, `LISTING_STATUS_LABELS` — the one list the site, admin, and Zod schemas share. `src/lib/content/listings.ts` uses it.
 4. `src/lib/admin/listings/workflow.ts`: moves (mirror of the database table); labels now come from step 3 (admin list and status buttons updated).
 5. `src/lib/admin/listings/actions.ts`: `toState` enum.
@@ -83,4 +84,4 @@ Publishing workflow (`listing_publish`), photos, inbox and chat workflows, RLS p
 | Clear, familiar wording | NN/g plain language / Digital.gov | Pass: the words agents and buyers already use |
 | Data safety | PostgreSQL docs, ALTER TYPE RENAME VALUE / ADD VALUE | Pass: rename keeps rows; add-value split into its own migration |
 | Database stays the authority | Infra constitution §4 | Pass: moves enforced by `cwr.transition()`; UI only mirrors |
-| Regulatory | NAR Clear Cooperation / local MLS rules | Open: Charlie to confirm Coming Soon advertising rules with the MLS |
+| Regulatory | NAR Clear Cooperation / local MLS rules | Pass: Charlie (broker in charge) approved Coming Soon advertising with the MLS on 2026-10-02 |

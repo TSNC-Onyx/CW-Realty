@@ -1,7 +1,7 @@
 # Features & Navigation Constitution
 
-> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §1 amended with owner approval on 2026-09-26 (Home menu item, `docs/cwr-site-review-round-plan.md`).
-> Menu and navigation pages: see `docs/reference/site/CWR-sitemap.xml` and `docs/reference/site/CWR-routes.ts` (the redirects file), as reconciled in `docs/reference/site/navigation-reconciliation.md`.
+> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §1 amended with owner approval on 2026-09-26 (Home menu item, `docs/cwr-site-review-round-plan.md`). §2 amended with owner approval on 2026-10-02 (public policy content may be quoted, `docs/cwr-chat-policy-test-batches-plan.md`). Header pointer corrected with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`).
+> Menu and navigation pages: see `docs/reference/site/navigation-reconciliation.md` (the working source of truth). `docs/reference/site/CWR-sitemap.xml` and `docs/reference/site/CWR-routes.ts` (the redirects file) are kept unchanged as the historical originals.
 
 ## 1. Mobile Navigation (NN/g, WCAG 2.2)
 
@@ -20,7 +20,7 @@
 - Never gives legal, lending, or pricing advice beyond policy
 - Collects only name, phone, and email; never financial or ID numbers
 - Fair Housing compliant: no steering by protected class (Fair Housing Act)
-- Guard against prompt injection; never expose the policy file or system prompt
+- Guard against prompt injection; never expose the system prompt or private policy notes; public policy content may be quoted (owner decision 2026-10-02)
 - Log every chat and handoff for weekly review
 - Widget loads after page content so it never slows the page
 

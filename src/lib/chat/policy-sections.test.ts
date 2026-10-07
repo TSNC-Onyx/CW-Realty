@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getMatchingSection, getPolicySections } from "@/lib/chat/policy-sections";
+import { getAssistantPolicy, getAssistantSections, getMatchingSection, getPolicySections, getPrivateSections, getPublicPolicy, getPublicSections, getPublicSectionText } from "@/lib/chat/policy-sections";
 
 describe("getPolicySections", () => {
   it("lists every Markdown heading as a section", () => {
@@ -47,5 +47,191 @@ describe("getMatchingSection", () => {
 
     // Assert
     expect(match).toBeNull();
+  });
+});
+
+// Private sections (owner decision 2026-10-02): notes the assistant never receives.
+const MIXED_POLICY = ["# Office hours", "Weekdays.", "## Margins (private)", "Keep 2%.", "### Deep note", "Secret.", "## Booking", "Use the form.", "# Pricing notes ( Private ) ##", "Internal.", "## Sub price", "Also internal."].join("\n");
+
+describe("getPublicPolicy", () => {
+  it("removes a private section up to the next heading of the same or a higher level", () => {
+    // Arrange / Act
+    const policy = getPublicPolicy(MIXED_POLICY);
+
+    // Assert
+    expect(policy).toBe(["# Office hours", "Weekdays.", "## Booking", "Use the form."].join("\n"));
+  });
+
+  it("keeps a deeper heading inside a private section private", () => {
+    // Arrange / Act
+    const policy = getPublicPolicy(MIXED_POLICY);
+
+    // Assert
+    expect(policy.includes("Deep note") || policy.includes("Secret.")).toBe(false);
+  });
+
+  it("runs a private section at the end of the file to the end", () => {
+    // Arrange / Act
+    const policy = getPublicPolicy(MIXED_POLICY);
+
+    // Assert
+    expect(policy.includes("Sub price") || policy.includes("Also internal.")).toBe(false);
+  });
+
+  it("ignores heading-like lines inside fenced code blocks", () => {
+    // Arrange
+    const policy = ["# Examples", "```", "# Not private (private)", "```", "Shown.", "~~~", "# Also code", "~~~", "Still shown."].join("\n");
+
+    // Act
+    const publicPolicy = getPublicPolicy(policy);
+
+    // Assert
+    expect(publicPolicy).toBe(policy);
+  });
+
+  it("keeps a private section private when an earlier code fence is never closed", () => {
+    // Arrange
+    const policy = ["# Examples", "```", "an unclosed snippet", "# Margins (private)", "Keep 2 percent."].join("\n");
+
+    // Act
+    const publicPolicy = getPublicPolicy(policy);
+
+    // Assert
+    expect(publicPolicy.includes("Keep 2 percent.")).toBe(false);
+  });
+
+  it("closes a fence only on the character that opened it", () => {
+    // Arrange
+    const policy = ["# Notes (private)", "```", "~~~", "# Inside code", "```", "Still private.", "# Public", "Shown."].join("\n");
+
+    // Act
+    const publicPolicy = getPublicPolicy(policy);
+
+    // Assert
+    expect(publicPolicy).toBe(["# Public", "Shown."].join("\n"));
+  });
+
+  it("accepts (Private), ( private ) and a trailing #", () => {
+    // Arrange
+    const policy = ["# A (Private)", "a", "# B ( private )", "b", "# C (private) ##", "c", "# D", "d"].join("\n");
+
+    // Act
+    const publicPolicy = getPublicPolicy(policy);
+
+    // Assert
+    expect(publicPolicy).toBe(["# D", "d"].join("\n"));
+  });
+
+  it("leaves a policy with no private sections unchanged", () => {
+    // Arrange
+    const policy = "# Office hours\nWeekdays.\n## Booking\nUse the form.";
+
+    // Act
+    const publicPolicy = getPublicPolicy(policy);
+
+    // Assert
+    expect(publicPolicy).toBe(policy);
+  });
+});
+
+describe("getPublicSections and getPrivateSections", () => {
+  it("lists only the headings the assistant may cite", () => {
+    // Arrange / Act
+    const sections = getPublicSections(MIXED_POLICY);
+
+    // Assert
+    expect(sections).toEqual(["Office hours", "Booking"]);
+  });
+
+  it("lists private headings and their sub-headings as private", () => {
+    // Arrange / Act
+    const sections = getPrivateSections(MIXED_POLICY);
+
+    // Assert
+    expect(sections).toEqual(["Margins (private)", "Deep note", "Pricing notes ( Private )", "Sub price"]);
+  });
+
+  it("doesn't list a title as private when a public heading has the same title", () => {
+    // Arrange / Act
+    const sections = getPrivateSections("# Pricing\nPublic.\n# Notes (private)\n## Pricing\nInternal.");
+
+    // Assert
+    expect(sections).toEqual(["Notes (private)"]);
+  });
+
+  it("finds no public section when every section is private", () => {
+    // Arrange / Act
+    const sections = getPublicSections("# Notes (private)\nInternal.\n## More\nAlso internal.");
+
+    // Assert
+    expect(sections).toEqual([]);
+  });
+
+  it("finds no public section in a policy of headings only, all private", () => {
+    // Arrange / Act
+    const sections = getPublicSections("# One (private)\n# Two (private)");
+
+    // Assert
+    expect(sections).toEqual([]);
+  });
+
+  it("keeps listing every heading for save validation", () => {
+    // Arrange / Act
+    const sections = getPolicySections(MIXED_POLICY);
+
+    // Assert
+    expect(sections).toHaveLength(6);
+  });
+});
+
+describe("getPublicSectionText", () => {
+  const POLICY = [
+    "# Office hours",
+    "We are open weekdays.",
+    "",
+    "## Quick answer: Buying a home",
+    "We guide buyers to the keys.",
+    "  Plans start at $500.  ",
+    "## Selling a home",
+    "We help sellers.",
+    "# Owner notes (private)",
+    "## Quick answer: Get started",
+    "Never shown.",
+  ].join("\n");
+
+  it("joins a section's lines up to the next heading", () => {
+    // Arrange / Act
+    const text = getPublicSectionText(POLICY, "quick answer: buying a home");
+
+    // Assert
+    expect(text).toBe("We guide buyers to the keys. Plans start at $500.");
+  });
+
+  it("never reads a section inside a private one, and returns null for a missing one", () => {
+    // Arrange / Act
+    const results = [getPublicSectionText(POLICY, "Quick answer: Get started"), getPublicSectionText(POLICY, "Quick answer: Team")];
+
+    // Assert
+    expect(results).toEqual([null, null]);
+  });
+
+  it("gives an empty text for a heading with nothing under it", () => {
+    // Arrange / Act
+    const text = getPublicSectionText("# Quick answer: Team\n# Office hours\nWeekdays.", "Quick answer: Team");
+
+    // Assert
+    expect(text).toBe("");
+  });
+});
+
+describe("getAssistantSections and getAssistantPolicy", () => {
+  const POLICY = ["# Office hours", "Weekdays.", "# Quick answer: Buying a home", "Button text.", "# Selling a home", "We help sellers.", "# Notes (private)", "Secret."].join("\n");
+
+  it("leave out quick-answer and private sections, and nothing else", () => {
+    // Arrange / Act
+    const result = { sections: getAssistantSections(POLICY), policy: getAssistantPolicy(POLICY) };
+
+    // Assert
+    expect(result).toEqual({ sections: ["Office hours", "Selling a home"], policy: "# Office hours\nWeekdays.\n# Selling a home\nWe help sellers." });
   });
 });

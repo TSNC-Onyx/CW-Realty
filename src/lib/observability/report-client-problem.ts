@@ -67,6 +67,19 @@ export async function reportClientProblem(problem: ClientProblem): Promise<strin
   }
 }
 
+/**
+ * A website visitor's browser report (docs/cwr-reliability-round-plan.md, Phase 1). Visitors
+ * are anonymous, so nothing is kept for later and no reference code comes back to show.
+ */
+export async function reportVisitorClientProblem(problem: ClientProblem): Promise<void> {
+  const report: ClientProblemReport = { ...problem, id: crypto.randomUUID(), pagePath: window.location.pathname };
+  try {
+    await postReport(report);
+  } catch {
+    sendBeaconReport(report);
+  }
+}
+
 /** Sends reports kept while offline, if they belong to whoever is signed in now. */
 export async function flushQueuedProblems(): Promise<void> {
   const queue = readQueue();

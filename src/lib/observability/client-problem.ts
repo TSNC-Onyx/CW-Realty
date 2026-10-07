@@ -20,6 +20,12 @@ export const BROWSER_PROBLEM_CODES = [
   "decode_error",
   "file_rejected",
   "script_error",
+  "unsupported",
+  "test_site_key",
+  "missing_site_key",
+  "action_failed",
+  "image_failed",
+  "outdated_page_loop",
   "other",
 ] as const;
 

@@ -14,7 +14,7 @@ const DOT_CLASSES: Record<ListingStatus, string> = {
 export function StatusTag({ status, isOverlay = false }: { status: ListingStatus; isOverlay?: boolean }) {
   const positionClass = isOverlay ? "absolute top-3 left-3 z-10" : "";
   return (
-    <span className={`tone-dark type-tag inline-flex items-center gap-2 px-2.5 py-1.5 ${positionClass}`}>
+    <span data-listing-status={status} className={`tone-dark type-tag inline-flex items-center gap-2 px-2.5 py-1.5 ${positionClass}`}>
       <span aria-hidden className={`size-2 rounded-full ${DOT_CLASSES[status]}`} />
       {LISTING_STATUS_LABELS[status]}
     </span>

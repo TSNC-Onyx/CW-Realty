@@ -9,7 +9,7 @@ describe("listing status moves", () => {
     ["under_contract", ["for_sale", "sold"]],
     ["sold", ["for_sale"]],
   ] as const)("offers the moves the database allows from %s", (status, expectedMoves) => {
-    // Arrange: the database move table (supabase/migrations/20261002000200)
+    // Arrange: the database move table (supabase/migrations/20261007000200)
 
     // Act
     const moves = getStatusMoves(status);

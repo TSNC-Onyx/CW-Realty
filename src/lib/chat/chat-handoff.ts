@@ -7,8 +7,11 @@ import { CONTACT_NEEDED_MESSAGE, HANDOFF_FORM_FIELDS, HANDOFF_TURNSTILE_ACTION, 
 import { getHandoffBody } from "@/lib/chat/handoff-body";
 import { getFieldErrors, getFieldValues, getResultState, type FieldErrors, type FieldValues, type RequestFormState } from "@/lib/forms/form-state";
 import { submitNewRequest } from "@/lib/forms/intake";
+import { reportVisitorProblem } from "@/lib/observability/report-visitor-problem";
+import { BOT_CHECK_KEY_FIELD, isOutdatedBotCheckKey } from "@/lib/security/bot-check-key";
 import { isOverFormLimit } from "@/lib/security/rate-limit";
-import { TURNSTILE_FIELD, verifyTurnstileToken } from "@/lib/security/turnstile";
+import { TURNSTILE_FIELD } from "@/lib/security/turnstile";
+import { passesVisitorBotCheck } from "@/lib/security/visitor-bot-check";
 import type { Visitor } from "@/lib/security/visitor";
 import { getE164Phone } from "@/lib/site/phone";
 import { fetchLeadTracking, getFormConversion, scheduleMetaLead, type LeadContact, type LeadTracking } from "@/lib/tracking/lead-tracking";
@@ -33,6 +36,11 @@ function getHandoffContact(values: FieldValues): LeadContact {
   return { email: (values.email ?? "").trim().toLowerCase() || null, phone: getE164Phone(values.phone ?? "") };
 }
 
+async function getOutdatedPageState(values: FieldValues): Promise<RequestFormState> {
+  await reportVisitorProblem({ action: "site.chat_handoff", stage: "validate", severity: "warning", code: "outdated_page" });
+  return getResultState({ status: "blocked", values, recovery: "refresh" });
+}
+
 async function saveHandoff({ values, sessionId, idempotencyKey, tracking }: { values: FieldValues; sessionId: string | null; idempotencyKey: string; tracking: LeadTracking }): Promise<void> {
   const session = sessionId ? await fetchOpenChatSession(sessionId) : null;
   const contact = getHandoffContact(values);
@@ -54,9 +62,10 @@ export async function submitChatHandoff({ formData, visitor }: { formData: FormD
   const values = getFieldValues(formData, HANDOFF_FORM_FIELDS);
   const fieldErrors = getHandoffErrors(values);
   if (Object.keys(fieldErrors).length > 0) return getResultState({ status: "invalid", values, fieldErrors });
-  if (await isOverFormLimit(visitor.ip)) return getResultState({ status: "limited", values });
+  if (await isOverFormLimit(visitor.ip, "site.chat_handoff")) return getResultState({ status: "limited", values });
+  if (isOutdatedBotCheckKey(formData.get(BOT_CHECK_KEY_FIELD))) return getOutdatedPageState(values);
   const token = String(formData.get(TURNSTILE_FIELD) ?? "");
-  const isHuman = await verifyTurnstileToken({ token, remoteIp: visitor.ip, expectedAction: HANDOFF_TURNSTILE_ACTION, expectedHostname: visitor.hostname });
+  const isHuman = await passesVisitorBotCheck({ token, remoteIp: visitor.ip, expectedAction: HANDOFF_TURNSTILE_ACTION, expectedHostname: visitor.hostname });
   if (!isHuman) return getResultState({ status: "blocked", values });
   const idempotencyKey = String(formData.get("idempotencyKey") ?? crypto.randomUUID());
   const tracking = await fetchLeadTracking(formData);

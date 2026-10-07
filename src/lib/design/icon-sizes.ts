@@ -5,5 +5,6 @@ export const ICON_SIZE = {
   button: 20,
   actionBar: 22,
   message: 24,
+  carouselArrow: 24,
   badge: 30,
 } as const;

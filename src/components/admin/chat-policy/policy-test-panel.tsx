@@ -1,0 +1,199 @@
+"use client";
+
+import { Plus } from "lucide-react";
+import { useCallback, useId, useRef, useState, type ReactNode } from "react";
+
+import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft-state";
+import { addTestForSection, useAddTestRequest } from "@/components/admin/chat-policy/policy-page-events";
+import { PolicyPublishing } from "@/components/admin/chat-policy/policy-publishing";
+import { PolicyTestForm } from "@/components/admin/chat-policy/policy-test-form";
+import { PolicyTestList } from "@/components/admin/chat-policy/policy-test-list";
+import { getButtonClassName } from "@/components/ui/button-link";
+import { getAttentionCounts, getPublishBlocker, getTestCounts, type AttentionCounts, type TestRow, type TestRowStatus } from "@/lib/admin/chat-policy/test-rows";
+import { ICON_SIZE } from "@/lib/design/icon-sizes";
+
+// "Test and publish" (docs/cwr-chat-policy-test-batches-plan.md, Part C): one list of the
+// questions with their last results, the run and Publish buttons, and a plain reason
+// whenever Publish is locked. With no draft, it shows the run that let the live version publish.
+
+type TestFilter = "all" | TestRowStatus;
+
+const FILTERS: { value: TestFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "failed", label: "Failed" },
+  { value: "untested", label: "Not tested" },
+  { value: "stale", label: "Out of date" },
+  { value: "passed", label: "Passed" },
+];
+
+export type TestScore = { passed: number; total: number; lastRunText: string };
+
+type PolicyTestPanelProps = {
+  /** When the latest run was saved: a new run opens the list on its failed questions again. */
+  runAt: string | null;
+  draftId: string | null;
+  draftVersion: number | null;
+  /** The live version, set only while there is no draft. */
+  liveVersion: number | null;
+  rows: TestRow[];
+  score: TestScore | null;
+  isReadyToPublish: boolean;
+  isCurrent: boolean;
+  /** Every current built-in safety check was tested under the current version. */
+  hasCurrentChecksVersion: boolean;
+  didRunLoad: boolean;
+  isAssistantConfigured: boolean;
+  /** Shown above the list when the last run didn't load. */
+  runProblem: ReactNode;
+  /** The draft's "(private)" headings, which no test can cite. */
+  privateSections: string[];
+  /** The draft's headings the assistant may cite: the add form's section list. */
+  sections: string[];
+  /** Sections no owner question expects yet (coverage hints). */
+  uncoveredSections: string[];
+};
+
+function getScoreText({ score, isCurrent }: { score: TestScore | null; isCurrent: boolean }): string {
+  if (!score) return "Not run yet";
+  return `${score.passed} of ${score.total} passed${isCurrent ? "" : " (out of date)"}`;
+}
+
+function getVersionText({ draftVersion, liveVersion }: { draftVersion: number | null; liveVersion: number | null }): string {
+  if (draftVersion) return `Draft version ${draftVersion}`;
+  if (liveVersion) return `Live version ${liveVersion}`;
+  return "No saved draft";
+}
+
+function getRunTimeText({ score, liveVersion }: { score: TestScore | null; liveVersion: number | null }): string | null {
+  if (!score) return null;
+  return `${liveVersion ? "tested" : "last run"} ${score.lastRunText}`;
+}
+
+/** Why there is nothing to publish while a version is live and no draft is open. */
+function getLiveNote(liveVersion: number): string {
+  return `Version ${liveVersion} is live. To change or re-test it, edit the policy above and save, or tap Restore on version ${liveVersion} in Version history. Either starts a new draft to test.`;
+}
+
+function TestStatusBox({ draftId, draftVersion, liveVersion, score, isCurrent, isReadyToPublish }: Pick<PolicyTestPanelProps, "draftId" | "draftVersion" | "liveVersion" | "score" | "isCurrent" | "isReadyToPublish">) {
+  return (
+    <div className="mb-4 flex max-w-prose flex-wrap items-start justify-between gap-4 border border-line bg-surface p-4">
+      <div>
+        <p className="type-h3">{getScoreText({ score, isCurrent })}</p>
+        <p className="type-small text-muted">{[getVersionText({ draftVersion, liveVersion }), getRunTimeText({ score, liveVersion })].filter(Boolean).join(" · ")}</p>
+      </div>
+      {draftId && <PolicyPublishing draftId={draftId} isReadyToPublish={isReadyToPublish} />}
+    </div>
+  );
+}
+
+function TestFilters({ counts, shownFilter, onChange }: { counts: Record<TestFilter, number>; shownFilter: TestFilter; onChange: (filter: TestFilter) => void }) {
+  return (
+    <div role="group" aria-label="Show" className="mb-2 flex flex-wrap gap-2">
+      {FILTERS.filter((filter) => filter.value === "all" || counts[filter.value] > 0).map((filter) => (
+        <button key={filter.value} type="button" aria-pressed={shownFilter === filter.value} onClick={() => onChange(filter.value)} className="policy-test-filter">
+          {`${filter.label} ${counts[filter.value]}`}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Who needs to act on the latest results (docs/cwr-chat-quick-answers-and-tests-plan.md §F). */
+function AttentionSummary({ attention }: { attention: AttentionCounts }) {
+  const parts = [
+    `${attention.needsYou} need${attention.needsYou === 1 ? "s" : ""} your attention`,
+    `${attention.developerNotified} sent to your developer`,
+    ...(attention.noReply > 0 ? [`${attention.noReply} got no reply (run the tests again)`] : []),
+    `${attention.passed} passed${attention.unstable > 0 ? ` (${attention.unstable} unstable)` : ""}`,
+  ];
+  return <p className="mb-4 max-w-prose font-semibold">{parts.join(" · ")}</p>;
+}
+
+/** Sections no question checks yet, each with a shortcut to add one. */
+function CoverageHints({ uncoveredSections }: { uncoveredSections: string[] }) {
+  if (uncoveredSections.length === 0) return null;
+  return (
+    <div className="mt-6 max-w-prose">
+      <p className="font-semibold">No test checks these sections yet:</p>
+      <ul className="mt-2 flex flex-wrap gap-2">
+        {uncoveredSections.map((section) => (
+          <li key={section}>
+            <button type="button" onClick={() => addTestForSection(section)} aria-label={`Add a test for “${section}”`} className="policy-test-filter">
+              <Plus aria-hidden size={ICON_SIZE.inline} />
+              {section}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+type FormPreset = { section: string; count: number };
+
+function AddTestDisclosure({ hasOwnerTests, sections }: { hasOwnerTests: boolean; sections: string[] }) {
+  const [isOpen, setIsOpen] = useState(!hasOwnerTests);
+  // A coverage hint opens the form on its section; the count gives each request a fresh form.
+  const [preset, setPreset] = useState<FormPreset>({ section: "", count: 0 });
+  const formId = useId();
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const handleAddRequest = useCallback((section: string) => {
+    setPreset((previous) => ({ section, count: previous.count + 1 }));
+    setIsOpen(true);
+    toggleRef.current?.scrollIntoView({ block: "start" });
+  }, []);
+  useAddTestRequest(handleAddRequest);
+  const handleCancel = () => {
+    setIsOpen(false);
+    toggleRef.current?.focus();
+  };
+  return (
+    <div className="mt-6">
+      <button ref={toggleRef} type="button" aria-expanded={isOpen} aria-controls={formId} onClick={() => setIsOpen((wasOpen) => !wasOpen)} className={getButtonClassName({ size: "s", variant: "secondary" })}>
+        <Plus aria-hidden size={ICON_SIZE.button} />
+        Add a test question
+      </button>
+      <div id={formId} hidden={!isOpen} className="mt-4 grid gap-4">
+        <PolicyTestForm key={preset.count} sections={sections} initialSection={preset.section} isFocusedOnOpen={preset.count > 0} />
+        <div>
+          <button type="button" onClick={handleCancel} className="type-small font-semibold underline">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type FilterChoice = { runAt: string | null; filter: TestFilter };
+
+export function PolicyTestPanel({ runAt, draftId, draftVersion, liveVersion, rows, score, isReadyToPublish, isCurrent, hasCurrentChecksVersion, didRunLoad, isAssistantConfigured, runProblem, privateSections, sections, uncoveredSections }: PolicyTestPanelProps) {
+  const counts = getTestCounts(rows);
+  const attention = getAttentionCounts(rows);
+  const hasOwnerTests = rows.some((row) => !row.isBuiltIn);
+  const { isRunning, hasUnsavedChanges } = usePolicyDraftState();
+  // The panel stays mounted across refreshes (so focus stays on the run button); a choice made
+  // before the latest run is dropped, so a fresh run opens on its failed questions.
+  const [filterChoice, setFilterChoice] = useState<FilterChoice | null>(null);
+  const chosenFilter = filterChoice?.runAt === runAt ? filterChoice.filter : counts.failed > 0 ? "failed" : "all";
+  // A view that empties (the last failure was fixed or removed) falls back to every question.
+  const shownFilter = chosenFilter !== "all" && counts[chosenFilter] === 0 ? "all" : chosenFilter;
+  const shownRows = shownFilter === "all" ? rows : rows.filter((row) => row.status === shownFilter);
+  const liveNote = draftId === null && liveVersion !== null ? getLiveNote(liveVersion) : null;
+  const blocker = liveNote ? null : getPublishBlocker({ isReadyToPublish, isRunning, hasUnsavedChanges, hasDraft: draftId !== null, didRunLoad, isAssistantConfigured, hasRun: score !== null, isCurrent, hasCurrentChecksVersion, counts, safetyFailedCount: attention.developerNotified });
+  return (
+    <>
+      <TestStatusBox draftId={draftId} draftVersion={draftVersion} liveVersion={liveVersion} score={score} isCurrent={isCurrent} isReadyToPublish={isReadyToPublish} />
+      {blocker && <p className="policy-test-blocker mb-4 max-w-prose">{`Publish is locked: ${blocker}`}</p>}
+      {liveNote && <p className="mb-4 max-w-prose">{liveNote}</p>}
+      {runProblem}
+      {score && isCurrent && <AttentionSummary attention={attention} />}
+      <TestFilters counts={counts} shownFilter={shownFilter} onChange={(filter) => setFilterChoice({ runAt, filter })} />
+      <p role="status" className="type-small mb-2 text-muted">{`Showing ${shownRows.length}.`}</p>
+      <PolicyTestList rows={shownRows} totalCount={rows.length} privateSections={privateSections} sections={sections} />
+      {!hasOwnerTests && <p className="mt-4 max-w-prose">No questions of your own yet. Add a few questions visitors often ask, and what the assistant should do with each.</p>}
+      <CoverageHints uncoveredSections={uncoveredSections} />
+      <AddTestDisclosure hasOwnerTests={hasOwnerTests} sections={sections} />
+    </>
+  );
+}

@@ -5,6 +5,9 @@ import { fetchOldestNewThreadDate, fetchUnreadCount } from "@/lib/admin/inbox/qu
 import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
+import { getAssistantStatus } from "@/lib/chat/assistant-status";
+import { isAssistantConfigured } from "@/lib/chat/claude-model";
+import { getPublicSections } from "@/lib/chat/policy-sections";
 
 // Counts behind the dashboard, read through the signed-in session (RLS applies). Every read
 // is kept as a LoadResult, so the page can record what failed and show "—" for it.
@@ -16,7 +19,7 @@ type DatabaseError = { code?: string; message: string };
 
 type CountQuery = PromiseLike<{ count: number | null; error: DatabaseError | null }>;
 
-type PolicyRow = { version: number; status: string };
+type PolicyRow = { version: number; status: string; body: string };
 
 type TrackingRow = { gtm_container_id: string | null; tags_reviewed_at: string | null };
 
@@ -32,18 +35,24 @@ async function fetchCount({ part, query }: { part: string; query: CountQuery }):
   return getLoaded(count ?? 0);
 }
 
-function getPolicySummary(policies: PolicyRow[]): string {
+/** The same status the Chatbot policy page shows (bug 10), plus a waiting draft. */
+function getPolicySummary({ policies, isSwitchOn }: { policies: PolicyRow[]; isSwitchOn: boolean }): string {
   const live = policies.find((policy) => policy.status === "published");
+  const status = getAssistantStatus({ isSwitchOn, liveVersion: live?.version ?? null, hasPublicSections: live ? getPublicSections(live.body).length > 0 : false, isConfigured: isAssistantConfigured() });
   const hasNewerDraft = policies[0]?.status === "draft";
-  const liveText = live ? `Version ${live.version} is live` : "Nothing published yet";
-  return hasNewerDraft ? `${liveText} · a draft is waiting` : liveText;
+  return hasNewerDraft ? `${status.text} A draft is waiting.` : status.text;
 }
 
 async function fetchPolicySummary({ supabase, tenantId, role }: AdminContext): Promise<LoadResult<string>> {
   if (role !== "owner") return getLoaded("");
-  const { data, error } = await supabase.from("chat_policies").select("version, status").eq("tenant_id", tenantId).neq("status", "archived").order("version", { ascending: false }).returns<PolicyRow[]>();
-  if (error) return getLoadFailure("chat policy", error);
-  return getLoaded(getPolicySummary(data ?? []));
+  const [policies, settings] = await Promise.all([
+    supabase.from("chat_policies").select("version, status, body").eq("tenant_id", tenantId).neq("status", "archived").order("version", { ascending: false }).returns<PolicyRow[]>(),
+    supabase.from("site_settings").select("is_assistant_on").eq("tenant_id", tenantId).maybeSingle<{ is_assistant_on: boolean }>(),
+  ]);
+  if (policies.error) return getLoadFailure("chat policy", policies.error);
+  if (settings.error) return getLoadFailure("assistant switch", settings.error);
+  // No settings row yet: the switch counts as on, as on the Chatbot policy page.
+  return getLoaded(getPolicySummary({ policies: policies.data ?? [], isSwitchOn: settings.data?.is_assistant_on ?? true }));
 }
 
 function getTrackingSummary({ row, now }: { row: TrackingRow | null; now: Date }): string {
