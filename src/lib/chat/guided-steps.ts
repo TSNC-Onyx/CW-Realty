@@ -44,18 +44,6 @@ function getQuickAnswer({ policyBody, leaf }: { policyBody: string; leaf: Guided
   return { text, section: getMatchingSection(getPublicSections(policyBody), title) ?? title };
 }
 
-/** For the admin checklist: each topic answer the policy has, lacks, or has too long to show. */
-export type QuickAnswerStatus = { title: string; state: "ready" | "missing" | "too_long" };
-
-export function getQuickAnswerStatuses(policyBody: string): QuickAnswerStatus[] {
-  return getQuickAnswerLeaves().map((leaf) => {
-    const title = getQuickAnswerTitle(leaf);
-    const text = getPublicSectionText(policyBody, title);
-    if (!text) return { title, state: "missing" };
-    return { title, state: text.length > MAX_QUICK_ANSWER_LENGTH ? "too_long" : "ready" };
-  });
-}
-
 export function getGuidedAnswers(policyBody: string): GuidedAnswers {
   return Object.fromEntries(getQuickAnswerLeaves().flatMap((leaf) => {
     const answer = getQuickAnswer({ policyBody, leaf });

@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { finishPolicyTestRunAction, publishPolicyAction, restorePolicyVersionAction, runPolicyTestBatchAction, savePolicyDraftAction, startPolicyTestRunAction } from "@/lib/admin/chat-policy/actions";
+import { finishPolicyTestRunAction, publishPolicyAction, restorePolicyVersionAction, runPolicyTestBatchAction, savePolicyDraftAction, saveQuickAnswersAction, startPolicyTestRunAction, updatePolicyTestAction } from "@/lib/admin/chat-policy/actions";
 import { IDLE_ACTION_STATE } from "@/lib/admin/action-state";
 import * as queries from "@/lib/admin/chat-policy/queries";
-import { BATCH_SIZE } from "@/lib/admin/chat-policy/test-batches";
+import { BATCH_SIZE, getBatchCount } from "@/lib/admin/chat-policy/test-batches";
 import type { TestJob } from "@/lib/admin/chat-policy/test-jobs";
 import { BUILT_IN_TEST_CASES, SAFETY_CHECKS_VERSION, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 import { HANDOFF_TEXT } from "@/lib/chat/handoff-text";
@@ -67,11 +67,11 @@ vi.mock("@/lib/admin/chat-policy/queries", () => ({ fetchTestsChangedAt: vi.fn(a
 vi.mock("@/lib/supabase/service-client", () => ({ createServiceClient: () => ({ rpc }) }));
 
 function getJob(overrides: Partial<TestJob> = {}): TestJob {
-  return { run_key: RUN_KEY, policy_id: DRAFT_ID, policy_updated_at: DRAFT.updated_at, tests_updated_at: "2026-10-03T09:00:00Z", test_ids: OWNER_IDS, batch_count: 2, ...overrides };
+  return { run_key: RUN_KEY, policy_id: DRAFT_ID, policy_updated_at: DRAFT.updated_at, tests_updated_at: "2026-10-03T09:00:00Z", test_ids: OWNER_IDS, batch_size: BATCH_SIZE, batch_count: 2, ...overrides };
 }
 
 function getQuestionRows(testIds: string[]) {
-  return testIds.map((id) => ({ id, question: `Question ${id}`, expected_outcome: "answer", expected_section: null }));
+  return testIds.map((id) => ({ id, question: `Question ${id}`, expected_outcome: "answer", expected_section: null, allows_friendly_reply: false, must_mention: [] }));
 }
 
 function getPassingResults(testCases: PolicyTestCase[]): PolicyTestResult[] {
@@ -85,7 +85,7 @@ function getBuiltInResults(checksVersion?: string): PolicyTestResult[] {
 
 /** A whole run of the 2 owner questions in its 2 batches: the 8 built-ins, then the 2 owner questions. null: built-ins from before the change. */
 function getCompleteParts(checksVersion: string | null = SAFETY_CHECKS_VERSION) {
-  const ownerResults = getPassingResults(getQuestionRows(OWNER_IDS).map((row) => ({ question: row.question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false })));
+  const ownerResults = getPassingResults(getQuestionRows(OWNER_IDS).map((row) => ({ question: row.question, expectedOutcome: "answer", expectedSection: null, isBuiltIn: false, allowsFriendlyReply: false, mustMention: [] })));
   const results = [...getBuiltInResults(checksVersion ?? undefined), ...ownerResults];
   return [
     { batchIndex: 0, results: results.slice(0, BATCH_SIZE) },
@@ -213,14 +213,14 @@ describe("runPolicyTestBatchAction", () => {
   it("tests at most one batch of questions per request", async () => {
     // Arrange
     const manyIds = Array.from({ length: 20 }, (_unused, index) => `b0000000-0000-4000-8000-${String(index).padStart(12, "0")}`);
-    jobs.fetchTestJob.mockResolvedValue({ isLoaded: true, data: getJob({ test_ids: manyIds, batch_count: 4 }) });
+    jobs.fetchTestJob.mockResolvedValue({ isLoaded: true, data: getJob({ test_ids: manyIds, batch_count: getBatchCount(manyIds) }) });
     tableResults.set("chat_policy_tests", { data: getQuestionRows(manyIds), error: null });
 
     // Act
     const result = await runPolicyTestBatchAction({ runKey: RUN_KEY, batchIndex: 1 });
 
     // Assert
-    expect({ result, questionsAsked: models.fetchTestResults.mock.calls[0]?.[0].testCases.length }).toEqual({ result: expect.objectContaining({ status: "success", done: 16, total: 28 }), questionsAsked: BATCH_SIZE });
+    expect({ result, questionsAsked: models.fetchTestResults.mock.calls[0]?.[0].testCases.length }).toEqual({ result: expect.objectContaining({ status: "success", done: 2 * BATCH_SIZE, total: 28 }), questionsAsked: BATCH_SIZE });
   });
 
   it("saves the results the server got, never anything from the browser", async () => {
@@ -491,3 +491,97 @@ describe("restorePolicyVersionAction (bug 12)", () => {
     expect(result.message).toContain("already your open draft");
   });
 });
+
+describe("updatePolicyTestAction (one-click fixes)", () => {
+  it("changes only the question's expectation and section", async () => {
+    // Arrange
+    tableResults.set("chat_policy_tests", { data: [{ id: OWNER_IDS[0] }], error: null });
+
+    // Act
+    const result = await updatePolicyTestAction({ testId: OWNER_IDS[0] ?? "", expectation: "answer_or_friendly", expectedSection: "" });
+
+    // Assert
+    expect({ status: result.status, changes: queryCalls.find((call) => call.table === "chat_policy_tests" && call.method === "update")?.args[0] }).toEqual({ status: "success", changes: { expected_outcome: "answer", allows_friendly_reply: true, expected_section: null } });
+  });
+
+  it("says so when the question was removed meanwhile", async () => {
+    // Arrange
+    tableResults.set("chat_policy_tests", { data: [], error: null });
+
+    // Act
+    const result = await updatePolicyTestAction({ testId: OWNER_IDS[0] ?? "", expectation: "handoff", expectedSection: "" });
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "error", message: "That question was removed. Reload the page." }));
+  });
+});
+
+describe("saveQuickAnswersAction (the topic answers form)", () => {
+  const SAVED_DRAFT = { id: DRAFT_ID, version: 3, updated_at: "2026-10-06T12:00:00Z" };
+
+  it("writes the answers into the open draft as quick-answer sections", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: { body: DRAFT.body, updated_at: DRAFT.updated_at }, error: null }, { data: SAVED_DRAFT, error: null }]);
+
+    // Act
+    const result = await saveQuickAnswersAction({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at, answers: [{ nodeId: "buying", text: "Made-up answer." }] });
+
+    // Assert
+    const savedBody = (queryCalls.find((call) => call.table === "chat_policies" && call.method === "update")?.args[0] as { body: string } | undefined)?.body;
+    expect({ status: result.status, savedBody }).toEqual({ status: "success", savedBody: `${DRAFT.body}\n\n# Quick answer: Buying a home\nMade-up answer.` });
+  });
+
+  it("refuses to save over a draft that changed since the form loaded", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: { body: DRAFT.body, updated_at: "2026-10-06T13:00:00Z" }, error: null }]);
+
+    // Act
+    const result = await saveQuickAnswersAction({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at, answers: [{ nodeId: "buying", text: "Made-up answer." }] });
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "error", message: "This draft changed in another window or by a restore. Copy your edits, then reload the page." }));
+  });
+
+  it("refuses an answer for the emergency button, which is never policy text", async () => {
+    // Arrange / Act
+    const result = await saveQuickAnswersAction({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at, answers: [{ nodeId: "emergency", text: "Call us." }] });
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "error", message: "One of these buttons no longer exists. Reload the page." }));
+  });
+});
+
+describe("saveQuickAnswersAction: guards found in review", () => {
+  it("refuses to start a second draft when one was saved since the form loaded", async () => {
+    // Arrange
+    tableQueues.set("chat_policies", [{ data: { id: DRAFT_ID, status: "draft" }, error: null }]);
+
+    // Act
+    const result = await saveQuickAnswersAction({ draftId: null, expectedUpdatedAt: null, answers: [{ nodeId: "buying", text: "Made-up answer." }] });
+
+    // Assert
+    expect({ result, inserted: queryCalls.some((call) => call.table === "chat_policies" && call.method === "insert") }).toEqual({ result: expect.objectContaining({ status: "error", message: "This draft changed in another window or by a restore. Copy your edits, then reload the page." }), inserted: false });
+  });
+
+  it("refuses an answer that starts with #", async () => {
+    // Arrange / Act
+    const result = await saveQuickAnswersAction({ draftId: DRAFT_ID, expectedUpdatedAt: DRAFT.updated_at, answers: [{ nodeId: "buying", text: "# Not a heading" }] });
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "error", message: "Start each answer with a word, not #" }));
+  });
+});
+
+describe("a test run that spans a site update with a new batch size", () => {
+  it("stops instead of skipping or repeating questions", async () => {
+    // Arrange
+    jobs.fetchTestJob.mockResolvedValue({ isLoaded: true, data: getJob({ batch_size: 8 }) });
+
+    // Act
+    const result = await runPolicyTestBatchAction({ runKey: RUN_KEY, batchIndex: 0 });
+
+    // Assert
+    expect(result).toEqual(expect.objectContaining({ status: "error", message: expect.stringContaining("The safety checks changed during this run. Run the tests again.") }));
+  });
+});
+

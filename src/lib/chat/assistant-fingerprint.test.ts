@@ -17,7 +17,7 @@ vi.mock("server-only", () => ({}));
 const FIXTURE_POLICY = "# Office hours\nWe are open weekdays.\n# Booking\nUse the Contact page.";
 const FIXTURE_SECTIONS = ["Office hours", "Booking"];
 
-const PINNED = { version: "2026-10-05-r3", fingerprint: "e687b2199dfcfdf70ca9d8f5f3febbd31f4dab13868827197fdd4c167c2e0c54" };
+const PINNED = { version: "2026-10-06-r4", fingerprint: "e687b2199dfcfdf70ca9d8f5f3febbd31f4dab13868827197fdd4c167c2e0c54" };
 
 const BUMP_MESSAGE =
   "The assistant's instructions, model or settings changed: bump SAFETY_CHECKS_VERSION in test-verdict.ts and update this fingerprint. (A zod or SDK upgrade can also change the hash: bump the version only if model-facing behaviour changed, otherwise just re-pin.)";

@@ -136,6 +136,8 @@ export const PROBLEM_ACTIONS = {
   "chat_policy.add_test": { label: "Add a policy test question", fn: "addPolicyTestAction" },
   "chat_policy.restore_test": { label: "Undo removing a test question", fn: "restorePolicyTestAction" },
   "chat_policy.remove_test": { label: "Remove a policy test question", fn: "removePolicyTestAction" },
+  "chat_policy.update_test": { label: "Change a policy test question", fn: "updatePolicyTestAction" },
+  "chat_policy.save_quick_answers": { label: "Save the chat topic answers", fn: "saveQuickAnswersAction" },
   "chat_policy.start_tests": { label: "Start the policy tests", fn: "startPolicyTestRunAction" },
   "chat_policy.run_tests": { label: "Run the policy tests", fn: "runPolicyTestBatchAction" },
   "chat_policy.finish_tests": { label: "Save the policy test results", fn: "finishPolicyTestRunAction" },

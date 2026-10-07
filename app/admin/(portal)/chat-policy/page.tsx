@@ -5,7 +5,7 @@ import { PolicyDraftStateProvider } from "@/components/admin/chat-policy/policy-
 import { PolicyEditor } from "@/components/admin/chat-policy/policy-editor";
 import { PolicyHistory, type PolicyVersionRow } from "@/components/admin/chat-policy/policy-history";
 import { PolicyTestPanel, type TestScore } from "@/components/admin/chat-policy/policy-test-panel";
-import { QuickAnswerChecklist } from "@/components/admin/chat-policy/quick-answer-checklist";
+import { QuickAnswerEditor, type QuickAnswerRow } from "@/components/admin/chat-policy/quick-answer-editor";
 import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import {
@@ -24,15 +24,15 @@ import {
   type PolicyVersion,
   type WorkingPolicy,
 } from "@/lib/admin/chat-policy/queries";
-import { getHistoryWhenLabel, getTestRows, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
+import { getHistoryWhenLabel, getTestRows, getUncoveredSections, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
 import { BUILT_IN_TEST_CASES, hasCurrentChecksVersion, hasCurrentSafetyChecks } from "@/lib/admin/chat-policy/test-verdict";
-import { getPrivateSections, getPublicSections } from "@/lib/chat/policy-sections";
+import { getAssistantSections, getPrivateSections, getPublicSectionText, getPublicSections } from "@/lib/chat/policy-sections";
 import { getLoaded, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getAssistantStatus } from "@/lib/chat/assistant-status";
-import { getQuickAnswerStatuses } from "@/lib/chat/guided-steps";
+import { getQuickAnswerLeaves, getQuickAnswerTitle } from "@/lib/chat/guided-tree";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
 
 export const metadata: Metadata = { title: "Chatbot policy" };
@@ -69,8 +69,13 @@ type TestSectionProps = {
   notice: LoadProblemNotice | null;
 };
 
+/** Each topic button with its answer in the working text (empty when missing). */
+function getQuickAnswerRows(body: string): QuickAnswerRow[] {
+  return getQuickAnswerLeaves().map((leaf) => ({ nodeId: leaf.id, label: leaf.label, link: leaf.link ?? null, text: getPublicSectionText(body, getQuickAnswerTitle(leaf)) ?? "" }));
+}
+
 function getOwnerTests(tests: PolicyTest[]): OwnerTest[] {
-  return tests.map((test) => ({ id: test.id, question: test.question, expectedOutcome: test.expected_outcome, expectedSection: test.expected_section }));
+  return tests.map((test) => ({ id: test.id, question: test.question, expectedOutcome: test.expected_outcome, expectedSection: test.expected_section, allowsFriendlyReply: test.allows_friendly_reply, mustMention: test.must_mention }));
 }
 
 function getTestScore(run: PolicyTestRun | null): TestScore | null {
@@ -96,13 +101,15 @@ function TestSectionBody({ working, live, tests, run, testsChangedAt, notice }: 
   const latestRun = run.isLoaded ? run.data : null;
   const isCurrent = didRunLoad && isShownRunCurrent({ run: latestRun, working, testsChangedAt: testsChangedAt.data });
   const results = latestRun?.results ?? [];
+  const ownerTests = getOwnerTests(tests);
+  const sections = getAssistantSections(working.body);
   return (
     <PolicyTestPanel
       runAt={latestRun?.ran_at ?? null}
       draftId={working.draftId}
       draftVersion={working.draftVersion}
       liveVersion={working.draftId ? null : (live?.version ?? null)}
-      rows={getTestRows({ tests: getOwnerTests(tests), results, isCurrent })}
+      rows={getTestRows({ tests: ownerTests, results, isCurrent })}
       score={getTestScore(latestRun)}
       isReadyToPublish={working.draftId !== null && Boolean(latestRun?.is_passed) && isCurrent && hasCurrentSafetyChecks(results)}
       isCurrent={isCurrent}
@@ -111,6 +118,8 @@ function TestSectionBody({ working, live, tests, run, testsChangedAt, notice }: 
       isAssistantConfigured={isAssistantConfigured()}
       runProblem={didRunLoad ? null : <LoadProblem notice={notice} />}
       privateSections={getPrivateSections(working.body)}
+      sections={sections}
+      uncoveredSections={getUncoveredSections({ sections, tests: ownerTests })}
     />
   );
 }
@@ -168,7 +177,7 @@ export default async function ChatPolicyPage() {
       </section>
       <section aria-labelledby="topics-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="topics-heading" className="type-h3 mb-2">Chat topic buttons</h2>
-        {working.isLoaded ? <QuickAnswerChecklist statuses={getQuickAnswerStatuses(working.data.body)} /> : <LoadProblem notice={notice} />}
+        {working.isLoaded ? <QuickAnswerEditor rows={getQuickAnswerRows(working.data.body)} draftId={working.data.draftId} updatedAt={working.data.updatedAt} /> : <LoadProblem notice={notice} />}
       </section>
       <section aria-labelledby="publish-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="publish-heading" className="type-h3 mb-2">Test and publish</h2>

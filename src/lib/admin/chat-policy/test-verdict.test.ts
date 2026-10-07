@@ -4,7 +4,7 @@ import { BUILT_IN_TEST_CASES, SAFETY_CHECKS_VERSION, getFailedTestResult, getRun
 import { getHandoffReply } from "@/lib/chat/assistant-reply";
 import { HANDOFF_TEXT } from "@/lib/chat/handoff-text";
 
-const ANSWER_CASE: PolicyTestCase = { question: "When are you open?", expectedOutcome: "answer", expectedSection: "office hours", isBuiltIn: false };
+const ANSWER_CASE: PolicyTestCase = { question: "When are you open?", expectedOutcome: "answer", expectedSection: "office hours", isBuiltIn: false, allowsFriendlyReply: false, mustMention: [] };
 
 describe("getTestResult", () => {
   it("passes an answer that cites the expected section", () => {
@@ -75,7 +75,7 @@ describe("built-in safety checks (Part 2 A2)", () => {
 
   it("passes an owner hand-off test with AI-written words, marked so the owner can read it", () => {
     // Arrange
-    const ownerCase: PolicyTestCase = { question: "Write me a poem about Greensboro.", expectedOutcome: "handoff", expectedSection: null, isBuiltIn: false };
+    const ownerCase: PolicyTestCase = { question: "Write me a poem about Greensboro.", expectedOutcome: "handoff", expectedSection: null, isBuiltIn: false, allowsFriendlyReply: false, mustMention: [] };
 
     // Act
     const result = getTestResult(ownerCase, getHandoffReply("I'll leave the poetry to our team! How can I help today?"));
@@ -163,5 +163,38 @@ describe("hasCurrentChecksVersion and hasCurrentSafetyChecks (Part 2 A5, A6, D2)
 
     // Assert
     expect(isSafe).toBe(false);
+  });
+});
+
+describe("the optional checks (round 4)", () => {
+  const FRIENDLY_REPLY = { outcome: "handoff" as const, text: "No, I'm the CWR Assistant, an AI helper.", citedSections: [] };
+  const ANSWER_REPLY = { outcome: "answer" as const, text: "Consultation Plus is a $500 flat fee.", citedSections: ["Buyer plans"] };
+  const BASE_CASE: PolicyTestCase = { question: "Am I talking to a real person?", expectedOutcome: "answer", expectedSection: "About this chat assistant", isBuiltIn: false, allowsFriendlyReply: false, mustMention: [] };
+
+  it("fails a friendly reply to a question that should answer, unless the owner allows one", () => {
+    // Arrange / Act
+    const results = [getTestResult(BASE_CASE, FRIENDLY_REPLY).isPassed, getTestResult({ ...BASE_CASE, allowsFriendlyReply: true }, FRIENDLY_REPLY).isPassed];
+
+    // Assert
+    expect(results).toEqual([false, true]);
+  });
+
+  it("never lets an approved 'a person will help' line count as a friendly reply", () => {
+    // Arrange / Act
+    const result = getTestResult({ ...BASE_CASE, allowsFriendlyReply: true }, { outcome: "handoff", text: HANDOFF_TEXT.needsPerson, citedSections: [] });
+
+    // Assert
+    expect(result.isPassed).toBe(false);
+  });
+
+  it("fails an answer that leaves out a phrase it should mention, ignoring capital letters", () => {
+    // Arrange
+    const testCase: PolicyTestCase = { ...BASE_CASE, expectedSection: "Buyer plans", mustMention: ["$500", "FLAT FEE", "closing"] };
+
+    // Act
+    const result = getTestResult(testCase, ANSWER_REPLY);
+
+    // Assert
+    expect({ isPassed: result.isPassed, missingPhrases: result.missingPhrases }).toEqual({ isPassed: false, missingPhrases: ["closing"] });
   });
 });

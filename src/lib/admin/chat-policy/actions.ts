@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
-import { policyBodySchema, policyTestSchema, type PolicyTestInput } from "@/lib/admin/chat-policy/policy-schema";
+import { getExpectationColumns, policyBodySchema, policyTestFixSchema, policyTestSchema, type PolicyTestFixInput, type PolicyTestInput } from "@/lib/admin/chat-policy/policy-schema";
 import { fetchTestsChangedAt } from "@/lib/admin/chat-policy/queries";
 import { BATCH_SIZE, getAssembledResults, getBatchCount, getBatchSlots, getDoneCount, getOrderedTestIds, getRunTotal, isSameQuestionSet, type TestBatchProgress, type TestRunStart, type TestSlot } from "@/lib/admin/chat-policy/test-batches";
 import { deleteStaleTestJobs, deleteTestJob, fetchTestJob, fetchTestParts, insertTestJob, insertTestPart, type TestJob } from "@/lib/admin/chat-policy/test-jobs";
@@ -19,6 +19,8 @@ import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
 import type { AnswerModel } from "@/lib/chat/answer-question";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
+import { getGuidedNode, getQuickAnswerLeaves } from "@/lib/chat/guided-tree";
+import { getPolicyWithQuickAnswers, type QuickAnswerText } from "@/lib/chat/quick-answer-sections";
 import { noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { reportProblem } from "@/lib/observability/report-problem";
@@ -218,6 +220,96 @@ export async function setAssistantOnAction({ isOn }: { isOn: boolean }): Promise
   });
 }
 
+// ------------------------------------------------------------------ chat topic answers
+// docs/cwr-chat-quick-answers-and-tests-plan.md §B: the "Chat topic buttons" form writes each
+// answer into the working draft as a "Quick answer: <label>" section, under the same save
+// guard as the editor, so it is tested and published like any other change.
+
+const MAX_QUICK_ANSWER_LENGTH = 600;
+
+const quickAnswersSchema = z.object({
+  draftId: z.uuid().nullable(),
+  expectedUpdatedAt: z.string().max(64).nullable(),
+  answers: z
+    .array(
+      z.object({
+        nodeId: z.string().max(40),
+        text: z
+          .string()
+          .max(MAX_QUICK_ANSWER_LENGTH, `Keep each answer under ${MAX_QUICK_ANSWER_LENGTH} characters`)
+          .refine((text) => !/^\s*#/.test(text), "Start each answer with a word, not #"),
+      }),
+    )
+    .max(getQuickAnswerLeaves().length),
+});
+
+export type QuickAnswersInput = z.input<typeof quickAnswersSchema>;
+
+/** What saving the topic answers reports: the draft it saved into, so the form can save again over it. */
+export type QuickAnswersResult = QuickResult & { draftId?: string; updatedAt?: string };
+
+/** The answers as labelled sections; null when one names a button that doesn't exist. */
+function getQuickAnswerTexts(answers: z.infer<typeof quickAnswersSchema>["answers"]): QuickAnswerText[] | null {
+  const texts = answers.map((answer) => ({ node: getGuidedNode(answer.nodeId), text: answer.text }));
+  if (texts.some(({ node }) => !node || node.children || node.isEmergency)) return null;
+  return texts.flatMap(({ node, text }) => (node ? [{ label: node.label, text }] : []));
+}
+
+/** Why the answers can't be written: the draft changed since the form loaded, or there is no policy yet. */
+type QuickBaseProblem = { problem: "changed" | "no_policy" };
+
+const QUICK_BASE_MESSAGES: Record<QuickBaseProblem["problem"], string> = {
+  changed: DRAFT_CHANGED_ELSEWHERE_MESSAGE,
+  no_policy: "Write and save the policy text first.",
+};
+
+/** A draft saved since the form loaded (it had none) must not be hidden by a second draft. */
+async function fetchOpenDraftProblem(admin: AdminContext): Promise<LoadResult<QuickBaseProblem | null>> {
+  const workingDraftId = await fetchWorkingDraftId(admin);
+  if (!workingDraftId.isLoaded) return workingDraftId;
+  return getLoaded(workingDraftId.data === null ? null : { problem: "changed" });
+}
+
+/** The text the answers are written into: the open draft (only if unchanged since the form loaded), else the live version. */
+async function fetchQuickAnswerBase(admin: AdminContext, input: z.infer<typeof quickAnswersSchema>): Promise<LoadResult<string | QuickBaseProblem>> {
+  if (!input.draftId) {
+    const openDraftProblem = await fetchOpenDraftProblem(admin);
+    if (!openDraftProblem.isLoaded) return openDraftProblem;
+    if (openDraftProblem.data) return getLoaded(openDraftProblem.data);
+  }
+  const query = input.draftId
+    ? admin.supabase.from("chat_policies").select("body, updated_at").eq("tenant_id", admin.tenantId).eq("id", input.draftId).eq("status", "draft")
+    : admin.supabase.from("chat_policies").select("body, updated_at").eq("tenant_id", admin.tenantId).eq("status", "published");
+  const result = await query.maybeSingle<{ body: string; updated_at: string }>();
+  if (result.error) return getLoadFailure("policy to update", result.error);
+  if (!result.data) return getLoaded({ problem: input.draftId ? "changed" : "no_policy" });
+  const isUnchanged = !input.draftId || result.data.updated_at === input.expectedUpdatedAt;
+  return getLoaded(isUnchanged ? result.data.body : { problem: "changed" });
+}
+
+async function fetchSavedQuickAnswers(admin: AdminContext, { input, body }: { input: z.infer<typeof quickAnswersSchema>; body: string }): Promise<QuickAnswersResult> {
+  const saved = input.draftId ? await updateDraft(admin, { draftId: input.draftId, body, expectedUpdatedAt: input.expectedUpdatedAt ?? undefined }) : await insertDraft(admin, body).then((result) => ({ updated: result.data, error: result.error }));
+  if (saved.error) return getQuickError(getDatabaseErrorMessage(saved.error));
+  if (!saved.updated) return getQuickError(DRAFT_CHANGED_ELSEWHERE_MESSAGE);
+  revalidatePath(POLICY_PATH);
+  return { ...getQuickSuccess(`Topic answers saved in draft version ${saved.updated.version}. Run the tests, then publish.`), draftId: saved.updated.id, updatedAt: saved.updated.updated_at };
+}
+
+export async function saveQuickAnswersAction(input: QuickAnswersInput): Promise<QuickAnswersResult> {
+  return runQuickAction({ action: "chat_policy.save_quick_answers", roles: OWNER_ROLES }, async (admin) => {
+    const parsed = quickAnswersSchema.safeParse(input);
+    if (!parsed.success) return getQuickError(parsed.error.issues[0]?.message ?? "Check the answers.");
+    const answers = getQuickAnswerTexts(parsed.data.answers);
+    if (!answers) return getQuickError("One of these buttons no longer exists. Reload the page.");
+    const base = await fetchQuickAnswerBase(admin, parsed.data);
+    if (!base.isLoaded) return noteLoadError(base.failure, "We couldn't load the policy. Try again in a moment.");
+    if (typeof base.data !== "string") return getQuickError(QUICK_BASE_MESSAGES[base.data.problem]);
+    const body = policyBodySchema.safeParse(getPolicyWithQuickAnswers({ policyBody: base.data, answers }));
+    if (!body.success) return getQuickError(body.error.issues[0]?.message ?? "The policy would be too long.");
+    return fetchSavedQuickAnswers(admin, { input: parsed.data, body: body.data });
+  });
+}
+
 // ------------------------------------------------------------------ test questions
 
 /** A message when no more questions can be added (the limit, or the count didn't load). */
@@ -233,13 +325,13 @@ async function fetchTestLimitError({ supabase, tenantId }: AdminContext): Promis
 }
 
 function getTestRow(input: z.infer<typeof policyTestSchema>) {
-  return { question: input.question, expected_outcome: input.expectedOutcome, expected_section: input.expectedSection || null };
+  return { question: input.question, ...getExpectationColumns(input.expectation), expected_section: input.expectedSection || null, must_mention: input.mustMention };
 }
 
 export async function addPolicyTestAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   return runAdminAction({ action: "chat_policy.add_test", roles: OWNER_ROLES }, async (admin) => {
     const values = getFormValues(formData);
-    const parsed = policyTestSchema.safeParse({ question: values.question ?? "", expectedOutcome: values.expectedOutcome, expectedSection: values.expectedSection ?? "" });
+    const parsed = policyTestSchema.safeParse({ question: values.question ?? "", expectation: values.expectation, expectedSection: values.expectedSection ?? "", mustMention: values.mustMention ?? "" });
     if (!parsed.success) {
       const fieldErrors = Object.fromEntries(parsed.error.issues.map((issue) => [String(issue.path[0]), issue.message]));
       return getErrorState({ message: "Fix the highlighted fields.", fieldErrors, values });
@@ -265,6 +357,19 @@ export async function restorePolicyTestAction(input: PolicyTestInput): Promise<Q
   });
 }
 
+/** A one-click fix to a failed question (Accept …), and its Undo: sets the expectation and section only. */
+export async function updatePolicyTestAction(input: PolicyTestFixInput): Promise<QuickResult> {
+  return runQuickAction({ action: "chat_policy.update_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
+    const fix = policyTestFixSchema.parse(input);
+    const changes = { ...getExpectationColumns(fix.expectation), expected_section: fix.expectedSection || null };
+    const { data, error } = await supabase.from("chat_policy_tests").update(changes).eq("tenant_id", tenantId).eq("id", fix.testId).eq("is_active", true).select("id");
+    if (error) return getQuickError(getDatabaseErrorMessage(error));
+    if (!data?.length) return getQuickError("That question was removed. Reload the page.");
+    revalidatePath(POLICY_PATH);
+    return getQuickSuccess("Question updated. Run the tests again before publishing.");
+  });
+}
+
 export async function removePolicyTestAction(testId: string): Promise<QuickResult> {
   return runQuickAction({ action: "chat_policy.remove_test", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
     const { data, error } = await supabase.from("chat_policy_tests").delete().eq("tenant_id", tenantId).eq("id", z.uuid().parse(testId)).select("id");
@@ -281,7 +386,7 @@ export async function removePolicyTestAction(testId: string): Promise<QuickResul
 
 type DraftToTest = { id: string; body: string; updated_at: string };
 type ActiveTestRow = { id: string; updated_at: string };
-type TestQuestionRow = { id: string; question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null };
+type TestQuestionRow = { id: string; question: string; expected_outcome: PolicyTestCase["expectedOutcome"]; expected_section: string | null; allows_friendly_reply: boolean; must_mention: string[] };
 type BatchInputs = { job: TestJob; batchIndex: number; draft: DraftToTest; model: AnswerModel; testCases: PolicyTestCase[] };
 
 function noteNoModelError(): QuickResult {
@@ -336,13 +441,13 @@ async function fetchOwnedJob(admin: AdminContext, runKey: string): Promise<TestJ
 }
 
 function getTestCase(row: TestQuestionRow): PolicyTestCase {
-  return { question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false };
+  return { question: row.question, expectedOutcome: row.expected_outcome, expectedSection: row.expected_section, isBuiltIn: false, allowsFriendlyReply: row.allows_friendly_reply, mustMention: row.must_mention };
 }
 
 /** The batch's questions in the run's order; a question removed since the start stops the run. */
 async function fetchBatchTestCases({ supabase, tenantId }: AdminContext, slots: TestSlot[]): Promise<PolicyTestCase[] | { error: QuickResult }> {
   const testIds = slots.flatMap((slot) => (slot.kind === "owner" ? [slot.testId] : []));
-  const result = testIds.length === 0 ? { data: [], error: null } : await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section").eq("tenant_id", tenantId).eq("is_active", true).in("id", testIds).returns<TestQuestionRow[]>();
+  const result = testIds.length === 0 ? { data: [], error: null } : await supabase.from("chat_policy_tests").select("id, question, expected_outcome, expected_section, allows_friendly_reply, must_mention").eq("tenant_id", tenantId).eq("is_active", true).in("id", testIds).returns<TestQuestionRow[]>();
   if (result.error) return { error: noteLoadError({ part: "test questions", code: result.error.code ?? null, detail: result.error.message }, "We couldn't load the test questions. Try again in a moment.") };
   const rowsById = new Map((result.data ?? []).map((row) => [row.id, row]));
   if (testIds.some((testId) => !rowsById.has(testId))) return { error: noteStoppedRunError({ code: "questions_changed", message: QUESTIONS_CHANGED_MESSAGE }) };
@@ -357,7 +462,7 @@ async function fetchBatchInputs(admin: AdminContext, { runKey, batchIndex }: { r
   const job = await fetchOwnedJob(admin, runKey);
   if ("error" in job) return job;
   const index = z.number().int().min(0).max(job.batch_count - 1).parse(batchIndex);
-  if (getBatchCount(job.test_ids) !== job.batch_count) return { error: noteRunSizeChangedError() };
+  if (job.batch_size !== BATCH_SIZE || getBatchCount(job.test_ids) !== job.batch_count) return { error: noteRunSizeChangedError() };
   const draft = await fetchDraftToTest(admin, job.policy_id);
   if ("error" in draft) return { error: getQuickError(draft.error) };
   if (draft.updated_at !== job.policy_updated_at) return { error: noteStoppedRunError({ code: "draft_changed", message: DRAFT_CHANGED_MESSAGE }) };
@@ -370,6 +475,7 @@ async function fetchBatchInputs(admin: AdminContext, { runKey, batchIndex }: { r
 
 /** Every batch's results in order, or the reason the run can't be saved. */
 async function fetchRunResults(job: TestJob): Promise<PolicyTestResult[] | { error: QuickResult }> {
+  if (job.batch_size !== BATCH_SIZE) return { error: noteRunSizeChangedError() };
   const parts = await fetchTestParts(job.run_key);
   if (!parts.isLoaded) return { error: noteLoadError(parts.failure, "We couldn't load the test results. Try again in a moment.") };
   const results = getAssembledResults({ parts: parts.data, batchCount: job.batch_count });

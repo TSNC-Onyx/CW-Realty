@@ -1,8 +1,9 @@
 import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, getUnrepeatedReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
 import { getEmergencyReply, isEmergencyMessage } from "@/lib/chat/emergency";
-import { NEEDS_PERSON_TEXTS } from "@/lib/chat/handoff-text";
-import { getPublicPolicy, getPublicSections } from "@/lib/chat/policy-sections";
+import { FIXED_HANDOFF_TEXTS, NEEDS_PERSON_TEXTS } from "@/lib/chat/handoff-text";
+import { isInstructionsRequest } from "@/lib/chat/instruction-requests";
+import { getAssistantPolicy, getAssistantSections } from "@/lib/chat/policy-sections";
 import { hasRestrictedNumber } from "@/lib/chat/restricted-data";
 import { isSteeringRequest } from "@/lib/chat/steering-terms";
 
@@ -18,6 +19,10 @@ export type AnswerRequest = { policyBody: string; turns: ChatTurn[]; model: Answ
 
 function getLatestQuestion(turns: ChatTurn[]): string {
   return turns.findLast((turn) => turn.role === "visitor")?.body ?? "";
+}
+
+function getVisitorMessages(turns: ChatTurn[]): string[] {
+  return turns.filter((turn) => turn.role === "visitor").map((turn) => turn.body);
 }
 
 function getPreviousReplyText(turns: ChatTurn[]): string | null {
@@ -40,21 +45,35 @@ export function getRepairedTurnReply({ reply, turns }: { reply: AssistantReply; 
 /** Fair Housing guard (bug 15): a "lead" about who lives where gets the plain "a person will help" line. */
 function getGuardedLead({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
   if (reply.handoffReason !== "lead") return reply;
-  const visitorMessages = turns.filter((turn) => turn.role === "visitor").map((turn) => turn.body);
-  if (!isSteeringRequest(visitorMessages)) return reply;
+  if (!isSteeringRequest(getVisitorMessages(turns))) return reply;
   return { ...getHandoffReply(HANDOFF_TEXT.needsPerson), handoffReason: "lead_downgraded" };
+}
+
+/**
+ * Safety guard (docs/cwr-chat-quick-answers-and-tests-plan.md §G): AI-written small talk never
+ * answers a steering question or a question about the assistant's own rules; the approved
+ * "a person will help" line does. Answers from the policy and fixed lines are left alone.
+ */
+function getGuardedSmallTalk({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
+  const isSmallTalk = reply.outcome === "handoff" && !FIXED_HANDOFF_TEXTS.has(reply.text);
+  if (!isSmallTalk) return reply;
+  const isSensitive = isSteeringRequest(getVisitorMessages(turns)) || isInstructionsRequest(getLatestQuestion(turns));
+  if (!isSensitive) return reply;
+  return { ...getHandoffReply(HANDOFF_TEXT.needsPerson), handoffReason: "safety_wording" };
 }
 
 /** Throws whatever the model call throws; callers decide how to fail gracefully. */
 export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRequest): Promise<AssistantReply> {
   const question = getLatestQuestion(turns);
   if (hasRestrictedNumber(question)) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
-  // Private sections are cut out here, so the model can't quote, summarize or reword them.
-  const sections = getPublicSections(policyBody);
+  // Private and quick-answer sections are cut out here, so the model can't quote, summarize or
+  // reword private notes, nor cite the topic buttons' copies of other sections.
+  const sections = getAssistantSections(policyBody);
   if (isEmergencyMessage(question)) return getEmergencyReply(sections);
   if (sections.length === 0) return getHandoffReply(HANDOFF_TEXT.unavailable);
-  const publicPolicy = getPublicPolicy(policyBody);
+  const publicPolicy = getAssistantPolicy(policyBody);
   const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody: publicPolicy, sections }), turns });
   if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.needsPerson);
-  return getGuardedLead({ reply: getCheckedReply({ modelReply, sections, publicPolicy }), turns });
+  const checkedReply = getCheckedReply({ modelReply, sections, publicPolicy });
+  return getGuardedSmallTalk({ reply: getGuardedLead({ reply: checkedReply, turns }), turns });
 }

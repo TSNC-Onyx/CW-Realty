@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import * as chatLog from "@/lib/chat/chat-log";
-import { fetchGuidedMenu, getGuidedAnswers, getQuickAnswerStatuses, recordGuidedStep } from "@/lib/chat/guided-steps";
+import { fetchGuidedMenu, getGuidedAnswers, recordGuidedStep } from "@/lib/chat/guided-steps";
 import { EMERGENCY_TEXT } from "@/lib/chat/handoff-text";
 import * as rateLimit from "@/lib/security/rate-limit";
 
@@ -30,16 +30,6 @@ describe("getGuidedAnswers", () => {
 
     // Assert
     expect(answers).toEqual({ buying: { text: "We guide buyers to the keys.", section: "Quick answer: Buying a home" } });
-  });
-});
-
-describe("getQuickAnswerStatuses", () => {
-  it("tells the owner which answers are ready, missing, or too long", () => {
-    // Arrange / Act
-    const statuses = getQuickAnswerStatuses(POLICY_BODY);
-
-    // Assert
-    expect([statuses.find((status) => status.title === "Quick answer: Buying a home")?.state, statuses.find((status) => status.title === "Quick answer: About our team")?.state, statuses.find((status) => status.title === "Quick answer: Get started")?.state]).toEqual(["ready", "too_long", "missing"]);
   });
 });
 

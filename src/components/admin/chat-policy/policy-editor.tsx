@@ -1,15 +1,17 @@
 "use client";
 
 import { CircleAlert, Upload } from "lucide-react";
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
 
 import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft-state";
+import { useEditSectionRequest } from "@/components/admin/chat-policy/policy-page-events";
 import { PolicyTestChat } from "@/components/admin/chat-policy/policy-test-chat";
 import { SaveBar } from "@/components/admin/save-bar";
 import { useAdminForm } from "@/components/admin/use-admin-form";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { savePolicyDraftAction } from "@/lib/admin/chat-policy/actions";
 import { MAX_POLICY_LENGTH } from "@/lib/admin/chat-policy/policy-schema";
+import { getHeadingLines, isSameTitle } from "@/lib/chat/policy-sections";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Admin §6 "upload or edit the policy file with a live test chat". Uploading reads a text
@@ -20,6 +22,17 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 const ACCEPTED_FILES = ".txt,.md,text/plain,text/markdown";
 const MAX_FILE_BYTES = 400_000;
+
+type TextRange = { start: number; end: number };
+
+/** Where a section's heading line sits in the text (outside code fences), so "Edit this section" can select it. */
+function getHeadingRange({ body, sectionTitle }: { body: string; sectionTitle: string }): TextRange | null {
+  const heading = getHeadingLines(body).find((line) => isSameTitle({ first: line.title, second: sectionTitle }));
+  if (!heading) return null;
+  const lines = body.split("\n");
+  const start = lines.slice(0, heading.index).reduce((offset, line) => offset + line.length + 1, 0);
+  return { start, end: start + (lines[heading.index]?.length ?? 0) };
+}
 
 /** updatedAt: when the open draft was last saved, or null when there is no draft. */
 type PolicyEditorProps = { draftId: string | null; initialBody: string; updatedAt: string | null };
@@ -32,7 +45,21 @@ export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorPr
   const [uploadError, setUploadError] = useState<string | null>(null);
   const { state, isPending, isDirty, formRef, handleSubmit, handleInput } = useAdminForm(savePolicyDraftAction, { problemAction: "chat_policy.save_draft" });
   const { setHasUnsavedChanges } = usePolicyDraftState();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const error = state.fieldErrors.body ?? uploadError;
+
+  const handleEditSection = useCallback(
+    (sectionTitle: string) => {
+      const textarea = textareaRef.current;
+      const range = getHeadingRange({ body, sectionTitle });
+      if (!textarea || !range) return;
+      textarea.focus();
+      textarea.setSelectionRange(range.start, range.end);
+      textarea.scrollIntoView({ block: "center" });
+    },
+    [body],
+  );
+  useEditSectionRequest(handleEditSection);
 
   // Adjusting state when a prop changes, during render (no remount, so the test chat and focus stay).
   // The base moves only when the editor takes the new saved text (or already shows it, after its
@@ -76,6 +103,7 @@ export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorPr
           <label htmlFor="policy-body" className="mb-1 block text-base font-bold">Policy text</label>
           <p id="policy-body-helper" className="type-small mb-2 text-muted">Start each section with a heading line such as “# Office hours”. The assistant cites these headings. Sections whose heading ends in (private) are never shown to the assistant.</p>
           <textarea
+            ref={textareaRef}
             id="policy-body"
             name="body"
             value={body}

@@ -1,21 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { getHistoryWhenLabel, getPublishBlocker, getRestoreState, getTestCounts, getTestRows, isAtTestLimit, MAX_TESTS, SAVE_FIRST_REASON, type OwnerTest, type PublishBlockerInput } from "@/lib/admin/chat-policy/test-rows";
+import { getAttentionCounts, getHistoryWhenLabel, getPublishBlocker, getRestoreState, getTestCounts, getTestRows, getUncoveredSections, isAtTestLimit, MAX_TESTS, SAFETY_FAILED_REASON, SAVE_FIRST_REASON, type OwnerTest, type PublishBlockerInput } from "@/lib/admin/chat-policy/test-rows";
 import { BUILT_IN_TEST_CASES, type PolicyTestCase, type PolicyTestResult } from "@/lib/admin/chat-policy/test-verdict";
 
-const OPEN_HOURS: OwnerTest = { id: "t1", question: "When are you open?", expectedOutcome: "answer", expectedSection: "Office hours" };
-const PRICE: OwnerTest = { id: "t2", question: "What does it cost?", expectedOutcome: "answer", expectedSection: null };
+const NO_CHECKS = { allowsFriendlyReply: false, mustMention: [] };
+const OPEN_HOURS: OwnerTest = { id: "t1", question: "When are you open?", expectedOutcome: "answer", expectedSection: "Office hours", ...NO_CHECKS };
+const PRICE: OwnerTest = { id: "t2", question: "What does it cost?", expectedOutcome: "answer", expectedSection: null, ...NO_CHECKS };
 
 const NO_COUNTS = { all: 0, failed: 0, untested: 0, stale: 0, passed: 0 };
 
-const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasUnsavedChanges: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, hasCurrentChecksVersion: true, counts: NO_COUNTS };
+const READY_INPUT: PublishBlockerInput = { isReadyToPublish: false, isRunning: false, hasUnsavedChanges: false, hasDraft: true, didRunLoad: true, isAssistantConfigured: true, hasRun: true, isCurrent: true, hasCurrentChecksVersion: true, counts: NO_COUNTS, safetyFailedCount: 0 };
 
 function getResult({ testCase, isPassed }: { testCase: PolicyTestCase; isPassed: boolean }): PolicyTestResult {
   return { ...testCase, outcome: "answer", reply: "Reply.", citedSections: [], isPassed };
 }
 
 function getOwnerCase(test: OwnerTest): PolicyTestCase {
-  return { question: test.question, expectedOutcome: test.expectedOutcome, expectedSection: test.expectedSection, isBuiltIn: false };
+  return { question: test.question, expectedOutcome: test.expectedOutcome, expectedSection: test.expectedSection, isBuiltIn: false, ...NO_CHECKS };
 }
 
 function getBuiltInResults(): PolicyTestResult[] {
@@ -63,7 +64,7 @@ describe("getTestRows", () => {
   it("never gives an owner question a built-in check's result, even with the same words", () => {
     // Arrange
     const builtIn = BUILT_IN_TEST_CASES[0] as PolicyTestCase;
-    const lookAlike: OwnerTest = { id: "t3", question: builtIn.question, expectedOutcome: builtIn.expectedOutcome, expectedSection: builtIn.expectedSection };
+    const lookAlike: OwnerTest = { id: "t3", question: builtIn.question, expectedOutcome: builtIn.expectedOutcome, expectedSection: builtIn.expectedSection, ...NO_CHECKS };
 
     // Act
     const rows = getTestRows({ tests: [lookAlike], results: [getResult({ testCase: builtIn, isPassed: true })], isCurrent: true });
@@ -177,12 +178,20 @@ describe("getPublishBlocker", () => {
     expect(blocker).toBe(expected);
   });
 
-  it("counts failed questions in plain words", () => {
+  it("counts the owner's failed questions in plain words", () => {
     // Arrange / Act
     const blockers = [1, 2].map((failed) => getPublishBlocker({ ...READY_INPUT, counts: { ...NO_COUNTS, failed } }));
 
     // Assert
-    expect(blockers).toEqual(["1 question failed. Fix the draft or the questions, then run the tests again.", "2 questions failed. Fix the draft or the questions, then run the tests again."]);
+    expect(blockers).toEqual(["1 question needs your attention. Use the fixes beside each one, then run the tests again.", "2 questions need your attention. Use the fixes beside each one, then run the tests again."]);
+  });
+
+  it("says the developer was notified when only safety checks failed", () => {
+    // Arrange / Act
+    const blocker = getPublishBlocker({ ...READY_INPUT, counts: { ...NO_COUNTS, failed: 2 }, safetyFailedCount: 2 });
+
+    // Assert
+    expect(blocker).toBe(SAFETY_FAILED_REASON);
   });
 
   it("counts questions not tested yet in plain words", () => {
@@ -205,10 +214,10 @@ describe("getPublishBlocker and the safety checks version", () => {
 
   it("names a genuinely failed safety check in a current run as a failure", () => {
     // Arrange / Act
-    const blocker = getPublishBlocker({ ...READY_INPUT, hasCurrentChecksVersion: true, counts: { ...NO_COUNTS, failed: 1 } });
+    const blocker = getPublishBlocker({ ...READY_INPUT, hasCurrentChecksVersion: true, counts: { ...NO_COUNTS, failed: 1 }, safetyFailedCount: 1 });
 
     // Assert
-    expect(blocker).toBe("1 question failed. Fix the draft or the questions, then run the tests again.");
+    expect(blocker).toBe(SAFETY_FAILED_REASON);
   });
 });
 
@@ -268,5 +277,49 @@ describe("isAtTestLimit", () => {
 
     // Assert
     expect(answers).toEqual([false, true]);
+  });
+});
+
+describe("round 4: optional checks, the summary, and coverage", () => {
+  it("treats a result saved before the optional checks existed as matching a question with them off", () => {
+    // Arrange
+    const oldResult = { question: OPEN_HOURS.question, expectedOutcome: OPEN_HOURS.expectedOutcome, expectedSection: OPEN_HOURS.expectedSection, isBuiltIn: false, outcome: "answer" as const, reply: "Weekdays.", citedSections: ["Office hours"], isPassed: true };
+
+    // Act
+    const rows = getTestRows({ tests: [OPEN_HOURS], results: [oldResult], isCurrent: true });
+
+    // Assert
+    expect(getStatusOf(rows, "t1")).toBe("passed");
+  });
+
+  it("shows a question whose checks changed since the run as not tested yet", () => {
+    // Arrange
+    const changed: OwnerTest = { ...OPEN_HOURS, mustMention: ["9"] };
+
+    // Act
+    const rows = getTestRows({ tests: [changed], results: [getResult({ testCase: getOwnerCase(OPEN_HOURS), isPassed: true })], isCurrent: true });
+
+    // Assert
+    expect(getStatusOf(rows, "t1")).toBe("untested");
+  });
+
+  it("splits failures into the owner's and the developer's, and counts unstable passes", () => {
+    // Arrange
+    const builtIn = BUILT_IN_TEST_CASES[0] as PolicyTestCase;
+    const results = [getResult({ testCase: getOwnerCase(OPEN_HOURS), isPassed: false }), { ...getResult({ testCase: getOwnerCase(PRICE), isPassed: true }), isUnstable: true }, getResult({ testCase: builtIn, isPassed: false })];
+
+    // Act
+    const counts = getAttentionCounts(getTestRows({ tests: [OPEN_HOURS, PRICE], results, isCurrent: true }));
+
+    // Assert
+    expect({ needsYou: counts.needsYou, developerNotified: counts.developerNotified, unstable: counts.unstable }).toEqual({ needsYou: 1, developerNotified: 1, unstable: 1 });
+  });
+
+  it("lists the sections no question checks yet, ignoring capital letters", () => {
+    // Arrange / Act
+    const uncovered = getUncoveredSections({ sections: ["Office hours", "Seller add-ons", "Our team"], tests: [{ ...OPEN_HOURS, expectedSection: "office HOURS" }, PRICE] });
+
+    // Assert
+    expect(uncovered).toEqual(["Seller add-ons", "Our team"]);
   });
 });

@@ -27,12 +27,12 @@ describe("getOrderedTestIds", () => {
 });
 
 describe("getBatchCount", () => {
-  it("splits 40 questions plus the 8 built-in checks into 6 batches of at most 8", () => {
+  it("splits 40 questions plus the 8 built-in checks into 8 batches of at most 6", () => {
     // Arrange / Act
     const batchCount = getBatchCount(OWNER_IDS);
 
     // Assert
-    expect({ batchCount, total: getRunTotal(OWNER_IDS) }).toEqual({ batchCount: 6, total: 48 });
+    expect({ batchCount, total: getRunTotal(OWNER_IDS) }).toEqual({ batchCount: 8, total: 48 });
   });
 });
 
@@ -42,7 +42,7 @@ describe("getBatchSlots", () => {
     const slots = getBatchSlots({ testIds: OWNER_IDS, batchIndex: 0 });
 
     // Assert
-    expect(slots.map((slot) => slot.kind)).toEqual(BUILT_IN_TEST_CASES.map(() => "built_in"));
+    expect(slots.map((slot) => slot.kind)).toEqual(BUILT_IN_TEST_CASES.slice(0, BATCH_SIZE).map(() => "built_in"));
   });
 
   it("never gives a batch more than the batch size", () => {
@@ -71,7 +71,7 @@ describe("getBatchSlots", () => {
 describe("getDoneCount", () => {
   it("stops at the run's total on the last batch", () => {
     // Arrange / Act
-    const done = getDoneCount({ testIds: OWNER_IDS, batchIndex: 5 });
+    const done = getDoneCount({ testIds: OWNER_IDS, batchIndex: getBatchCount(OWNER_IDS) - 1 });
 
     // Assert
     expect(done).toBe(48);

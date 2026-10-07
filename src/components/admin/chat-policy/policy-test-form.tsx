@@ -1,52 +1,61 @@
 "use client";
 
 import { Plus } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect } from "react";
 
 import { AdminField } from "@/components/admin/admin-field";
-import { AdminSelect } from "@/components/admin/admin-select";
+import { AdminSelect, type SelectOption } from "@/components/admin/admin-select";
 import { useAdminForm } from "@/components/admin/use-admin-form";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { addPolicyTestAction } from "@/lib/admin/chat-policy/actions";
-import { getMatchingSection } from "@/lib/chat/policy-sections";
+import { MAX_MENTION_PHRASES } from "@/lib/admin/chat-policy/policy-schema";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
-export const OUTCOME_OPTIONS = [
+// Add a test question (docs/cwr-chat-quick-answers-and-tests-plan.md §C): the section comes from
+// the draft's own headings, so it can't be mistyped or private; "Should mention" is an optional
+// fact check.
+
+export const EXPECTATION_OPTIONS: SelectOption[] = [
   { value: "answer", label: "Answer from the policy" },
-  { value: "handoff", label: "Hand off to a person" },
+  { value: "answer_or_friendly", label: "Answer, or reply in its own words (small talk is fine)" },
+  { value: "handoff", label: "Offer a person" },
 ];
 
-export const PRIVATE_SECTION_WARNING = "This section is private, so the assistant can't cite it; this test can't pass.";
+const ANY_SECTION_OPTION: SelectOption = { value: "", label: "Any section" };
 
-/** privateSections: the draft's "(private)" headings, which a test can never cite. */
-export function PolicyTestForm({ privateSections }: { privateSections: string[] }) {
-  const [expectedSection, setExpectedSection] = useState("");
+type PolicyTestFormProps = {
+  /** The draft's headings the assistant may cite. */
+  sections: string[];
+  /** Section to start on (a coverage hint's "Add a test"), or empty for any. */
+  initialSection: string;
+  /** Opened from a coverage hint: the question box takes focus. */
+  isFocusedOnOpen: boolean;
+};
+
+export function PolicyTestForm({ sections, initialSection, isFocusedOnOpen }: PolicyTestFormProps) {
   const { state, isPending, formRef, handleSubmit } = useAdminForm(addPolicyTestAction, {
     problemAction: "chat_policy.add_test",
-    onSuccess: () => {
-      formRef.current?.reset();
-      setExpectedSection("");
-    },
+    onSuccess: () => formRef.current?.reset(),
   });
-  const handleInput = (event: FormEvent<HTMLFormElement>) => setExpectedSection(String(new FormData(event.currentTarget).get("expectedSection") ?? ""));
-  const isPrivateSection = expectedSection.trim() !== "" && getMatchingSection(privateSections, expectedSection) !== null;
+  const sectionOptions = [ANY_SECTION_OPTION, ...sections.map((section) => ({ value: section, label: section }))];
+
+  useEffect(() => {
+    if (isFocusedOnOpen) formRef.current?.querySelector<HTMLElement>('[name="question"]')?.focus();
+  }, [isFocusedOnOpen, formRef]);
   return (
-    <form ref={formRef} onSubmit={handleSubmit} onInput={handleInput} noValidate className="grid max-w-form gap-6">
+    <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid max-w-form gap-6">
       <AdminField name="question" label="Question a visitor might ask" isMultiline defaultValue={state.values.question} error={state.fieldErrors.question} maxLength={2000} />
-      <AdminSelect name="expectedOutcome" label="The assistant should" options={OUTCOME_OPTIONS} defaultValue={state.values.expectedOutcome ?? "answer"} />
+      <AdminSelect name="expectation" label="The assistant should" options={EXPECTATION_OPTIONS} defaultValue={state.values.expectation ?? "answer"} />
+      <AdminSelect name="expectedSection" label="Section it should cite" options={sectionOptions} defaultValue={state.values.expectedSection ?? initialSection} helperText="Only checked when the assistant answers from the policy." />
       <AdminField
-        name="expectedSection"
-        label="Section it should cite"
+        name="mustMention"
+        label="Should mention"
         isOptional
-        helperText="The heading title, like “Office hours”. Leave blank if any section is fine."
-        defaultValue={state.values.expectedSection}
-        error={state.fieldErrors.expectedSection}
+        helperText={`Up to ${MAX_MENTION_PHRASES} short phrases the answer must include, separated by commas, like “$500, flat fee”. Capital letters don't matter.`}
+        defaultValue={state.values.mustMention}
+        error={state.fieldErrors.mustMention}
         maxLength={200}
       />
-      {/* Always on the page, so screen readers announce the warning when it appears. */}
-      <p role="status" className={isPrivateSection ? "type-small text-warning" : "sr-only"}>
-        {isPrivateSection ? PRIVATE_SECTION_WARNING : ""}
-      </p>
       <div>
         <button type="submit" aria-busy={isPending} className={getButtonClassName({ size: "m", variant: "main" })}>
           <Plus aria-hidden size={ICON_SIZE.button} />
