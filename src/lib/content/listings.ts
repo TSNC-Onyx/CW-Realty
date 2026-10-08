@@ -1,10 +1,11 @@
 import { cache } from "react";
 import { z } from "zod";
 
+import { LISTING_STATUSES, type ListingStatus } from "@/lib/content/listing-statuses";
 import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supabase/public-client";
 
 // Live featured properties. Row Level Security returns only live, non-deleted listings
-// and their non-deleted photos to visitors. Order: active, pending, sold, then sort order.
+// and their non-deleted photos to visitors. Order: status (listing-statuses.ts), then sort order.
 
 export const LISTINGS_PAGE_SIZE = 12;
 const MAX_SITEMAP_LISTINGS = 1000;
@@ -29,7 +30,7 @@ const listingRowSchema = z.object({
   state: z.string(),
   postal_code: z.string(),
   price_cents: z.number().int().positive(),
-  status: z.enum(["active", "pending", "sold"]),
+  status: z.enum(LISTING_STATUSES),
   bedrooms: z.number().int().nullable(),
   bathrooms: z.coerce.number().nullable(),
   square_feet: z.number().int().nullable(),
@@ -38,8 +39,6 @@ const listingRowSchema = z.object({
 });
 
 type ListingRow = z.infer<typeof listingRowSchema>;
-
-export type ListingStatus = ListingRow["status"];
 
 export type ListingPhoto = { folder: string; alt: string; width: number; height: number };
 

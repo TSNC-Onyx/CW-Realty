@@ -5,8 +5,8 @@ import { CircleCheck, Eye, EyeOff, Globe } from "lucide-react";
 import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { ButtonLink } from "@/components/ui/button-link";
 import { transitionListingAction } from "@/lib/admin/listings/actions";
-import { STATUS_LABELS, canUndoStatusMove, getStatusMoves, type PublishState } from "@/lib/admin/listings/workflow";
-import type { ListingStatus } from "@/lib/content/listings";
+import { canUndoStatusMove, getStatusMoves, type PublishState } from "@/lib/admin/listings/workflow";
+import { LISTING_STATUS_LABELS, type ListingStatus } from "@/lib/content/listing-statuses";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 type ListingPublishingProps = { listingId: string; status: ListingStatus; publishState: PublishState; photoCount: number };
@@ -34,7 +34,7 @@ export function ListingPublishing({ listingId, status, publishState, photoCount 
       <p>
         <span className="font-bold">On the website:</span> {publishState === "live" ? "Yes — visitors can see it." : "No — this is a draft."}
         <br />
-        <span className="font-bold">Status:</span> {STATUS_LABELS[status]}
+        <span className="font-bold">Status:</span> {LISTING_STATUS_LABELS[status]}
       </p>
       {publishState === "draft" && photoCount === 0 && <p className="type-small text-muted">Add at least one photo before publishing.</p>}
       <div className="flex flex-wrap gap-2">
@@ -46,8 +46,8 @@ export function ListingPublishing({ listingId, status, publishState, photoCount 
         {getStatusMoves(status).map((toStatus) => (
           <QuickActionButton
             key={toStatus}
-            label={`Mark as ${STATUS_LABELS[toStatus].toLowerCase()}`}
-            accessibleLabel={`Mark this listing as ${STATUS_LABELS[toStatus].toLowerCase()}`}
+            label={`Mark as ${LISTING_STATUS_LABELS[toStatus].toLowerCase()}`}
+            accessibleLabel={`Mark this listing as ${LISTING_STATUS_LABELS[toStatus].toLowerCase()}`}
             icon={CircleCheck}
             problemAction="listings.change_state"
             onRun={() => transitionListingAction({ listingId, workflow: "listing_status", toState: toStatus })}

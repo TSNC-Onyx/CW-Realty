@@ -2,7 +2,7 @@ import "server-only";
 
 import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
-import type { ListingStatus } from "@/lib/content/listings";
+import type { ListingStatus } from "@/lib/content/listing-statuses";
 
 // Editors' view of listings: drafts included; trash excluded. A failed query is a load
 // failure, never an empty list or a missing listing.

@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`). §11.8, §11.9, §11.10, §11.12, and §11.13 corrected to describe the built site with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`). §11.3, §11.5, and §11.13 (chat topic buttons and chat window B) amended with owner approval on 2026-10-06 (`docs/cwr-chat-guided-options-plan.md`).
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`). §11.8, §11.9, §11.10, §11.12, and §11.13 corrected to describe the built site with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`). §11.3, §11.5, and §11.13 (chat topic buttons and chat window B) amended with owner approval on 2026-10-06 (`docs/cwr-chat-guided-options-plan.md`). §11.1 and §11.8 (listing statuses) amended with owner approval on 2026-10-02 (`docs/cwr-listing-statuses-plan.md`).
 
 ## 1. Brand Identity
 
@@ -100,10 +100,10 @@
 | `field-border` | `#6E6A62` | Input borders, dashed empty-state border (5.1:1) | — |
 | `dark` | `#121212` | Headers (public, admin, sign-in), admin sidebar, footer, dark bands, callouts, mobile menu, action bar, chat header, status tags, text on gold | — |
 | `dark-alt` | `#1E1E1E` | Current item in mobile menu | — |
-| `on-dark` | `#FFFFFF` | Text on `dark` | — |
+| `on-dark` | `#FFFFFF` | Text on `dark`; the Coming Soon status dot (owner choice 2026-10-02) | — |
 | `on-dark-muted` | `#CFCFCF` | Secondary text on `dark` | — |
-| `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, the Pending status dot, on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
-| `status-active` / `status-sold` | `#4CAF6A` / `#E5534B` | The Active and Sold listing status dots on the `dark` status tag (6.8:1 / 5.1:1; owner choice 2026-09-27). The `success`/`error` shades fall below 3:1 on `dark` | Anything but the status dot |
+| `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, the Under Contract status dot, on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
+| `status-for-sale` / `status-sold` | `#4CAF6A` / `#E5534B` | The For Sale and Sold listing status dots on the `dark` status tag (6.8:1 / 5.1:1; owner choice 2026-09-27). The `success`/`error` shades fall below 3:1 on `dark` | Anything but the status dot |
 | `gold-deep` | `#806210` | The CWR initial of a plan title on light plan cards only (4.85:1 on `surface-soft`; owner choice 2026-10-02, `docs/cwr-selected-services-plan.md`) | Anything else; brand `gold` stays the gold on `dark` |
 | `gold-hover` / `gold-active` | `#F0CD55` / `#C9A227` | Gold button hover / pressed | — |
 | `ink-hover` / `ink-active` | `#3A3A3A` / `#000000` | Black button hover / pressed | — |
@@ -215,7 +215,7 @@ Status colors (always with an icon and words, never color alone):
 - `photo-placeholder` background with the image-outline icon shows until the photo loads
 - Alt text required on every photo; decorative images use empty alt text
 - AVIF with WebP fallback; hero preloaded; everything below the fold lazy loaded
-- Status tag: `dark` fill, white 14px Manrope 700 uppercase (+0.06em), 6×10px padding, 12px from the top-left corner, 8px dot in the status color (green `status-active` for "Active", `gold` for "Pending", red `status-sold` for "Sold"; owner choice 2026-09-27), and the word, so color is never the only signal
+- Status tag: `dark` fill, white 14px Manrope 700 uppercase (+0.06em), 6×10px padding, 12px from the top-left corner, 8px dot in the status color (white `on-dark` for "Coming Soon", green `status-for-sale` for "For Sale", `gold` for "Under Contract", red `status-sold` for "Sold"; owner choices 2026-09-27 and 2026-10-02, `docs/cwr-listing-statuses-plan.md`), and the word, so color is never the only signal
 
 ### 11.9 Header and navigation
 

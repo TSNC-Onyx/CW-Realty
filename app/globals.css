@@ -54,8 +54,9 @@
   --color-warning-tint: #fbf0d6;
   --color-info: #1f4e8c;
   --color-info-tint: #e6eef8;
-  /* Listing status dots on the dark status tag (owner choice 2026-09-27); Pending uses gold */
-  --color-status-active: #4caf6a;
+  /* Listing status dots on the dark status tag (owner choices 2026-09-27, 2026-10-02):
+     Coming Soon uses on-dark white, Under Contract uses gold */
+  --color-status-for-sale: #4caf6a;
   --color-status-sold: #e5534b;
   /* The CWR initial of a plan title on light plan cards only (owner choice 2026-10-02):
      brand gold is 1.5:1 there, this deep gold is 4.85:1 on surface-soft */
