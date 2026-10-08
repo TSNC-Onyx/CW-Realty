@@ -39,13 +39,13 @@ Out of scope:
 1. **One layout function** `getBrandedEmailHtml()` in `src/lib/email/layout.ts`. Inputs: `preheader` and `heading` (fixed text only), `bodyHtml` (already escaped), optional `button { label, url }`, `footerLines` (plain text — the layout escapes every entry itself, since the office phone comes from the database). Output: a full HTML document.
 2. **Email-safe HTML rules** (caniemail, Litmus, Email on Acid):
    - No HTML comments and no MSO conditionals anywhere (Supabase removes them).
-   - Outer table `width="600"` plus `max-width:600px; width:100%`; all tables `role="presentation"`; all styles inline.
+   - Outer table `width="600"` plus `max-width:600px; width:100%` (phones always fit; classic Outlook for Windows may draw the card wider than 600px — checked in task 11); all tables `role="presentation"`; all styles inline.
    - One small `<style>` in `<head>` for Apple Mail dark mode and phone widths — enhancement only. The email must look right with `<head>` removed (tested).
    - `lang="en"`, `meta color-scheme: light dark`, one `<h1>`, body links underlined.
    - Georgia for headings (Fraunces fallback), system sans stack for body; 16px text, 1.5 line height.
    - Button: gold table cell (`#e6bd35`) with ink text (`#141414`), 10.26:1 contrast, 44px+ tall, never an image. Button URLs must be `https://…` or the exact Supabase link variable; anything else throws.
    - Preheader hidden with `display:none; max-height:0; overflow:hidden; mso-hide:all`.
-   - One image: logo, with alt "Charlie Ward Realty".
+   - One image: logo, with alt "CWR Real Estate" (as on the website; the firm name is live text beside it, so screen readers don't hear it twice — changed during build 2026-10-08).
 3. **Logo** `public/brand/cwr-logo-email.png` (176×176, transparent, shown at 56px). Its absolute URL is built in `layout.ts` from `SITE_URL` (`src/lib/site/navigation.ts`) — always the production address, never `{{ .SiteURL }}` (that is `127.0.0.1` locally, which Gmail cannot fetch).
 4. **Builders** in `messages.ts` keep text, subject, `to`, and `replyTo` byte-for-byte; only `html` is wrapped. Escaping stays where it is. No function signatures change.
 5. **Footer**: visitor emails (2, 3) — firm name, office phone (from live settings, already passed as `office`), website link. Staff/owner emails (1, 4, 5) — "Sent by the Charlie Ward Realty website". Sign-in emails (6, 7) — firm name + website only (static files can't read live settings, so no phone to go stale).

@@ -5,6 +5,7 @@
 /coverage
 /playwright-report
 /test-results
+/email-preview
 /.lighthouseci
 
 # next.js / opennext / wrangler

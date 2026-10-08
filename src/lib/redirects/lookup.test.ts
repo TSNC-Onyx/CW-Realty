@@ -56,6 +56,7 @@ describe("isRedirectCandidate", () => {
     ["/services/selected-services", false],
     ["/admin/listings", false],
     ["/brand/cwr-logo-120.webp", false],
+    ["/brand/cwr-logo-email.png", false],
     ["/Upper-Case", false],
     [`/${"a".repeat(200)}`, false],
   ])("%s → %s", (path, expected) => {
