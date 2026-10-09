@@ -6,9 +6,9 @@ import Link from "next/link";
 import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { moveListingAction } from "@/lib/admin/listings/actions";
-import { STATUS_LABELS, type PublishState } from "@/lib/admin/listings/workflow";
+import type { PublishState } from "@/lib/admin/listings/workflow";
 import { moveToTrashAction, restoreFromTrashAction } from "@/lib/admin/trash/actions";
-import type { ListingStatus } from "@/lib/content/listings";
+import { LISTING_STATUS_LABELS, type ListingStatus } from "@/lib/content/listing-statuses";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 export type ListingListItem = {
@@ -23,7 +23,7 @@ export type ListingListItem = {
 
 function ListingRow({ listing, isFirst, isLast }: { listing: ListingListItem; isFirst: boolean; isLast: boolean }) {
   const trashTarget = { table: "listings" as const, id: listing.id };
-  const summary = [listing.price, STATUS_LABELS[listing.status], listing.publishState === "live" ? "On the website" : "Draft", `${listing.photoCount} photos`];
+  const summary = [listing.price, LISTING_STATUS_LABELS[listing.status], listing.publishState === "live" ? "On the website" : "Draft", `${listing.photoCount} photos`];
   return (
     <li className="grid gap-3 border-t border-line py-4 md:grid-cols-12 md:items-center">
       <div className="md:col-span-5">

@@ -36,7 +36,7 @@ select is(
   'The sold listing keeps its page, labeled sold'
 );
 select throws_ok(
-  $$ select cwr.transition('listing_status', cwr_test.id('live_listing'), 'pending') $$,
+  $$ select cwr.transition('listing_status', cwr_test.id('live_listing'), 'under_contract') $$,
   '23514', null, 'Moves that are not in the workflow are refused'
 );
 
@@ -45,7 +45,7 @@ select results_eq(
   $$ select action, old_values ->> 'status', new_values ->> 'status' from cwr.audit_log
      where record_id = cwr_test.id('live_listing') and action = 'transition'
        and new_values ->> 'status' = 'sold' $$,
-  $$ values ('transition', 'active', 'sold') $$,
+  $$ values ('transition', 'coming_soon', 'sold') $$,
   'Each transition is audited with before and after values'
 );
 select is(

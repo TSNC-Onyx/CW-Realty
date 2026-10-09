@@ -2,6 +2,7 @@
 
 Status: **built** (2026-09-25) on branch `phase-2-data-pages` (stacked on `phase-1-public-shell`) → pull request into `build1`.
 Parent plan: `docs/cwr-website-build-plan.md` (Phase 2, tasks 10–11).
+**Merged** into `build1` by PR #2 (`9fbafd3`) on 2026-09-25.
 
 ## Goal
 

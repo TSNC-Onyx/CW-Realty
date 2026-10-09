@@ -21,13 +21,11 @@ for (const path of [...PUBLIC_PAGE_PATHS, MISSING_PAGE_PATH]) {
   }
 
   test(`${path} has exactly one H1`, async ({ page }) => {
-    // Arrange
+    // Arrange / Act
     await page.goto(path);
 
-    // Act
-    const headingCount = await page.locator("h1").count();
-
-    // Assert
-    expect(headingCount).toBe(1);
+    // Assert: a page can still be streaming in after load (the 404 body arrives after the
+    // shell), so the count is retried until it settles rather than read once.
+    await expect(page.locator("h1")).toHaveCount(1);
   });
 }

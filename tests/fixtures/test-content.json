@@ -7,7 +7,7 @@
       "city": "Browns Summit",
       "postalCode": "27214",
       "priceDollars": 225000,
-      "status": "active",
+      "status": "for_sale",
       "bedrooms": 3,
       "bathrooms": 1.5,
       "squareFeet": 1050,
@@ -15,7 +15,8 @@
       "description": "Test description.\n\nSecond paragraph.",
       "photos": [
         { "source": "test-house.jpg", "alt": "Front of the test home" },
-        { "source": "test-house.jpg", "alt": "Second view of the test home" }
+        { "source": "test-house.jpg", "alt": "Second view of the test home" },
+        { "source": "test-house.jpg", "alt": "Third view of the test home" }
       ]
     },
     {
@@ -24,7 +25,7 @@
       "city": "Greensboro",
       "postalCode": "27405",
       "priceDollars": 850000,
-      "status": "active",
+      "status": "coming_soon",
       "bedrooms": null,
       "bathrooms": null,
       "squareFeet": 4986,

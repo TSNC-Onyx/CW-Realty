@@ -1,6 +1,6 @@
 # Style (UI/UX) Constitution
 
-> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`).
+> Section 2 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. Section 11 added by owner directive on 2026-09-25. §11.7, §11.9, and §11.13 (admin frame, dark headers, logo) amended with owner approval on 2026-09-25 (`docs/cwr-admin-console-header-redesign-plan.md`). §1, §4, §11.1, §11.2, §11.5, §11.8, §11.10, and §11.14 amended with owner approval on 2026-09-26 (`docs/cwr-site-review-round-plan.md`). §11.1, §11.5, and §11.10 (Selected services) amended with owner approval on 2026-10-02 (`docs/cwr-selected-services-plan.md`). §11.8, §11.9, §11.10, §11.12, and §11.13 corrected to describe the built site with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`). §11.3, §11.5, and §11.13 (chat topic buttons and chat window B) amended with owner approval on 2026-10-06 (`docs/cwr-chat-guided-options-plan.md`). §11.1 and §11.8 (listing statuses) amended with owner approval on 2026-10-02 (`docs/cwr-listing-statuses-plan.md`).
 
 ## 1. Brand Identity
 
@@ -100,10 +100,11 @@
 | `field-border` | `#6E6A62` | Input borders, dashed empty-state border (5.1:1) | — |
 | `dark` | `#121212` | Headers (public, admin, sign-in), admin sidebar, footer, dark bands, callouts, mobile menu, action bar, chat header, status tags, text on gold | — |
 | `dark-alt` | `#1E1E1E` | Current item in mobile menu | — |
-| `on-dark` | `#FFFFFF` | Text on `dark` | — |
+| `on-dark` | `#FFFFFF` | Text on `dark`; the Coming Soon status dot (owner choice 2026-10-02) | — |
 | `on-dark-muted` | `#CFCFCF` | Secondary text on `dark` | — |
-| `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, the Pending status dot, on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
-| `status-active` / `status-sold` | `#4CAF6A` / `#E5534B` | The Active and Sold listing status dots on the `dark` status tag (6.8:1 / 5.1:1; owner choice 2026-09-27). The `success`/`error` shades fall below 3:1 on `dark` | Anything but the status dot |
+| `gold` | `#E6BD35` | Buttons, icons, eyebrow rules, column headings, the Under Contract status dot, on `dark` only (10.4:1) | Any light background, as text, fill, or icon (1.7:1) |
+| `status-for-sale` / `status-sold` | `#4CAF6A` / `#E5534B` | The For Sale and Sold listing status dots on the `dark` status tag (6.8:1 / 5.1:1; owner choice 2026-09-27). The `success`/`error` shades fall below 3:1 on `dark` | Anything but the status dot |
+| `gold-deep` | `#806210` | The CWR initial of a plan title on light plan cards only (4.85:1 on `surface-soft`; owner choice 2026-10-02, `docs/cwr-selected-services-plan.md`) | Anything else; brand `gold` stays the gold on `dark` |
 | `gold-hover` / `gold-active` | `#F0CD55` / `#C9A227` | Gold button hover / pressed | — |
 | `ink-hover` / `ink-active` | `#3A3A3A` / `#000000` | Black button hover / pressed | — |
 | `on-dark-hover` | White at 10% | Hover tint on `dark`: secondary buttons and menu links | — |
@@ -145,7 +146,7 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.3 Shape, borders, and elevation
 
-- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags
+- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners
 - Circles only for the logo, 64px round icon badges, and the 8px status dot
 - Borders: 1px `field-border` on inputs; 2px on buttons and invalid/valid fields; 2px `ink` rule on top of cards
 - No shadows and no gradients; depth comes from `dark` bands and `surface-soft` sections
@@ -167,7 +168,7 @@ Status colors (always with an icon and words, never color alone):
 |---|---|---|---|---|
 | L | 56px | 28px | 17px | Main page actions; full width on mobile |
 | M | 48px | 22px | 16px | Default |
-| S | 44px | 22px | 15px | Header, messages, cookie banner, chat |
+| S | 44px | 22px (12px on chat topic buttons, owner choice 2026-10-06) | 15px | Header, messages, cookie banner, chat |
 
 | Variant | Light background | Dark background |
 |---|---|---|
@@ -183,7 +184,7 @@ Status colors (always with an icon and words, never color alone):
 | Disabled | Light: `#D6D6D6` fill, `#5E5E5E` text; dark: `#3A3A3A` fill, `#9A9A9A` text; `disabled` attribute |
 | Loading | 20px spinner plus a verb ("Sending…"); button keeps its width; `aria-busy="true"`; cannot be clicked twice |
 
-- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss and the Home hero pause/play button, 44×44px `dark-translucent`, which carry `aria-label`; the hero exception is an owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`)
+- Every button label starts with an action verb; icons are 20px with an 8px gap and are never the only label (except Close/Dismiss, the Home hero pause/play button, 44×44px `dark-translucent`, the plan carousel arrows, and the listing photo gallery's 48×48px ‹ › "Previous photo"/"Next photo" arrows and full-screen Close button, which carry `aria-label`; the hero exception is an owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`; the plan carousel arrows 2026-10-02, `docs/cwr-selected-services-plan.md`; the gallery arrows 2026-10-02, `docs/cwr-reliability-round-plan.md` D2)
 
 ### 11.6 Icons
 
@@ -203,7 +204,6 @@ Status colors (always with an icon and words, never color alone):
 
 | Container | Ratio | Notes |
 |---|---|---|
-| Home hero, desktop | 21:9 | Full content width below the headline |
 | Hero, mobile | 4:3 | Edge to edge |
 | Listing card photo | 3:2 | Status tag at top left |
 | Feature photo (e.g., TouchUp band) | 3:2 | On a `dark` band |
@@ -215,31 +215,39 @@ Status colors (always with an icon and words, never color alone):
 - `photo-placeholder` background with the image-outline icon shows until the photo loads
 - Alt text required on every photo; decorative images use empty alt text
 - AVIF with WebP fallback; hero preloaded; everything below the fold lazy loaded
-- Status tag: `dark` fill, white 14px Manrope 700 uppercase (+0.06em), 6×10px padding, 12px from the top-left corner, 8px dot in the status color (green `status-active` for "Active", `gold` for "Pending", red `status-sold` for "Sold"; owner choice 2026-09-27), and the word, so color is never the only signal
+- Status tag: `dark` fill, white 14px Manrope 700 uppercase (+0.06em), 6×10px padding, 12px from the top-left corner, 8px dot in the status color (white `on-dark` for "Coming Soon", green `status-for-sale` for "For Sale", `gold` for "Under Contract", red `status-sold` for "Sold"; owner choices 2026-09-27 and 2026-10-02, `docs/cwr-listing-statuses-plan.md`), and the word, so color is never the only signal
 
 ### 11.9 Header and navigation
 
-- Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, five menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
+- Desktop header: 88px tall, `dark` background, white text, 1px `divider-dark` bottom border, 64px side padding, sticky; logo left, six menu items center (Manrope 600 16px, 44px tall, 12px side padding, 16px chevron for items with sub-pages; sub-page lists are `dark` panels with a 2px `gold` top rule), phone link with an 18px `gold` icon plus S gold main button "Contact us" right
 - Current page: 2px `gold` bar under the menu label plus `aria-current="page"`
 - With six menu items (owner choice 2026-09-26) the header phone link shows the gold icon plus "Call" from 1024px to 1279px, where the full number does not fit on one line; 1280px and wider show the number
 - Sub-menus (owner choice 2026-09-26, see §5): a mouse opens them by hovering after 150ms and they close 300ms after it leaves; moving straight to another menu name switches at once; one open at a time; a tap toggles on touch screens at any width; Escape, a link click, or focus leaving closes them
 - Menu hover (owner choice 2026-09-26): every link on `dark` — header menu, sub-page lists, header phone link, mobile menu, footer, admin sidebar and admin mobile menu — fades in an `on-dark-hover` tint over 200ms; mouse only (never sticks after a tap), same tint on keyboard focus, never on the current page, outline in high-contrast mode
 - Mobile header: 62px tall (meets Style §4 56–64px and Features §1 under 64px), `dark`, 16px side padding, sticky; 55px logo left; "Menu" button right (20px icon plus the word "Menu", 44px tall, 2px white border)
-- Mobile menu: full-screen `dark` panel; 62px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call" and L secondary "Text us" buttons pinned at the bottom
+- Mobile menu: full-screen `dark` panel; 62px top bar with logo and "Close" button; items are Fraunces 24px white, 56px tall, `#2A2A2A` dividers; current item has a 4px gold left bar and `dark-alt` background; sub-pages in Manrope 17px, 44px tall, indented 32px; L gold "Call (phone number)" and L secondary "Text us" buttons pinned at the bottom (only an L gold "Contact us" button when no phone is set)
 - Mobile action bar: fixed to the bottom on every public page; `dark` background, `divider-dark` top border; three equal items Call, Text, Chat, each 60px tall with a 22px gold icon over a 14px white bold label; 14px bottom padding for phone home bars
 - Pages keep 88px (desktop) / 62px (mobile) top scroll padding and 80px bottom padding on mobile so focus is never hidden
 - Breadcrumbs: Manrope 15px; links `ink` underlined, 44px tall; 16px chevron separators in `muted`; current page bold with `aria-current="page"`
 
 ### 11.10 Cards
 
-- **Listing card**: no box or background; 2px `ink` top rule; 3:2 photo; 16px gap below the photo; price, then address (Manrope 17px 600) and city (400, `muted`), then details row (Manrope 15px `muted`, 18px icons, 16px gaps): beds, baths, square feet; the whole card is one link; hover zooms the photo to 1.03 over 200ms and underlines the address
+- **Listing card**: no box or background; 2px `ink` top rule; 3:2 photo; 16px gap below the photo; price, then address (Manrope 17px 600) and city (400, `muted`), then details row (Manrope 15px `muted`, 18px icons, 16px gaps): beds, baths, square feet; the whole card is one link; hover zooms the photo to 1.03 over 200ms and underlines the address; a listing with more than one photo shows a `dark` tag with a 16px images icon and "N photos" at the photo's bottom-right (owner choice 2026-10-02, D1 — cards don't swipe)
 - **Team card**: 4:5 portrait, name in Fraunces 24px (19px mobile), role in Manrope 16px `muted`; whole card is one link
 - **Resource card**: `surface-soft` fill, 2px `ink` top rule, 40px padding, eyebrow, H3 at 32px, body, "Read more" text link
 - **Service row** (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): 3:2 photo beside H3, bold 17px summary, and 18px check-icon points; desktop and tablet alternate the photo side, phones put the photo first; rows divided by 1px `line` (`divider-dark` on texture) under a 2px top rule
-- **Download row** (owner choice 2026-09-27, Homework page): 48px file icon box (1px `field-border`, `surface` fill, 24px icon), title (Manrope 18px bold), description, 15px `muted` bold type and size ("PDF · 1.3 MB"), and an M secondary button "Download PDF" ("Descargar …" with `lang="es"` for Spanish guides) whose name for screen readers adds the title; rows divided by 1px `line` under a 2px `ink` rule; phones stack the button full width
+- **Download row** (owner choice 2026-09-27, Homework page): 48px file icon box (1px `field-border`, `surface` fill, 24px icon), title (Manrope 18px bold), description, 15px `muted` bold type and size ("PDF · 1.3 MB"), and an M secondary button "Download PDF" ("Descargar …" with `lang="es"` for Spanish guides) whose name for screen readers adds the title; rows divided by 1px `line` under a 2px `ink` rule; phones stack the button full width. A slide-deck file shows a presentation icon. A web link shows an external-link icon, the line "Link · site name", and a "Visit website" ("Visitar el sitio") button with an external-link icon; a link to a PDF looks like a file download with the line "PDF · from site name"
 - **Captions warning tag** (owner choice 2026-09-27, Admin → Homework): warning tint and border, 16px warning icon, 14px bold "No captions yet"; shown on videos that have a file but no captions file
 - **Texture band** (owner choice 2026-09-26, `docs/cwr-site-review-round-plan.md`): `dark` with a tiled 8×8px crosshatch of `#2A2A2A` lines, Property Management only; white text 14:1 or better, no gradients
-- **Plan card** (owner approved 2026-09-26, seller consulting): cards side by side from 768px, stacked on phones; 24px padding (40px from 768px); eyebrow, H3, 15px summary, a bold "includes" line over a 1px divider, then items with 18px check icons and optional 15px detail lines; then an L "Ask for pricing" button, full width and pinned to the card bottom. Standard plan: `surface-soft` fill, 2px `ink` top rule, `ink` checks, L secondary button. Recommended plan: `dark` fill, 2px `gold` top rule, eyebrow with its gold rule, gold checks, `on-dark-muted` details, L gold main button. Add-ons follow as a 680px-wide list under a 2px `ink` rule: 18px icon, name, bold price, 1px `line` dividers
+- **Plan card** (owner approved 2026-09-26; Selected services, `docs/cwr-selected-services-plan.md`): a carousel below 1024px and a grid from 1024px (see Plan carousel and Plan card additions); 24px padding (40px from 768px); eyebrow, H3, 15px summary, a bold "includes" line over a 1px divider, then items with 18px check icons and optional 15px detail lines; then an L "Get started" button, full width and pinned to the card bottom. Standard plan: `surface-soft` fill, 2px `ink` top rule, `ink` checks, L secondary button. Recommended plan: `dark` fill, 2px `gold` top rule, eyebrow with its gold rule, gold checks, `on-dark-muted` details, L gold main button. Add-ons follow as a 680px-wide list under a 2px `ink` rule: 18px icon, name, bold price, 1px `line` dividers
+- **Plan card additions** (owner approved 2026-09-30 → 2026-10-02, Selected services, `docs/cwr-selected-services-plan.md`): a price line under the H3 in the Team name size (19px / 24px), always smaller than the H3, with a 15px note; the seller "3%" on a `dark` block; one or more bold "includes" lines; a 15px "Not included:" line above the button; the button reads "Get started" (prices are shown). The H3's first letter (the CWR initials across the three plans) is weight 700, `gold` on the dark card and `gold-deep` on light cards (`::first-letter`, text unchanged for screen readers). Grid from 1024px: two across with the full-service card spanning the row (its button sized to its label), three across from 1280px
+- **Plan carousel** (owner approved 2026-10-02, below 1024px): a plan list (name and price per plan, 16px, rows of 48px or more under a 2px `ink` rule with `line` dividers; current plan has a 4px `ink` left bar, bold name, `aria-current`; choosing one brings that card into view under the header and focuses it); one centered card at a time with a sliver of each neighbour (80vw phones, 70vw tablets), native scroll snap, no visible scroll bar; arrows are 48×48px square buttons with a `page` fill, 1px `field-border` border, and 24px `ink` chevron, fixed at the left and right edges at the middle of the cards, disabled (`line`) at the ends; opens on the recommended plan; W3C APG carousel roles and a polite live region; reduced motion moves instantly
+- **Intro byline** (owner approved 2026-09-30, Selected services): text and portrait top-aligned (portrait 5/12 from 768px, 4/12 from 1280px); on phones a 112px 4:5 portrait beside the name (Team name size, 44px link), title, and phone text link
+- **Services overview card** (Services page): `surface-soft` fill, 2px `ink` top rule, 3:2 photo, 24px padding (40px sides and bottom, 32px top from 768px), eyebrow, H3, body, and a text link with an 18px arrow; the whole card is one link
+- **Path card** (Home): no box; 2px `ink` top rule, 3:2 photo, H3 16px below, body, text link with an arrow
+- **Partner card** (Connections): no box; 2px `ink` top rule with 16px above the photo; 4:5 portrait, 15px semibold `muted` category, H3 name, optional 16px `muted` title line, then call, email, and website text links with icons
+- **Video card** (Homework): no box; 2px `ink` top rule with 24px above the video; 16:9 video (loads on play, optional cover photo, captions when present), H3, 15px semibold `muted` "Video · length" line with an 18px play icon, optional description; two across from 1024px
+- **Call-to-action box** (Homework question box, Connections referral box): `surface-soft` fill, 2px `ink` top rule, 24px padding (40px from 768px), H3 and a short line beside one M main button (stacked and full width on phones)
 
 ### 11.11 Forms
 
@@ -259,20 +267,26 @@ Status colors (always with an icon and words, never color alone):
 - Errors use `role="alert"` and stay until dismissed; success, warning, and info use `role="status"`; success toasts close after 6 seconds, but pause while hovered or focused
 - Placement: pop-up messages appear top right on desktop (24px from the edges, 400px max width) and above the action bar on mobile (16px side margins); banners about a whole page sit at the top of the content
 - Wording: title says what happened; body says what to do next; errors never blame the visitor and never lose what they typed
-- Success page (after a form): 64px round success badge (success tint fill, 2px success border, 32px check), H1 thanking the visitor by name, what happens next and when, an L main button, and an L secondary button
+- Success message (replaces the form once it is sent): 64px round success badge (success tint fill, 2px success border, 32px check), a heading in the H1 style thanking the visitor by first name, what happens next and when, an L main button, and an L secondary button
 - Callout: `dark` panel, 16×24px padding, 22px gold icon, 17px white text
 
 ### 11.13 Other components
 
 - **Empty state**: 1px dashed `field-border` box, 40×24px padding, centered; 64px round `dark` badge with a 30px gold icon; H3 at 24px; one line on what belongs here and the next step (16px, 420px max width); one M main button
-- **AI chat window**: 380px wide panel (full screen on mobile); `dark` header with 32px logo, "CWR Assistant", and "AI · NOT A PERSON" in 14px gold bold; visitor messages on `dark` with white text, right aligned; assistant messages on `surface-soft`, left aligned, ending with a 14px `muted` "Source: Policy [section]" line; "Talk to a person" S secondary button always visible; on desktop, an M gold "Chat with us" launcher sits 32px from the bottom-right corner
+- **AI chat window** (window B, owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): full screen on mobile; on tablet and desktop a 380px wide panel with a 1px `field-border` edge, 640px tall growing with the screen up to 880px, floating above the tablet action bar; `dark` header with 32px logo, "CWR Assistant", and "AI · NOT A PERSON" in 14px gold bold; visitor messages on `dark` with white text, right aligned; assistant messages on `surface-soft`, left aligned, ending with a 14px `muted` "Source: Policy [section]" line; a new answer scrolls to its first line; above the question box, a topic tray on `page` with a 1px `line` top border, a 14px `ink` eyebrow, and S `ink` topic buttons (6px corners, 12px side padding, two per row, a lone last button fills its row; the one place several main buttons share a section), with Back and All topics text links; a topic answer follows a 0.7–1.5s pause shown as three fading dots (none for Emergency help); "Talk to a person" S secondary button always visible under the question box; on desktop, an M gold "Chat with us" launcher sits 32px from the bottom-right corner
+- **Listing photo gallery** (owner choice 2026-10-02, `docs/cwr-reliability-round-plan.md` D2): one 3:2 photo at a time with the status tag over it; swipe (native scroll-snap), the 48×48px ‹ › arrows (1px `line` border, `page` fill, faded to 40% at the ends, no wrap-around), a 16px "3 of 8" counter between them, a row of 72×48px thumbnail buttons (2px `ink` ring on the current one, the row scrolls on its own), or ←/→ keys; W3C carousel roles; nothing moves by itself; one photo shows no controls; a photo that fails to load shows the placeholder
+- **Full-screen photo viewer**: tapping the gallery photo opens a full-window `dark` modal dialog with the whole photo (not cropped), a "3 of 8" counter and a 48px Close button at the top, ‹ › arrows below, swipe and ←/→ keys; Esc, Close, or a phone's Back button close it and return to the listing
 - **Cookie banner**: `dark` panel at the bottom of the screen above the action bar; 16px white text; "Accept all" and "Reject all" as equal S gold main buttons, plus a "Cookie settings" text link
 - **Admin top bar**: same `dark` header as the public site (88px desktop, 62px mobile, sticky). Desktop: logo (links to the admin dashboard), "CWR Real Estate" in Fraunces 20px over an "ADMIN" eyebrow, breadcrumb "Admin › [area]" in 15px `on-dark-muted`, then right-aligned "View website" text link (opens a new tab, says so to screen readers) and an S secondary "Sign out" button. Mobile and tablet: logo, "Admin", a 44px Inbox icon link with the unread badge, and the "Menu" button
 - **Admin sidebar** (1024px and up): 256px `dark` column, sticky under the top bar and scrolling on its own; links grouped under 14px `gold` uppercase headings "Daily", "Website", "Settings" (empty groups hidden by role); each link is a 20px icon plus the word, Manrope 600 16px, 44px tall; current page has a 4px `gold` left bar on `dark-alt` plus `aria-current="page"`; the signed-in email (15px, cut with "…", full address on hover) and role (14px uppercase with the 8px gold dot) sit at the bottom above a `divider-dark` line
 - **Admin mobile menu**: the mobile menu pattern above with the same groups (Fraunces 20px items, 56px tall), then the email (wrapping), role, and an L secondary "Sign out" button at the bottom
 - **Unread badge**: `gold` fill, `dark` 14px bold number, 24px tall, capped at "99+"; screen readers hear "(N new)" after "Inbox"
-- **Admin dashboard**: date and greeting H1; owner-only error message when a required server setting is missing; a `dark` "Today" strip of numbered figures (four for owners and managers, two for staff; figures that need action turn `gold` with an arrow and the words "needs attention" for screen readers), 1px `divider-dark` gaps; "Latest messages" (five newest open requests) beside a `surface-soft` "Quick actions" panel with a 2px `ink` top rule (one M main button, the rest M secondary; only actions the role may use); "Manage the website" area cards: `surface` fill, 2px `ink` top rule, 16px padding, 40px square `dark` icon badge with a 20px `gold` icon, Fraunces 20px title, 14px `muted` description, 14px bold status line, as many 240px+ columns as fit
+- **Admin dashboard**: date and greeting H1; owner-only error message when a required server setting is missing; a `dark` "Today" strip of numbered figures (four for owners and managers, two for staff; figures that need action turn `gold` with an arrow and the words "needs attention" for screen readers), 1px `divider-dark` gaps; "Latest messages" (five newest open requests) beside a `surface-soft` "Quick actions" panel with a 2px `ink` top rule (one M main button, the rest M secondary; only actions the role may use); "Manage the website" area cards: `surface` fill, 2px `ink` top rule, 16px padding, 40px square `dark` icon badge with a 20px `gold` icon, Fraunces 20px title, 14px `muted` description, 14px bold status line, as many 240px+ columns as fit. Owners also see a "Problems — last 24 hours" card under Quick actions (`surface` fill, 2px `ink` top rule, the count in H2 size, 14px `muted` lines for errors and website visitors), a warning message for each background check that has stopped or keeps failing, and a message about problem emails (info while they are paused, warning when no one gets them). Anyone sent to an area outside their role sees a warning message above the Today strip
 - **Footer**: `dark` background; 72×64px padding with 40px bottom on desktop, 48×16px with 120px bottom on mobile (room for the action bar); logo, then phone, email, and office address with 18px gold icons; five link columns with 14px gold uppercase headings and 16px white links, each 44px tall (two columns on mobile); bottom row above a `divider-dark` line with the gold Equal Housing icon and text, plus underlined 15px `on-dark-muted` links for Privacy policy, Cookie settings, and NC "Working with Real Estate Agents"
+- **Pagination** (long lists): 1px `line` top border, 48px above it and 24px below; "Previous page" and "Next page" text links with 18px arrows at the ends and a 15px `muted` "Page N of M" between; hidden when there is one page
+- **Numbered steps** (CWR TouchUp): rows divided by 1px `line`; a 64px round `dark` badge with the step number in `gold` (H3 size) beside the H3 and body; screen readers hear "Step N:"
+- **Quote list on dark** (CWR TouchUp): one to three columns, each quote under a 2px `gold` top rule in the Quote style
+- **Journey list on dark** (About): numbered items under 2px `gold` top rules; a gold eyebrow number "01", "02"… over 15px semibold text; 2 across on phones, 4 on tablets, 7 from 1024px
 
 ### 11.14 Motion
 

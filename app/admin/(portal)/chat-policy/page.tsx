@@ -1,106 +1,156 @@
-import { CircleCheck, CircleX, ListChecks } from "lucide-react";
 import type { Metadata } from "next";
 
+import { AssistantSwitch } from "@/components/admin/chat-policy/assistant-switch";
+import { PolicyDraftStateProvider } from "@/components/admin/chat-policy/policy-draft-state";
 import { PolicyEditor } from "@/components/admin/chat-policy/policy-editor";
-import { PolicyHistory } from "@/components/admin/chat-policy/policy-history";
-import { PolicyPublishing } from "@/components/admin/chat-policy/policy-publishing";
-import { PolicyTestForm } from "@/components/admin/chat-policy/policy-test-form";
-import { PolicyTestList } from "@/components/admin/chat-policy/policy-test-list";
+import { PolicyHistory, type PolicyVersionRow } from "@/components/admin/chat-policy/policy-history";
+import { PolicyTestPanel, type TestScore } from "@/components/admin/chat-policy/policy-test-panel";
+import { QuickAnswerEditor, type QuickAnswerRow } from "@/components/admin/chat-policy/quick-answer-editor";
 import { LoadProblem } from "@/components/admin/load-problem";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Message } from "@/components/ui/message";
 import {
+  fetchIsAssistantOn,
+  fetchLatestPassingRun,
   fetchLatestTestRun,
+  fetchPolicyBody,
   fetchPolicyTests,
   fetchPolicyVersions,
   fetchTestsChangedAt,
   fetchWorkingPolicy,
+  isLiveRunCurrent,
   isRunCurrent,
-  type PolicyStatus,
   type PolicyTest,
   type PolicyTestRun,
   type PolicyVersion,
   type WorkingPolicy,
 } from "@/lib/admin/chat-policy/queries";
+import { getHistoryWhenLabel, getTestRows, getUncoveredSections, type OwnerTest } from "@/lib/admin/chat-policy/test-rows";
+import { BUILT_IN_TEST_CASES, hasCurrentChecksVersion, hasCurrentSafetyChecks } from "@/lib/admin/chat-policy/test-verdict";
+import { getAssistantSections, getPrivateSections, getPublicSectionText, getPublicSections } from "@/lib/chat/policy-sections";
 import { getLoaded, type LoadResult } from "@/lib/admin/load-result";
+import type { AdminContext } from "@/lib/admin/require-admin";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
+import { getAssistantStatus } from "@/lib/chat/assistant-status";
+import { getQuickAnswerLeaves, getQuickAnswerTitle } from "@/lib/chat/guided-tree";
 import { isAssistantConfigured } from "@/lib/chat/claude-model";
-import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 export const metadata: Metadata = { title: "Chatbot policy" };
 
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
-const STATUS_LABELS: Record<PolicyStatus, string> = { draft: "Draft", published: "Live now", archived: "Earlier live version" };
 
-function getLiveSummary(versions: PolicyVersion[]): string {
-  const live = versions.find((version) => version.status === "published");
-  if (!live) return "Nothing is published yet, so the website chat hands every question to a person.";
-  return `Version ${live.version} is live, published ${DATE_TIME.format(new Date(live.published_at ?? live.updated_at))}.`;
+function getLiveVersion(versions: PolicyVersion[]): PolicyVersion | null {
+  return versions.find((version) => version.status === "published") ?? null;
 }
 
-function TestRunResults({ run, isCurrent }: { run: PolicyTestRun; isCurrent: boolean }) {
+/** What visitors get right now (bug 10), with the live version's publish date. */
+function getStatusSummary({ live, liveBody, isSwitchOn }: { live: PolicyVersion | null; liveBody: string | null; isSwitchOn: boolean }): string {
+  const status = getAssistantStatus({ isSwitchOn, liveVersion: live?.version ?? null, hasPublicSections: getPublicSections(liveBody ?? "").length > 0, isConfigured: isAssistantConfigured() });
+  if (!live) return status.text;
+  return `${status.text} Version ${live.version} was published ${DATE_TIME.format(new Date(live.published_at ?? live.updated_at))}.`;
+}
+
+/** The live version's text: the working policy already holds it while no draft is open. */
+async function fetchLiveBody({ admin, working, live }: { admin: AdminContext; working: WorkingPolicy; live: PolicyVersion | null }): Promise<LoadResult<string | null>> {
+  if (!live) return getLoaded(null);
+  if (!working.draftId) return getLoaded(working.body);
+  const policy = await fetchPolicyBody(admin, live.id);
+  if (!policy.isLoaded) return policy;
+  return getLoaded(policy.data?.body ?? null);
+}
+
+type TestSectionProps = {
+  working: WorkingPolicy;
+  /** The live version, shown with its own test run while there is no draft. */
+  live: PolicyVersion | null;
+  tests: PolicyTest[];
+  run: LoadResult<PolicyTestRun | null>;
+  testsChangedAt: LoadResult<string | null>;
+  notice: LoadProblemNotice | null;
+};
+
+/** Each topic button with its answer in the working text (empty when missing). */
+function getQuickAnswerRows(body: string): QuickAnswerRow[] {
+  return getQuickAnswerLeaves().map((leaf) => ({ nodeId: leaf.id, label: leaf.label, link: leaf.link ?? null, text: getPublicSectionText(body, getQuickAnswerTitle(leaf)) ?? "" }));
+}
+
+function getOwnerTests(tests: PolicyTest[]): OwnerTest[] {
+  return tests.map((test) => ({ id: test.id, question: test.question, expectedOutcome: test.expected_outcome, expectedSection: test.expected_section, allowsFriendlyReply: test.allows_friendly_reply, mustMention: test.must_mention }));
+}
+
+function getTestScore(run: PolicyTestRun | null): TestScore | null {
+  if (!run) return null;
+  return { passed: run.results.filter((result) => result.isPassed).length, total: run.results.length, lastRunText: DATE_TIME.format(new Date(run.ran_at)) };
+}
+
+function isShownRunCurrent({ run, working, testsChangedAt }: { run: PolicyTestRun | null; working: WorkingPolicy; testsChangedAt: string | null }): boolean {
+  if (working.draftId) return isRunCurrent({ run, draft: working, testsChangedAt });
+  return isLiveRunCurrent({ run, testsChangedAt });
+}
+
+/** With a draft, its latest run; with none, the run that let the live version publish (Admin §6). */
+async function fetchShownRun({ admin, working, live }: { admin: AdminContext; working: WorkingPolicy; live: PolicyVersion | null }): Promise<LoadResult<PolicyTestRun | null>> {
+  if (working.draftId) return fetchLatestTestRun(admin, working.draftId);
+  if (live) return fetchLatestPassingRun(admin, live.id);
+  return getLoaded(null);
+}
+
+/** A run or stamp that didn't load leaves every question "Not tested yet" and Publish locked, with a notice. */
+function TestSectionBody({ working, live, tests, run, testsChangedAt, notice }: TestSectionProps) {
+  const didRunLoad = run.isLoaded && testsChangedAt.isLoaded;
+  const latestRun = run.isLoaded ? run.data : null;
+  const isCurrent = didRunLoad && isShownRunCurrent({ run: latestRun, working, testsChangedAt: testsChangedAt.data });
+  const results = latestRun?.results ?? [];
+  const ownerTests = getOwnerTests(tests);
+  const sections = getAssistantSections(working.body);
   return (
-    <div className="mt-6 grid max-w-prose gap-4">
-      <p className="type-small text-muted">{`Last run ${DATE_TIME.format(new Date(run.ran_at))}${isCurrent ? "" : " — the draft or questions changed since, so run the tests again"}.`}</p>
-      <ul className="border-b border-line">
-        {run.results.map((result, index) => (
-          <li key={`${index}-${result.question}`} className="flex gap-3 border-t border-line py-3">
-            {result.isPassed ? <CircleCheck aria-hidden size={ICON_SIZE.message} className="shrink-0 text-success" /> : <CircleX aria-hidden size={ICON_SIZE.message} className="shrink-0 text-error" />}
-            <div className="min-w-0">
-              <p className="font-semibold">{`${result.isPassed ? "Passed" : "Failed"}: ${result.question}`}</p>
-              {result.isBuiltIn && <p className="type-small text-muted">Built-in safety check</p>}
-              <p className="type-small mt-1">{`Reply: ${result.reply}`}</p>
-              {result.citedSections.length > 0 && <p className="type-small text-muted">{`Cited: ${result.citedSections.join(", ")}`}</p>}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <PolicyTestPanel
+      runAt={latestRun?.ran_at ?? null}
+      draftId={working.draftId}
+      draftVersion={working.draftVersion}
+      liveVersion={working.draftId ? null : (live?.version ?? null)}
+      rows={getTestRows({ tests: ownerTests, results, isCurrent })}
+      score={getTestScore(latestRun)}
+      isReadyToPublish={working.draftId !== null && Boolean(latestRun?.is_passed) && isCurrent && hasCurrentSafetyChecks(results)}
+      isCurrent={isCurrent}
+      hasCurrentChecksVersion={hasCurrentChecksVersion(results)}
+      didRunLoad={didRunLoad}
+      isAssistantConfigured={isAssistantConfigured()}
+      runProblem={didRunLoad ? null : <LoadProblem notice={notice} />}
+      privateSections={getPrivateSections(working.body)}
+      sections={sections}
+      uncoveredSections={getUncoveredSections({ sections, tests: ownerTests })}
+    />
   );
 }
 
-type PublishSectionProps = { working: WorkingPolicy; run: LoadResult<PolicyTestRun | null>; testsChangedAt: LoadResult<string | null>; notice: LoadProblemNotice | null };
-
-function PublishSectionBody({ working, run, testsChangedAt, notice }: PublishSectionProps) {
-  if (!working.draftId) return <p className="max-w-prose">Save a draft first. Then run the tests and publish it.</p>;
-  if (!run.isLoaded || !testsChangedAt.isLoaded) return <LoadProblem notice={notice} />;
-  const isCurrent = isRunCurrent({ run: run.data, draft: working, testsChangedAt: testsChangedAt.data });
-  return (
-    <>
-      <p className="mb-4 max-w-prose">{`Tests run on the saved draft version ${working.draftVersion}. Publishing unlocks once every test passes.`}</p>
-      <PolicyPublishing draftId={working.draftId} isReadyToPublish={Boolean(run.data?.is_passed) && isCurrent} />
-      {run.data && <TestRunResults run={run.data} isCurrent={isCurrent} />}
-    </>
-  );
+function getHistoryRows({ versions, workingDraftId }: { versions: PolicyVersion[]; workingDraftId: string | null }): PolicyVersionRow[] {
+  return versions.map((version) => {
+    const isWorkingDraft = version.id === workingDraftId;
+    return { id: version.id, version: version.version, whenLabel: getHistoryWhenLabel({ status: version.status, isWorkingDraft, savedText: DATE_TIME.format(new Date(version.updated_at)), publishedText: DATE_TIME.format(new Date(version.published_at ?? version.updated_at)) }), isWorkingDraft };
+  });
 }
 
-function TestListBody({ tests, notice }: { tests: LoadResult<PolicyTest[]>; notice: LoadProblemNotice | null }) {
-  if (!tests.isLoaded) return <LoadProblem notice={notice} />;
-  if (tests.data.length === 0) {
-    return <EmptyState icon={ListChecks} titleId="tests-empty" title="No test questions yet" description="Add a few questions visitors often ask, and what the assistant should do with each." action={<p className="type-small text-muted">Use the form below.</p>} />;
-  }
-  return <PolicyTestList tests={tests.data.map((test) => ({ id: test.id, question: test.question, expectedOutcome: test.expected_outcome, expectedSection: test.expected_section }))} />;
-}
-
-function HistoryBody({ versions, notice }: { versions: LoadResult<PolicyVersion[]>; notice: LoadProblemNotice | null }) {
+function HistoryBody({ versions, workingDraftId, notice }: { versions: LoadResult<PolicyVersion[]>; workingDraftId: string | null; notice: LoadProblemNotice | null }) {
   if (!versions.isLoaded) return <LoadProblem notice={notice} />;
   if (versions.data.length === 0) return <p>No versions yet.</p>;
-  return <PolicyHistory versions={versions.data.map((version) => ({ id: version.id, version: version.version, statusLabel: STATUS_LABELS[version.status], when: DATE_TIME.format(new Date(version.published_at ?? version.updated_at)) }))} />;
+  return <PolicyHistory versions={getHistoryRows({ versions: versions.data, workingDraftId })} />;
 }
 
 export default async function ChatPolicyPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
-  const [versions, tests, testsChangedAt] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin)]);
+  const [versions, tests, testsChangedAt, isAssistantOn] = await Promise.all([fetchPolicyVersions(admin), fetchPolicyTests(admin), fetchTestsChangedAt(admin), fetchIsAssistantOn(admin)]);
   // A failed versions read carries through as the working policy's failure, so it is reported once.
   const working = versions.isLoaded ? await fetchWorkingPolicy(admin, versions.data) : versions;
-  const run = working.isLoaded && working.data.draftId ? await fetchLatestTestRun(admin, working.data.draftId) : getLoaded(null);
-  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run] });
+  const live = versions.isLoaded ? getLiveVersion(versions.data) : null;
+  const [run, liveBody] = working.isLoaded ? await Promise.all([fetchShownRun({ admin, working: working.data, live }), fetchLiveBody({ admin, working: working.data, live })]) : [getLoaded(null), getLoaded(null)];
+  const notice = await reportPageLoad({ admin, action: "chat_policy.load", results: [working, tests, testsChangedAt, run, isAssistantOn, liveBody] });
+  const workingDraft = working.isLoaded && working.data.draftId ? working.data : null;
   return (
-    <>
+    <PolicyDraftStateProvider savedDraftText={workingDraft?.body ?? null}>
       <h1 className="type-h1 mb-2">Chatbot policy</h1>
       <p className="type-lead mb-4 max-w-prose text-muted">The website&apos;s chat assistant answers only from this policy and names the section it used. Anything else goes to a person.</p>
-      {versions.isLoaded && <p className="mb-8 max-w-prose font-semibold">{getLiveSummary(versions.data)}</p>}
+      {isAssistantOn.isLoaded && liveBody.isLoaded && <p className="mb-8 max-w-prose font-semibold">{getStatusSummary({ live, liveBody: liveBody.data, isSwitchOn: isAssistantOn.data })}</p>}
       {!isAssistantConfigured() && (
         <div className="mb-8 max-w-prose">
           <Message tone="warning" title="The chat assistant isn't connected yet">
@@ -108,11 +158,15 @@ export default async function ChatPolicyPage() {
           </Message>
         </div>
       )}
+      <section aria-labelledby="switch-heading" className="mb-12 border-t-2 border-ink pt-6">
+        <h2 id="switch-heading" className="type-h3 mb-2">Assistant on or off</h2>
+        {isAssistantOn.isLoaded ? <AssistantSwitch isOn={isAssistantOn.data} /> : <LoadProblem notice={notice} />}
+      </section>
       <section aria-labelledby="editor-heading" className="mb-12 border-t-2 border-ink pt-6">
         {working.isLoaded ? (
           <>
             <h2 id="editor-heading" className="type-h3 mb-4">{working.data.draftVersion ? `Editing draft version ${working.data.draftVersion}` : "Write a new draft"}</h2>
-            <PolicyEditor draftId={working.data.draftId} initialBody={working.data.body} />
+            <PolicyEditor draftId={working.data.draftId} initialBody={working.data.body} updatedAt={working.data.updatedAt} />
           </>
         ) : (
           <>
@@ -121,21 +175,19 @@ export default async function ChatPolicyPage() {
           </>
         )}
       </section>
-      <section aria-labelledby="tests-heading" className="mb-12 border-t-2 border-ink pt-6">
-        <h2 id="tests-heading" className="type-h3 mb-2">Test questions</h2>
-        <p className="mb-4 max-w-prose">Each test run asks these questions, plus four built-in safety checks, and checks what the assistant does.</p>
-        <TestListBody tests={tests} notice={notice} />
-        <h3 className="type-h3 mt-10 mb-4">Add a test question</h3>
-        <PolicyTestForm />
+      <section aria-labelledby="topics-heading" className="mb-12 border-t-2 border-ink pt-6">
+        <h2 id="topics-heading" className="type-h3 mb-2">Chat topic buttons</h2>
+        {working.isLoaded ? <QuickAnswerEditor rows={getQuickAnswerRows(working.data.body)} draftId={working.data.draftId} updatedAt={working.data.updatedAt} /> : <LoadProblem notice={notice} />}
       </section>
       <section aria-labelledby="publish-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="publish-heading" className="type-h3 mb-2">Test and publish</h2>
-        {working.isLoaded ? <PublishSectionBody working={working.data} run={run} testsChangedAt={testsChangedAt} notice={notice} /> : <LoadProblem notice={notice} />}
+        <p className="mb-4 max-w-prose">{`Each test run asks your questions plus ${BUILT_IN_TEST_CASES.length} built-in safety checks.`} Publishing unlocks once every one passes on the saved draft.</p>
+        {working.isLoaded && tests.isLoaded ? <TestSectionBody working={working.data} live={live} tests={tests.data} run={run} testsChangedAt={testsChangedAt} notice={notice} /> : <LoadProblem notice={notice} />}
       </section>
       <section aria-labelledby="history-heading" className="border-t-2 border-ink pt-6">
         <h2 id="history-heading" className="type-h3 mb-2">Version history</h2>
-        <HistoryBody versions={versions} notice={notice} />
+        <HistoryBody versions={versions} workingDraftId={workingDraft?.draftId ?? null} notice={notice} />
       </section>
-    </>
+    </PolicyDraftStateProvider>
   );
 }

@@ -1,7 +1,11 @@
-import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
+import { HANDOFF_TEXT, getCheckedReply, getHandoffReply, getUnrepeatedReply, type AssistantReply, type ModelReply } from "@/lib/chat/assistant-reply";
 import { getSystemPrompt } from "@/lib/chat/assistant-prompt";
-import { getPolicySections } from "@/lib/chat/policy-sections";
+import { getEmergencyReply, isEmergencyMessage } from "@/lib/chat/emergency";
+import { FIXED_HANDOFF_TEXTS, NEEDS_PERSON_TEXTS } from "@/lib/chat/handoff-text";
+import { isInstructionsRequest } from "@/lib/chat/instruction-requests";
+import { getAssistantPolicy, getAssistantSections } from "@/lib/chat/policy-sections";
 import { hasRestrictedNumber } from "@/lib/chat/restricted-data";
+import { isSteeringRequest } from "@/lib/chat/steering-terms";
 
 // One answer from the policy (Features §2). Shared by the visitor chat, the owner's live
 // test chat, and the policy test run, so what the owner tests is what visitors get.
@@ -17,12 +21,59 @@ function getLatestQuestion(turns: ChatTurn[]): string {
   return turns.findLast((turn) => turn.role === "visitor")?.body ?? "";
 }
 
+function getVisitorMessages(turns: ChatTurn[]): string[] {
+  return turns.filter((turn) => turn.role === "visitor").map((turn) => turn.body);
+}
+
+function getPreviousReplyText(turns: ChatTurn[]): string | null {
+  return turns.findLast((turn) => turn.role === "assistant")?.body ?? null;
+}
+
+/**
+ * The reply as the visitor sees it in this chat (bug 16, docs/cwr-chatbot-round-3-plan.md):
+ * after two "a person will help" lines in a row it says what the chat can do instead (the
+ * repair lines take turns), and any other fixed line that would repeat itself is reworded.
+ * Lead lines never turn into repair: a lead after a lead just takes the other lead line.
+ */
+export function getRepairedTurnReply({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
+  const previousText = getPreviousReplyText(turns);
+  const isSecondMiss = NEEDS_PERSON_TEXTS.has(reply.text) && previousText !== null && NEEDS_PERSON_TEXTS.has(previousText);
+  if (!isSecondMiss) return getUnrepeatedReply({ reply, previousText });
+  return { ...reply, text: previousText === HANDOFF_TEXT.repair ? HANDOFF_TEXT.repairAgain : HANDOFF_TEXT.repair };
+}
+
+/** Fair Housing guard (bug 15): a "lead" about who lives where gets the plain "a person will help" line. */
+function getGuardedLead({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
+  if (reply.handoffReason !== "lead") return reply;
+  if (!isSteeringRequest(getVisitorMessages(turns))) return reply;
+  return { ...getHandoffReply(HANDOFF_TEXT.needsPerson), handoffReason: "lead_downgraded" };
+}
+
+/**
+ * Safety guard (docs/cwr-chat-quick-answers-and-tests-plan.md §G): AI-written small talk never
+ * answers a steering question or a question about the assistant's own rules; the approved
+ * "a person will help" line does. Answers from the policy and fixed lines are left alone.
+ */
+function getGuardedSmallTalk({ reply, turns }: { reply: AssistantReply; turns: ChatTurn[] }): AssistantReply {
+  const isSmallTalk = reply.outcome === "handoff" && !FIXED_HANDOFF_TEXTS.has(reply.text);
+  if (!isSmallTalk) return reply;
+  const isSensitive = isSteeringRequest(getVisitorMessages(turns)) || isInstructionsRequest(getLatestQuestion(turns));
+  if (!isSensitive) return reply;
+  return { ...getHandoffReply(HANDOFF_TEXT.needsPerson), handoffReason: "safety_wording" };
+}
+
 /** Throws whatever the model call throws; callers decide how to fail gracefully. */
 export async function fetchAssistantReply({ policyBody, turns, model }: AnswerRequest): Promise<AssistantReply> {
-  if (hasRestrictedNumber(getLatestQuestion(turns))) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
-  const sections = getPolicySections(policyBody);
+  const question = getLatestQuestion(turns);
+  if (hasRestrictedNumber(question)) return getHandoffReply(HANDOFF_TEXT.restrictedNumber);
+  // Private and quick-answer sections are cut out here, so the model can't quote, summarize or
+  // reword private notes, nor cite the topic buttons' copies of other sections.
+  const sections = getAssistantSections(policyBody);
+  if (isEmergencyMessage(question)) return getEmergencyReply(sections);
   if (sections.length === 0) return getHandoffReply(HANDOFF_TEXT.unavailable);
-  const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody, sections }), turns });
-  if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.outsidePolicy);
-  return getCheckedReply({ modelReply, sections, policyBody });
+  const publicPolicy = getAssistantPolicy(policyBody);
+  const modelReply = await model({ systemPrompt: getSystemPrompt({ policyBody: publicPolicy, sections }), turns });
+  if (modelReply === null) return getHandoffReply(HANDOFF_TEXT.needsPerson);
+  const checkedReply = getCheckedReply({ modelReply, sections, publicPolicy });
+  return getGuardedSmallTalk({ reply: getGuardedLead({ reply: checkedReply, turns }), turns });
 }

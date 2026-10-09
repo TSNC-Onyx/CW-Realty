@@ -11,13 +11,14 @@ export const CHATS_PAGE_SIZE = 25;
 
 export type ChatFilter = "all" | "handoffs";
 
-export type ChatMessageRow = { role: "visitor" | "assistant"; body: string; cited_sections: string[]; outcome: ChatOutcome | null; created_at: string };
+/** source "guided": a topic button the visitor tapped, or its fixed answer (docs/cwr-chat-guided-options-plan.md §6). */
+export type ChatMessageRow = { role: "visitor" | "assistant"; body: string; cited_sections: string[]; outcome: ChatOutcome | null; source: "typed" | "guided"; created_at: string };
 
 export type ChatSessionSummary = { id: string; started_at: string; inbox_thread_id: string | null; chat_messages: ChatMessageRow[] };
 
 export type ChatPage = { sessions: ChatSessionSummary[]; totalCount: number };
 
-const SESSION_COLUMNS = "id, started_at, inbox_thread_id, chat_messages(role, body, cited_sections, outcome, created_at)";
+const SESSION_COLUMNS = "id, started_at, inbox_thread_id, chat_messages(role, body, cited_sections, outcome, source, created_at)";
 
 export function getChatFilter(rawFilter: string | undefined): ChatFilter {
   return rawFilter === "handoffs" ? "handoffs" : "all";

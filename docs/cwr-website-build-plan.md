@@ -1,6 +1,7 @@
 # CWR Website Build — Plan
 
 Status: **approved for implementation** (owner, 2026-09-25) — see Owner approvals. Phase 0 (foundation) is built on branch `build1`; Phase 1 (public shell) is built on branch `phase-1-public-shell`, in review as PR #1 into `build1` (details and verification: `docs/cwr-phase-1-public-shell-plan.md`); Phase 2 (data-driven pages) is built on `phase-2-data-pages`, stacked on Phase 1 (`docs/cwr-phase-2-data-pages-plan.md`); Phase 3 (admin portal) is built on `phase-3-admin-portal`, stacked on Phase 2 (`docs/cwr-phase-3-admin-portal-plan.md`); Phase 4 (inbox and notifications) is built on `phase-4-inbox-notifications`, stacked on Phase 3 (`docs/cwr-phase-4-inbox-notifications-plan.md`); Phase 5 (chat assistant) is built on `phase-5-chatbot` and merged into `build1` as PR #6 (`docs/cwr-phase-5-chatbot-plan.md`); Phase 6 (analytics and consent) is built on `phase-6-analytics-consent` and merged into `build1` as PR #9 (`docs/cwr-phase-6-analytics-consent-plan.md`); the admin console and header redesign (dark headers, admin sidebar, new dashboard) is merged into `build1` (`docs/cwr-admin-console-header-redesign-plan.md`); Phase 7 not started.
+**Merged** (checked 2026-10-04): Phases 1–4 by PRs #1–#4 on 2026-09-25; the rounds that followed by PRs #11–#17 and #22–#25 (latest #25, 2026-10-03; #18–#21 are open). `main` is still untouched.
 
 ## Goal
 
@@ -59,7 +60,7 @@ A new charliewardrealty.com — public site, AI chat assistant, and a manager-ru
 | `inbox_threads`, `inbox_messages` | Contact form, chat handoffs, TouchUp booking requests; status (`new`/`assigned`/`replied`/`closed`), assignee, internal notes, replies |
 | `alert_deliveries` | Every alert/reply email and its outcome (sent / failed / not sent) for retry and dead-letter visibility |
 | `notification_recipients` | Who gets contact / chat / booking alerts |
-| `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs` | Versioned policy file, preset test questions, pass/fail gate for publishing |
+| `chat_policies`, `chat_policy_tests`, `chat_policy_test_runs`, `chat_policy_test_jobs`, `chat_policy_test_parts` | Versioned policy file, preset test questions, pass/fail gate for publishing, in-progress batched test runs (service role only) |
 | `chat_sessions`, `chat_messages` | Logged chats for weekly review |
 | `tracking_settings`, `lead_attribution`, `closed_deals` | Tag Manager / Meta Pixel IDs (owner-only); ad click IDs saved with a lead only after advertising consent; closed deals for the Google Ads and Meta download files |
 | `workflows`, `workflow_transitions` + `cwr.transition()` | The only path for any status change; every transition audited |
@@ -154,8 +155,8 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | # | Item | Where |
 |---|---|---|
 | 1 | **Done 2026-09-27** (Production): Worker secret `SUPABASE_SERVICE_ROLE_KEY`. Add it to the **Previews Base** environment too if preview deployments should save forms, uploads, and problems | Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets |
-| 2 | **Urgent:** set up the bot check (Turnstile) — until then every chat message and form is refused with "We couldn't confirm you're a person". In Cloudflare → Turnstile, add `cw-realty.onyxventuresnc.workers.dev` (and the final domain at launch) to the widget's hostnames; add its secret as Worker secret `TURNSTILE_SECRET_KEY`; keep its site key as build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (already present on the live build) | Cloudflare |
-| 3 | Log every bot check refusal (forms and chat) with the reason Cloudflare gives, and log loudly when `TURNSTILE_SECRET_KEY` is missing in production, so a setup problem that blocks every visitor shows up in Workers Observability instead of looking like normal bot filtering (Infra §7) (developer) | `src/lib/security/turnstile.ts`, `src/lib/forms/submit-actions.ts`, `src/lib/chat/send-chat-message.ts` |
+| 2 | **Done 2026-10-02:** real Quick Check (Turnstile) keys. The live build had shipped Cloudflare's test site key until then. The site key is build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY` (rebuild after changing it), the secret is Worker secret `TURNSTILE_SECRET_KEY`, and Supabase Auth → Attack Protection uses the same secret. Add the final domain to the widget's hostnames at launch. Steps: `docs/runbooks/chatbot-launch.md` §1 | Cloudflare, Supabase |
+| 3 | **Built 2026-10-02** (`docs/cwr-reliability-round-plan.md`): every Quick Check refusal is recorded in the problem log with Cloudflare's reason; setup problems that block every visitor (missing secret, test keys in production) are critical | — |
 | 4 | Enter the Google Tag Manager container ID and Meta Pixel ID | Admin → Ads & analytics |
 | 5 | Add the Meta access token as Worker secret `META_CAPI_ACCESS_TOKEN` (developer) | Cloudflare |
 | 6 | Create a Google Ads conversion action named exactly **Closed deal** (import, clicks) | Google Ads |
@@ -164,6 +165,8 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 9 | Choose the Triad MLS search provider (IDX feed or embed, e.g. through Triad MLS or the brokerage's IDX vendor) and get its approval/credentials; then add live home search to Property Search (`/property-search`, now a "Home search is on the way" placeholder) in a sandboxed, lazy-loaded frame, with a CSP entry for the provider (developer) | Owner decision, then `app/(site)/property-search/page.tsx` |
 | 10 | Choose who gets problem-alert emails: once error tracking is built (`docs/cwr-error-tracking-plan.md`, owner decision D4 2026-09-27), switch people on with "Send problem emails" on the Notifications page (owners only). Until then problems are still recorded on the Problems page, but no one is emailed | Admin → Notifications |
 | 11 | **Problem emails are paused** (owner decision 2026-09-30): the account's Workers Free plan has no free Cron Trigger (5 per account, all used). To resume, free one or move to Workers Paid, then follow `docs/runbooks/problem-alerts.md` → Who gets the emails | Cloudflare, then developer |
+| 12 | Chat assistant launch: add Worker secret `ANTHROPIC_API_KEY`, set a monthly spend limit in the Claude Console, then write, test and publish the chat policy (Admin → Chatbot policy). Rate limiter `CHAT_RATE_LIMITER` (namespace 1002) is already configured. Steps: `docs/runbooks/chatbot-launch.md` §2 | Cloudflare, Claude Console, Admin |
+| 13 | Known gaps between the code and the constitution, and code bugs found on 2026-10-04 (none fixed yet): see `docs/cwr-document-reconciliation-plan.md` → Gap log | Owner picks when; developer |
 
 ## DO NOT TOUCH
 

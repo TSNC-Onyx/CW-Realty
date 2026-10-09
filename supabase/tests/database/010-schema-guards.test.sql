@@ -12,7 +12,7 @@ select is_empty(
   $$ select c.relname from pg_class c
      where c.relnamespace = 'cwr'::regnamespace and c.relkind = 'r'
        -- Append-only logs, reference data, and system state are excluded on purpose.
-       and c.relname not in ('audit_log', 'idempotency_keys', 'problem_events', 'problem_catalog', 'problem_alert_runs', 'health_checks')
+       and c.relname not in ('audit_log', 'idempotency_keys', 'problem_events', 'problem_catalog', 'problem_alert_runs', 'health_checks', 'chat_policy_test_jobs', 'chat_policy_test_parts')
        and not exists (
          select 1 from pg_trigger t
          where t.tgrelid = c.oid and t.tgfoid = 'cwr.record_audit'::regproc

@@ -6,6 +6,7 @@ import {
   INITIAL_FORM_STATE,
   getFieldError,
   getFieldErrors,
+  isNoticeStatus,
   type FieldErrors,
   type FieldValues,
   type RequestFormSchema,
@@ -20,8 +21,6 @@ import { pushKeyEvent, type KeyEventName } from "@/lib/tracking/data-layer";
 export type RequestFormAction = (state: RequestFormState, formData: FormData) => Promise<RequestFormState>;
 
 type FocusTarget = "summary" | "notice";
-
-const NOTICE_STATUSES: ReadonlySet<string> = new Set(["blocked", "limited", "failed"]);
 
 function getErrorsWithField(errors: FieldErrors, name: string, error: string | null): FieldErrors {
   const otherErrors = Object.fromEntries(Object.entries(errors).filter(([fieldName]) => fieldName !== name));
@@ -60,7 +59,7 @@ export function useRequestForm(action: RequestFormAction, schema: RequestFormSch
     setValues(state.values);
     setFieldErrors(state.fieldErrors);
     setIsSummaryVisible(state.status === "invalid");
-    setIsNoticeVisible(NOTICE_STATUSES.has(state.status));
+    setIsNoticeVisible(isNoticeStatus(state.status));
     setIdempotencyKey(state.responseId);
     setFocusRequest({ target: state.status === "invalid" ? "summary" : "notice", id: state.responseId });
   }
@@ -101,6 +100,9 @@ export function useRequestForm(action: RequestFormAction, schema: RequestFormSch
 
   const handleNoticeDismiss = () => setIsNoticeVisible(false);
 
+  /** Puts back what was typed before an out-of-date page refreshed itself. */
+  const restoreValues = (restored: FieldValues) => setValues((current) => ({ ...current, ...restored }));
+
   return {
     state,
     idempotencyKey,
@@ -117,5 +119,6 @@ export function useRequestForm(action: RequestFormAction, schema: RequestFormSch
     handleFieldBlur,
     handleSubmit,
     handleNoticeDismiss,
+    restoreValues,
   };
 }

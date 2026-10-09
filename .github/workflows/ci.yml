@@ -75,6 +75,8 @@ jobs:
       # Cloudflare's public always-pass Turnstile test keys (not secrets).
       NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA"
       TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA"
+      # Production builds refuse test keys (D3); the test build opts in. Never set on the live build.
+      NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0

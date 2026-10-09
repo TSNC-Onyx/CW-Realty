@@ -63,6 +63,21 @@ test("the preview shows a draft before it is public", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: streetAddress })).toBeVisible();
 });
 
+test("a new listing starts as Coming Soon and can be marked for sale", async ({ page }) => {
+  // Arrange
+  const admin = await createTestAdmin("manager");
+  const streetAddress = `${Date.now() % 100000} Status Way`;
+  await signInFully(page, admin);
+  await createDraftListing(page, streetAddress);
+  await expect(page.getByText("Status: Coming Soon")).toBeVisible();
+
+  // Act
+  await page.getByRole("button", { name: "Mark this listing as for sale" }).click();
+
+  // Assert
+  await expect(page.getByRole("status").filter({ hasText: "Marked as for sale." })).toBeVisible();
+});
+
 test("a bad price is explained beside the field and nothing typed is lost", async ({ page }) => {
   // Arrange
   const admin = await createTestAdmin("manager");

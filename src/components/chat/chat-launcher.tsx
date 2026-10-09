@@ -2,22 +2,43 @@
 
 import { MessageCircle } from "lucide-react";
 import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
 import { OPEN_CHAT_EVENT, openChat } from "@/components/chat/chat-events";
+import { clearChatLinkFollowed, wasChatLinkJustFollowed } from "@/components/chat/chat-link-reopen";
+import { FULL_SCREEN_QUERY } from "@/components/chat/use-phone-chat-layout";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import type { ContactLinks } from "@/lib/site/contact-links";
 
 // Features §2: only this small launcher ships with the page; the chat panel, its bot check,
 // and its server calls load the first time a visitor opens it.
 
 const ChatPanel = dynamic(() => import("@/components/chat/chat-panel").then((module) => module.ChatPanel), { ssr: false });
 
-export function ChatLauncher() {
+/** contact: the office phone and email, offered whenever the chat can't send. */
+export function ChatLauncher({ contact }: { contact: ContactLinks | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [hasOpened, setHasOpened] = useState(false);
   const returnFocusRef = useRef<HTMLElement | null>(null);
+  const pathname = usePathname();
+  const [shownPathname, setShownPathname] = useState(pathname);
+
+  // Leaving the page closes the chat, so its phone scroll lock never outlives the page (bug 19).
+  // Focus belongs to the new page, so it isn't moved back to the launcher. A page link inside
+  // the chat keeps it open on tablets and computers, where it doesn't cover the page
+  // (docs/cwr-chat-guided-options-plan.md §5).
+  if (pathname !== shownPathname) {
+    setShownPathname(pathname);
+    const isFromChatLink = wasChatLinkJustFollowed() && !window.matchMedia(FULL_SCREEN_QUERY).matches;
+    if (isOpen && !isFromChatLink) setIsOpen(false);
+  }
+
+  useEffect(() => {
+    clearChatLinkFollowed();
+  }, [pathname]);
 
   useEffect(() => {
     const handleOpen = () => {
@@ -46,7 +67,7 @@ export function ChatLauncher() {
           Chat with us
         </button>
       </div>
-      {hasOpened && <ChatPanel isOpen={isOpen} onClose={handleClose} />}
+      {hasOpened && <ChatPanel isOpen={isOpen} contact={contact} onClose={handleClose} />}
     </>
   );
 }

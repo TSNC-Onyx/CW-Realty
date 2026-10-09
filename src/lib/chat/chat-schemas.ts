@@ -18,6 +18,8 @@ export const chatMessageSchema = z.object({
   sessionId: z.uuid().nullable(),
   message: z.string().trim().min(1, "Type a question first").max(MAX_CHAT_MESSAGE_LENGTH, `Keep your question under ${MAX_CHAT_MESSAGE_LENGTH} characters`),
   turnstileToken: z.string().max(2048),
+  /** The Quick Check key the page was built with; pages from before this field send none. */
+  botCheckKey: z.string().max(100).optional(),
 });
 
 export type ChatMessageInput = z.input<typeof chatMessageSchema>;

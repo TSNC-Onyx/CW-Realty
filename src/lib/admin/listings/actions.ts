@@ -15,6 +15,7 @@ import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/qu
 import { EDITOR_ROLES } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
+import { LISTING_STATUSES } from "@/lib/content/listing-statuses";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 
 const LISTINGS_ADMIN_PATH = "/admin/listings";
@@ -26,15 +27,16 @@ const NEW_ITEM_SORT_ORDER = 9999;
 const TRANSITION_MESSAGES: Record<string, string> = {
   live: "Published. The listing is on the website now.",
   draft: "Taken off the website. It is saved as a draft.",
-  active: "Marked as active.",
-  pending: "Marked as pending.",
+  coming_soon: "Marked as coming soon.",
+  for_sale: "Marked as for sale.",
+  under_contract: "Marked as under contract.",
   sold: "Marked as sold. It stays on the website with a Sold label.",
 };
 
 const transitionSchema = z.object({
   listingId: z.uuid(),
   workflow: z.enum(["listing_status", "listing_publish"]),
-  toState: z.enum(["active", "pending", "sold", "live", "draft"]),
+  toState: z.enum([...LISTING_STATUSES, "live", "draft"]),
 });
 
 const photoSchema = z.object({

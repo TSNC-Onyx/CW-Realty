@@ -15,6 +15,20 @@ export type FieldErrors = Record<string, string>;
  */
 export type RequestFormStatus = "idle" | "invalid" | "sent" | "blocked" | "limited" | "failed";
 
+// Which replies show a notice above the form. Every status must be listed, so a new one breaks
+// the build until each form decides how to show it (docs/cwr-stale-quick-check-addendum.md 2b.4).
+const HAS_NOTICE = { idle: false, invalid: false, sent: false, blocked: true, limited: true, failed: true } as const satisfies Record<RequestFormStatus, boolean>;
+
+/** The replies that need a notice: each form's title map must cover exactly these. */
+export type NoticeStatus = { [Status in RequestFormStatus]: (typeof HAS_NOTICE)[Status] extends true ? Status : never }[RequestFormStatus];
+
+export function isNoticeStatus(status: RequestFormStatus): status is NoticeStatus {
+  return HAS_NOTICE[status];
+}
+
+/** refresh: the page is out of date; reloading it (with the typed text kept) fixes it. */
+export type FormRecovery = "refresh";
+
 export type RequestFormState = {
   status: RequestFormStatus;
   values: FieldValues;
@@ -23,6 +37,7 @@ export type RequestFormState = {
   sentTo: { name: string; email: string | null } | null;
   /** Set when a request is sent: the key event's ID and, with Advertising allowed, hashed contact details. */
   conversion: FormConversion | null;
+  recovery: FormRecovery | null;
 };
 
 export type RequestFormSchema = z.ZodObject<Record<string, z.ZodType<unknown, string>>>;
@@ -34,6 +49,7 @@ export const INITIAL_FORM_STATE: RequestFormState = {
   responseId: "initial",
   sentTo: null,
   conversion: null,
+  recovery: null,
 };
 
 export function getFieldValues(formData: FormData, fields: FormFieldConfig[]): FieldValues {
@@ -58,6 +74,15 @@ export function getFieldErrors(schema: RequestFormSchema, values: FieldValues): 
   return Object.fromEntries(entries.filter((entry): entry is [string, string] => entry[1] !== null));
 }
 
-export function getResultState({ status, values, fieldErrors = {}, sentTo = null, conversion = null }: { status: RequestFormStatus; values: FieldValues; fieldErrors?: FieldErrors; sentTo?: RequestFormState["sentTo"]; conversion?: FormConversion | null }): RequestFormState {
-  return { status, values, fieldErrors, sentTo, conversion, responseId: crypto.randomUUID() };
+type ResultStateOptions = {
+  status: RequestFormStatus;
+  values: FieldValues;
+  fieldErrors?: FieldErrors;
+  sentTo?: RequestFormState["sentTo"];
+  conversion?: FormConversion | null;
+  recovery?: FormRecovery | null;
+};
+
+export function getResultState({ status, values, fieldErrors = {}, sentTo = null, conversion = null, recovery = null }: ResultStateOptions): RequestFormState {
+  return { status, values, fieldErrors, sentTo, conversion, recovery, responseId: crypto.randomUUID() };
 }

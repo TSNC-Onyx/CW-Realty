@@ -1,11 +1,11 @@
 import { headers } from "next/headers";
 import { z } from "zod";
 
-import { ADMIN_FORGOT_PASSWORD_PATH, ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_MFA_SETUP_PATH, ADMIN_SET_PASSWORD_PATH } from "@/lib/admin/paths";
+import { ADMIN_FORGOT_PASSWORD_PATH, ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_MFA_SETUP_PATH, ADMIN_SET_PASSWORD_PATH, isAdminPath } from "@/lib/admin/paths";
 import { BROWSER_PROBLEM_CODES, BROWSER_PROBLEM_STAGES } from "@/lib/observability/client-problem";
 import { isAuthOutage } from "@/lib/observability/auth-outage";
 import { isProblemAction, type ProblemAction } from "@/lib/observability/problem-catalog";
-import { getCappedSeverity, isBrowserReportable, isSameSiteOrigin } from "@/lib/observability/problem-report-rules";
+import { getCappedSeverity, getVisitorBrowserCode, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
 import type { ProblemOrigin, ProblemSeverity } from "@/lib/observability/problem-types";
 import { reportProblem } from "@/lib/observability/report-problem";
 import { getPathOnly } from "@/lib/observability/scrub";
@@ -16,8 +16,9 @@ import { createSessionClient } from "@/lib/supabase/server-client";
 import { CWR_TENANT_SLUG } from "@/lib/supabase/public-client";
 
 // Browsers report problems they saw here (docs/cwr-error-tracking-plan.md). The server, not
-// the browser, decides who reported it: a signed-in team member, or someone on a sign-in
-// page. Reports are same-site only, size-capped, rate-limited, and severity-capped. This
+// the browser, decides who reported it: a signed-in team member, someone on a sign-in page,
+// or a website visitor (docs/cwr-reliability-round-plan.md, Phase 1: a fixed list of actions
+// and codes, no free text, capped at warning). Reports are same-site only, size-capped, rate-limited, and severity-capped. This
 // endpoint never reports its own failures.
 
 const MAX_BODY_BYTES = 8 * 1024;
@@ -40,6 +41,7 @@ type Reporter = { origin: ProblemOrigin; tenantId: string | null; actorId: strin
 type ParsedReport = z.infer<typeof reportSchema> & { action: ProblemAction };
 
 const SIGN_IN_REPORTER: Reporter = { origin: "browser_signin", tenantId: null, actorId: null, actorRole: null, maxSeverity: "warning" };
+const VISITOR_REPORTER: Reporter = { origin: "browser_visitor", tenantId: null, actorId: null, actorRole: null, maxSeverity: "warning" };
 
 /** member: signed in with access. unknown: the check itself failed (an outage). none: signed out. */
 type MemberCheck = { kind: "member"; reporter: Reporter } | { kind: "unknown" } | { kind: "none" };
@@ -93,6 +95,16 @@ async function parseReport(request: Request): Promise<ParsedReport | null> {
   }
 }
 
+/** A visitor's report keeps only the fixed fields: anything typed could be anyone's words. */
+function getVisitorReport(report: ParsedReport): ParsedReport {
+  return { ...report, code: getVisitorBrowserCode(report.code), shownMessage: undefined, detail: undefined, digest: undefined };
+}
+
+/** A website page (not the admin portal) reporting one of the visitor actions. */
+function isVisitorReport({ report, pagePath }: { report: ParsedReport; pagePath: string | null }): boolean {
+  return isVisitorBrowserAction(report.action) && pagePath !== null && !isAdminPath(pagePath);
+}
+
 async function getRecordedResponse({ report, reporter, pagePath }: { report: ParsedReport; reporter: Reporter; pagePath: string | null }): Promise<Response> {
   const existingReference = await fetchExistingReference(report.digest);
   if (existingReference) return Response.json({ reference: existingReference, isStored: true });
@@ -111,7 +123,9 @@ async function getRecordedResponse({ report, reporter, pagePath }: { report: Par
     actorId: reporter.actorId,
     actorRole: reporter.actorRole,
   });
-  return Response.json({ reference: result.reference, isStored: result.stored === true });
+  // Visitors never see reference codes, so none is sent back to their browsers.
+  const reference = reporter.origin === "browser_visitor" ? null : result.reference;
+  return Response.json({ reference, isStored: result.stored === true });
 }
 
 async function getReportResponse(request: Request): Promise<Response> {
@@ -120,6 +134,7 @@ async function getReportResponse(request: Request): Promise<Response> {
   const report = await parseReport(request);
   if (!report) return new Response(null, { status: 400 });
   const pagePath = getPathOnly(report.pagePath);
+  if (isVisitorReport({ report, pagePath })) return getRecordedResponse({ report: getVisitorReport(report), reporter: VISITOR_REPORTER, pagePath });
   const reporter = await fetchReporter(pagePath);
   if (!reporter) return new Response(null, { status: 401 });
   return getRecordedResponse({ report, reporter, pagePath });
