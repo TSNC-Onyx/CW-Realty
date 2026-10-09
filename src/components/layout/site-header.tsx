@@ -6,14 +6,15 @@ import { MobileMenu } from "@/components/layout/mobile-menu";
 import { ButtonLink } from "@/components/ui/button-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
+import type { NavSection } from "@/lib/site/navigation";
 
 // Style §11.9: sticky dark header, 62px on phones and tablets, 88px on desktop.
-export function SiteHeader({ contact }: { contact: ContactLinks | null }) {
+export function SiteHeader({ contact, menuSections }: { contact: ContactLinks | null; menuSections: NavSection[] }) {
   return (
     <header className="tone-dark sticky top-0 z-40 border-b border-divider-dark">
       <div className="mx-auto flex h-15.5 max-w-content items-center justify-between gap-6 px-4 lg:h-22 lg:px-16">
         <Logo placement="header" />
-        <DesktopNav />
+        <DesktopNav sections={menuSections} />
         <div className="hidden items-center gap-4 lg:flex">
           {contact && (
             <a href={contact.callHref} className="nav-link-dark -mx-2 flex min-h-11 items-center gap-2 px-2 text-base font-semibold whitespace-nowrap">
@@ -26,7 +27,7 @@ export function SiteHeader({ contact }: { contact: ContactLinks | null }) {
             Contact us
           </ButtonLink>
         </div>
-        <MobileMenu contact={contact} />
+        <MobileMenu contact={contact} sections={menuSections} />
       </div>
     </header>
   );

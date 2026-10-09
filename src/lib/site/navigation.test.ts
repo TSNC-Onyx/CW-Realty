@@ -6,6 +6,8 @@ import {
   UNLISTED_PAGE_PATHS,
   getAllMenuLinks,
   getFooterColumns,
+  getListedPagePaths,
+  getMenuSections,
   isCurrentPath,
   isCurrentSection,
 } from "@/lib/site/navigation";
@@ -125,5 +127,48 @@ describe("current page", () => {
 
     // Assert
     expect(results).toEqual([true, false]);
+  });
+});
+
+describe("Connections page switch", () => {
+  const HIDDEN = { isConnectionsPageVisible: false };
+  const SHOWING = { isConnectionsPageVisible: true };
+
+  it("keeps today's menu, footer, and page list while the page is showing", () => {
+    // Arrange
+    const expected = { menu: MENU_SECTIONS, footer: getFooterColumns(), links: getAllMenuLinks(), paths: [...STATIC_PAGE_PATHS] };
+
+    // Act
+    const actual = { menu: getMenuSections(SHOWING), footer: getFooterColumns(SHOWING), links: getAllMenuLinks(SHOWING), paths: getListedPagePaths(SHOWING) };
+
+    // Assert
+    expect(actual).toEqual(expected);
+  });
+
+  it("leaves Connections out of the menu, footer, link list, and page list while hidden", () => {
+    // Arrange
+    const connectionsPath = "/connections";
+
+    // Act
+    const hrefs = [
+      ...getMenuSections(HIDDEN).flatMap((section) => (section.kind === "link" ? [section.href] : section.links.map((link) => link.href))),
+      ...getFooterColumns(HIDDEN).flatMap((column) => column.links.map((link) => link.href)),
+      ...getAllMenuLinks(HIDDEN).map((link) => link.href),
+      ...getListedPagePaths(HIDDEN),
+    ];
+
+    // Assert
+    expect(hrefs).not.toContain(connectionsPath);
+  });
+
+  it("keeps the Resources group with FAQs & Homework while Connections is hidden", () => {
+    // Arrange
+    const expectedResources = { kind: "group", label: "Resources", links: [{ label: "FAQs & Homework", href: "/resources" }] };
+
+    // Act
+    const resources = getMenuSections(HIDDEN).find((section) => section.label === "Resources");
+
+    // Assert
+    expect(resources).toEqual(expectedResources);
   });
 });

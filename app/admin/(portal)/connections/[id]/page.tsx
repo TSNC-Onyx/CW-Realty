@@ -11,6 +11,8 @@ import { getConnectionPhoto } from "@/lib/admin/connections/connection-photo";
 import { fetchAdminConnection } from "@/lib/admin/connections/queries";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
+import { CONNECTIONS_PAGE_PATH } from "@/lib/site/navigation";
+import { fetchPageListing } from "@/lib/site/page-listing";
 import { getDisplayPhone, type E164Phone } from "@/lib/site/phone";
 
 export const metadata: Metadata = { title: "Edit connection" };
@@ -37,12 +39,17 @@ export default async function EditConnectionPage({ params, searchParams }: EditC
   if (!connectionLoad.isLoaded) return <ConnectionLoadProblem notice={notice} />;
   const connection = connectionLoad.data;
   if (!connection) notFound();
+  const { isConnectionsPageVisible } = await fetchPageListing();
   return (
     <>
       <TextLink href="/admin/connections">Back to connections</TextLink>
       <h1 className="type-h1 mt-4 mb-2">{connection.full_name}</h1>
       <div className="mb-10">
-        <TextLink href="/connections" hasArrow>View the Connections page</TextLink>
+        {isConnectionsPageVisible ? (
+          <TextLink href={CONNECTIONS_PAGE_PATH} hasArrow>View the Connections page</TextLink>
+        ) : (
+          <p className="text-muted">The Connections page is hidden from the website. Partners stay saved for when it shows again.</p>
+        )}
       </div>
       {created && (
         <div className="mb-8 max-w-prose">

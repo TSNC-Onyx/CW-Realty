@@ -24,7 +24,7 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | Listings | Featured properties (`/listings`), Property search (`/property-search`) |
 | Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property management (`/services/property-management`); overview at `/services` |
 | Team | `/team` and member pages (the footer link reads "CWR team") |
-| Resources | FAQs & Homework (`/resources`), Connections (`/connections`) |
+| Resources | FAQs & Homework (`/resources`), Connections (`/connections`; an owner can hide it, which drops it here and sends its address to `/resources` — `docs/cwr-connections-page-switch-plan.md`) |
 | About | About us (`/about`), Contact (`/contact`) |
 
 Link-only pages (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`): none at the moment. The former link-only Seller consulting page became the listed Selected services page on 2026-10-02; `/services/seller-consulting` redirects there (301, `next.config.ts`).

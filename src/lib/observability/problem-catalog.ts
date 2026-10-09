@@ -86,6 +86,7 @@ export const PROBLEM_ACTIONS = {
   "connections.remove_photo": { label: "Remove a connection's photo", fn: "removeConnectionPhotoAction" },
   "connections.move": { label: "Reorder connections", fn: "moveConnectionAction" },
   "connections.set_visibility": { label: "Show or hide a connection", fn: "setConnectionVisibilityAction" },
+  "connections.set_page_visibility": { label: "Show or hide the Connections page", fn: "setConnectionsPageVisibilityAction" },
 
   "homework.load": { label: "Load Homework" },
   "homework.create_video": { label: "Add a Homework video", fn: "createHomeworkVideoAction" },
