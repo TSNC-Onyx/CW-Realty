@@ -1,12 +1,14 @@
 "use client";
 
 import { CircleAlert } from "lucide-react";
-import { useId, type HTMLInputTypeAttribute } from "react";
+import { useId, type ChangeEvent, type HTMLInputTypeAttribute } from "react";
 
+import { SavedStateLine, getDescribedBy, useFieldSavedState, type SavedStateText } from "@/components/admin/saved-state";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Admin §1 / Style §11.11 field: plain label above a large input, "(optional)" marker,
-// helper text, and an error beside the field that names what to fix.
+// helper text, an error beside the field that names what to fix, and (inside a
+// SavedStateProvider) whether the box matches what's saved.
 
 const TEXTAREA_ROWS = 6;
 
@@ -22,6 +24,9 @@ export type AdminFieldProps = {
   autoComplete?: string;
   inputMode?: "text" | "numeric" | "decimal" | "tel" | "email";
   maxLength?: number;
+  /** For values the server stores in one letter case (IDs, emails, state, web addresses). */
+  isCaseInsensitive?: boolean;
+  savedStateText?: SavedStateText;
 };
 
 export function AdminField({
@@ -36,11 +41,17 @@ export function AdminField({
   autoComplete,
   inputMode,
   maxLength,
+  isCaseInsensitive = false,
+  savedStateText,
 }: AdminFieldProps) {
   const inputId = useId();
   const helperId = `${inputId}-helper`;
   const errorId = `${inputId}-error`;
-  const describedBy = [helperText ? helperId : null, error ? errorId : null].filter(Boolean).join(" ") || undefined;
+  const savedId = `${inputId}-saved`;
+  const savedState = useFieldSavedState({ saved: defaultValue, isCaseInsensitive });
+  const isSavedLineShown = savedState !== null && savedState.state !== "none";
+  const describedBy = getDescribedBy([helperText && helperId, error && errorId, isSavedLineShown && savedId]);
+  const handleChange = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => savedState?.setCurrent(event.target.value);
   const sharedProps = {
     id: inputId,
     name,
@@ -52,6 +63,7 @@ export function AdminField({
     "aria-invalid": error ? true : undefined,
     "aria-required": !isOptional,
     "aria-describedby": describedBy,
+    onChange: handleChange,
   };
   return (
     <div>
@@ -71,6 +83,7 @@ export function AdminField({
           {error}
         </p>
       )}
+      {savedState && <SavedStateLine id={savedId} state={savedState.state} current={savedState.current} getText={savedStateText} />}
     </div>
   );
 }

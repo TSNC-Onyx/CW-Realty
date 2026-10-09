@@ -1,7 +1,7 @@
 # Ads & analytics review — plan (to-do item 3 of 8, 2026-10-09)
 
-Status: PROPOSED (revised 2026-10-09: Part B added for the owner's "does a saved value look saved?" request,
-then widened by the owner to every admin input) — awaiting owner approval. No code or docs changed yet.
+Status: APPROVED by owner 2026-10-09 and BUILT on branch claude/website-updates-todo-5efd86 (Part A commit
+459f513; Part B in the following commit). See "Build notes" at the end for the differences from the plan.
 
 ## Goal
 
@@ -195,3 +195,28 @@ No item needs extra human approval (no architecture, security, or outside-servic
 - Nielsen Norman Group: "10 Usability Heuristics" (#1 visibility of system status) and "Indicators, Validations,
   and Notifications: Pick the Correct Communication Option" (contextual, persistent indicators for state).
 - WCAG 2.2: 1.4.1 Use of Color, 1.3.1 Info and Relationships (status tied to its field), 4.1.3 Status Messages.
+
+## Build notes (2026-10-09)
+
+- Restarting forms after a save: instead of keying each form on its saved values, `useAdminForm` now returns a
+  `savedVersion` that changes after every successful save, and the 7 Save-bar forms key their fields (a keyed
+  `Fragment`, not the whole form, so the Save button keeps keyboard focus) on it. This also
+  refreshes a box when the stored value didn't change but its text did (saving `gtm-ab12cd3` over
+  `GTM-AB12CD3` shows `GTM-AB12CD3`), and never wipes typed text on a failed save or an unrelated page refresh.
+  The closed-deal box (no `useAdminForm`) keeps its own save counter the same way.
+- No `tracking-id.ts` helper was needed: the field's `isCaseInsensitive` comparison matches the server's
+  uppercase clean-up, and the save action is untouched.
+- Rows outside a form (photo description, user role, inbox assignee) use `useTypedValue`, which follows the saved
+  value after each save; an unassigned conversation reads "Not assigned yet".
+- Look: "Not saved yet" uses an `ink` alert icon and 600 `ink` text (stronger than the grey first proposed, so
+  changed fields stand out), and "Nothing saved" a `muted` dashed circle; Style §11.11 records exactly this. The
+  §11.11 line is the one planned constitution edit (task 9), an exception to the DO NOT TOUCH list.
+- Only fields the server stores in one letter case ignore capitals: Ads & analytics IDs, listing state and web
+  address, office state, license number, team and connection emails, team web address. The contact email is
+  stored as typed, so capitals count there.
+- Browser tests (`tests/e2e/admin/saved-state.spec.ts`, 10 tests, plus one in `tracking.spec.ts`) cover new
+  listing, listing edit with price clean-up, letter case, checkbox + select, contact settings, user role,
+  download delivery choice, chat policy text, closed deal re-save, Save-button focus after a save, sign-in (no
+  lines), and the Ads & analytics wording including a rejected ID. The contact
+  test doesn't save (site-wide settings are shared by other tests running at the same time). Photo description,
+  assignee, and quick answers use the same tested pieces and were checked in review.

@@ -4,9 +4,11 @@ import { KeyRound, Save, UserX } from "lucide-react";
 import { useId, useRef } from "react";
 
 import { QuickActionButton } from "@/components/admin/quick-action-button";
+import { SavedStateLine, useTypedValue } from "@/components/admin/saved-state";
 import { ROLE_OPTIONS } from "@/components/admin/users/role-options";
 import { changeRoleAction, removeAccessAction, resetSignInCodesAction, restoreAccessAction } from "@/lib/admin/users/actions";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
+import { getSavedState } from "@/lib/admin/saved-state";
 import type { SignInCodeStatus } from "@/lib/admin/users/queries";
 
 const SIGN_IN_CODE_LABELS: Record<SignInCodeStatus, string> = {
@@ -21,6 +23,7 @@ export type UserListItem = { userId: string; email: string; role: AdminRole; sig
 function UserRow({ user }: { user: UserListItem }) {
   const selectId = useId();
   const roleRef = useRef<HTMLSelectElement>(null);
+  const [typedRole, setTypedRole] = useTypedValue(user.role);
   return (
     <li className="grid gap-3 border-t border-line py-4 md:grid-cols-12 md:items-end">
       <div className="md:col-span-4">
@@ -34,13 +37,22 @@ function UserRow({ user }: { user: UserListItem }) {
         <label htmlFor={selectId} className="mb-1 block text-base font-bold">
           Role
         </label>
-        <select id={selectId} ref={roleRef} defaultValue={user.role} className="field-input">
+        <select
+          key={user.role}
+          id={selectId}
+          ref={roleRef}
+          defaultValue={user.role}
+          onChange={(event) => setTypedRole(event.target.value)}
+          aria-describedby={`${selectId}-saved`}
+          className="field-input"
+        >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
+        <SavedStateLine id={`${selectId}-saved`} state={getSavedState({ current: typedRole, saved: user.role })} />
       </div>
       <div className="flex flex-wrap gap-2 md:col-span-5 md:justify-end">
         <QuickActionButton label="Save role" accessibleLabel={`Save the role for ${user.email}`} icon={Save} problemAction="users.change_role" onRun={() => changeRoleAction(user.userId, roleRef.current?.value ?? user.role)} />
