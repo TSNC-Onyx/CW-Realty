@@ -55,7 +55,9 @@ export function getCornerViolations(page: Page): Promise<string[]> {
       const radius = getComputedStyle(element).borderTopLeftRadius;
       const box = element.getBoundingClientRect();
       const isCircle = Math.abs(box.width - box.height) < 1;
-      return radius === "0px" || isCircle ? [] : [`${element.tagName}.${element.className} has radius ${radius}`];
+      // Charlie's arched portrait is an owner-approved exception (docs/cwr-owner-photo-arch-plan.md).
+      const isOwnerArch = element.classList.contains("photo-arch");
+      return radius === "0px" || isCircle || isOwnerArch ? [] : [`${element.tagName}.${element.className} has radius ${radius}`];
     }),
   );
 }

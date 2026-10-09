@@ -146,7 +146,7 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.3 Shape, borders, and elevation
 
-- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners
+- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners. Exception (owner choice 2026-10-09, `docs/cwr-owner-photo-arch-plan.md`): Charlie's portrait on About and Selected services has an arched top (half circle, square bottom corners)
 - Circles only for the logo, 64px round icon badges, and the 8px status dot
 - Borders: 1px `field-border` on inputs; 2px on buttons and invalid/valid fields; 2px `ink` rule on top of cards
 - No shadows and no gradients; depth comes from `dark` bands and `surface-soft` sections

@@ -44,7 +44,7 @@ async function fetchBrokerOrNull(): Promise<TeamMember | null> {
 function BrokerByline({ broker }: { broker: TeamMember | null }) {
   return (
     <div className="profile-byline grid items-center gap-4 md:grid-cols-1 md:items-start md:gap-3">
-      <ResponsivePhoto photo={broker?.photo ?? null} ratio="portrait" sizes={PORTRAIT_SIZES} isPriority />
+      <ResponsivePhoto photo={broker?.photo ?? null} ratio="portrait" shape="arch" sizes={PORTRAIT_SIZES} isPriority />
       <div>
         <Link href={`/team/${BROKER_SLUG}`} className="type-team-name inline-flex min-h-11 items-center underline-offset-4 hover:underline">
           {broker?.fullName ?? BROKER_FALLBACK.fullName}
