@@ -80,6 +80,7 @@ function getPageResponse(request: NextRequest, { requestId, isAdmin }: { request
     isDevelopment: process.env.NODE_ENV === "development",
     supabaseOrigin: process.env.NEXT_PUBLIC_SUPABASE_URL,
     allowWebAssembly: isAdmin,
+    allowLocalMedia: isAdmin,
     allowTrackers: !isAdmin,
     tagServerOrigin: getTagServerOrigin(process.env.TAG_SERVER_URL),
   });

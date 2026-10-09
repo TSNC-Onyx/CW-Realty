@@ -25,8 +25,8 @@ function getStoredFile(item: AdminHomeworkItem): StoredFile | null {
 function VideoSections({ item }: { item: AdminHomeworkItem }) {
   return (
     <div className="grid gap-12">
-      <VideoFilePanel itemId={item.id} file={getStoredFile(item)} />
-      <CoverPanel itemId={item.id} title={item.title} cover={getItemCover(item)} />
+      <VideoFilePanel itemId={item.id} file={getStoredFile(item)} hasUploadedCover={item.photo_path !== null && !item.is_photo_from_video} />
+      <CoverPanel itemId={item.id} title={item.title} cover={getItemCover(item)} isFromVideo={item.is_photo_from_video} />
       <CaptionsPanel itemId={item.id} title={item.title} hasCaptions={item.captions_path !== null} />
       <VideoDetailsForm mode="edit" itemId={item.id} defaults={{ title: item.title, description: item.description, isSpanish: item.is_spanish, isVisible: item.is_visible }} />
     </div>

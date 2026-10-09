@@ -96,6 +96,7 @@ export const PROBLEM_ACTIONS = {
   "homework.set_visibility": { label: "Show or hide Homework", fn: "setHomeworkVisibilityAction" },
   "homework.set_cover": { label: "Set a Homework cover picture", fn: "setHomeworkCoverAction" },
   "homework.remove_cover": { label: "Remove a Homework cover picture", fn: "removeHomeworkCoverAction" },
+  "homework.make_cover": { label: "Make a Homework cover from the video", fn: "setHomeworkVideoCoverAction" },
   "homework.request_upload_link": { label: "Start a Homework file upload", fn: "requestHomeworkUploadAction" },
   "homework.upload_file": { label: "Upload a Homework file" },
   "homework.save_file": { label: "Save an uploaded Homework file", fn: "saveHomeworkFileAction" },

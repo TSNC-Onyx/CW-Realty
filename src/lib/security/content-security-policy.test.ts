@@ -67,6 +67,17 @@ describe("getContentSecurityPolicy", () => {
     expect(getDirective(policy, "media-src")).toBe(`media-src 'self' ${SUPABASE_ORIGIN}`);
   });
 
+  it("lets admin pages open a video the admin picked, through this page's own blob: links", () => {
+    // Arrange
+    const options = { nonce: NONCE, isDevelopment: false, supabaseOrigin: SUPABASE_ORIGIN, allowLocalMedia: true };
+
+    // Act
+    const policy = getContentSecurityPolicy(options);
+
+    // Assert
+    expect(getDirective(policy, "media-src")).toBe(`media-src 'self' blob: ${SUPABASE_ORIGIN}`);
+  });
+
   it("relaxes script and style rules only in development", () => {
     // Arrange
     const options = { nonce: NONCE, isDevelopment: true };

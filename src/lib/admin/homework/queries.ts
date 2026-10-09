@@ -27,11 +27,12 @@ export type AdminHomeworkItem = {
   photo_alt: string | null;
   photo_width: number | null;
   photo_height: number | null;
+  is_photo_from_video: boolean;
   is_visible: boolean;
 };
 
 const HOMEWORK_COLUMNS =
-  "id, kind, group_key, title, description, is_spanish, file_path, file_name, file_mime, file_size_bytes, duration_seconds, captions_path, link_url, photo_path, photo_alt, photo_width, photo_height, is_visible";
+  "id, kind, group_key, title, description, is_spanish, file_path, file_name, file_mime, file_size_bytes, duration_seconds, captions_path, link_url, photo_path, photo_alt, photo_width, photo_height, is_photo_from_video, is_visible";
 
 export async function fetchAdminHomework({ supabase, tenantId }: AdminContext): Promise<LoadResult<AdminHomeworkItem[]>> {
   const result = await supabase

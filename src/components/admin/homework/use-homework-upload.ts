@@ -3,6 +3,7 @@
 import { unstable_rethrow } from "next/navigation";
 import { useState } from "react";
 
+import { fetchVideoCoverNotice, type CoverNotice } from "@/components/admin/homework/make-video-cover";
 import { getHttpProblem, getMessageWithReference, getTransferProblem, getUploadTimeoutMs, type TransferFailureCode, type UploadProblem } from "@/components/admin/homework/upload-problems";
 import { getQuickError, type QuickResult } from "@/lib/admin/quick-result";
 import { requestHomeworkUploadAction, saveHomeworkFileAction, type UploadTicket } from "@/lib/admin/homework/upload-actions";
@@ -13,10 +14,15 @@ import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
 // One Homework upload: check the file here first, read a video's length, get a one-time
 // link, send the file straight to storage (with progress, since videos can be large),
-// then ask the server to confirm and record it. Every step always finishes — the screen
-// never stays on "Uploading…" — and every failure is recorded (docs/cwr-error-tracking-plan.md).
+// then ask the server to confirm and record it. A saved video without an uploaded cover then
+// gets one from its opening scene (docs/cwr-video-auto-cover-plan.md). Every step always
+// finishes — the screen never stays on "Uploading…" — and every failure is recorded
+// (docs/cwr-error-tracking-plan.md).
 
-export type HomeworkUploadProgress = { stage: "idle" | "checking" | "uploading" | "saving"; share: number; error: string | null };
+export type HomeworkUploadProgress = { stage: "idle" | "checking" | "uploading" | "saving" | "cover"; share: number; error: string | null };
+
+/** coverNotice: what happened to the automatic cover, when one was attempted. */
+export type HomeworkUploadResult = QuickResult & { coverNotice: CoverNotice | null };
 
 const IDLE_PROGRESS: HomeworkUploadProgress = { stage: "idle", share: 0, error: null };
 const UPLOAD_FILE_ACTION: ProblemAction = "homework.upload_file";
@@ -29,7 +35,7 @@ const UNEXPECTED_MESSAGE = "The file couldn't be uploaded. Try again.";
 
 type VideoLengthReading = { isRead: true; seconds: number | null } | { isRead: false; detail: string };
 
-type UploadSteps = { itemId: string; purpose: UploadPurpose; file: File; onProgress: (progress: HomeworkUploadProgress) => void };
+type UploadSteps = { itemId: string; purpose: UploadPurpose; file: File; isMakingCover: boolean; onProgress: (progress: HomeworkUploadProgress) => void };
 
 class HomeworkUploadError extends Error {
   constructor(readonly problem: UploadProblem) {
@@ -115,7 +121,7 @@ async function fetchUploadTicket(input: Parameters<typeof requestHomeworkUploadA
   }
 }
 
-async function runUploadSteps({ itemId, purpose, file, onProgress }: UploadSteps): Promise<QuickResult> {
+async function runUploadSteps({ itemId, purpose, file, onProgress }: Omit<UploadSteps, "isMakingCover">): Promise<QuickResult> {
   const rejection = getUploadProblem({ purpose, fileName: file.name, sizeBytes: file.size });
   if (rejection) throw new HomeworkUploadError({ stage: "browser", severity: "info", code: "file_rejected", message: rejection, detail: `${purpose}, ${file.type || "no type"}, ${file.size} bytes` });
   onProgress({ stage: "checking", share: 0, error: null });
@@ -143,11 +149,19 @@ async function getUploadResult(steps: UploadSteps): Promise<QuickResult> {
   }
 }
 
-export function useHomeworkUpload({ itemId, purpose }: { itemId: string; purpose: UploadPurpose }) {
+async function fetchUploadWithCover(steps: UploadSteps): Promise<HomeworkUploadResult> {
+  const result = await getUploadResult(steps);
+  if (result.status === "error" || !steps.isMakingCover) return { ...result, coverNotice: null };
+  steps.onProgress({ stage: "cover", share: 1, error: null });
+  return { ...result, coverNotice: await fetchVideoCoverNotice({ itemId: steps.itemId, file: steps.file }) };
+}
+
+/** isMakingCover: make a cover from the video's opening scene once it is saved. */
+export function useHomeworkUpload({ itemId, purpose, isMakingCover }: { itemId: string; purpose: UploadPurpose; isMakingCover: boolean }) {
   const [progress, setProgress] = useState<HomeworkUploadProgress>(IDLE_PROGRESS);
 
-  const uploadFile = async (file: File): Promise<QuickResult> => {
-    const result = await getUploadResult({ itemId, purpose, file, onProgress: setProgress });
+  const uploadFile = async (file: File): Promise<HomeworkUploadResult> => {
+    const result = await fetchUploadWithCover({ itemId, purpose, file, isMakingCover, onProgress: setProgress });
     setProgress(result.status === "error" ? { stage: "idle", share: 0, error: result.message } : IDLE_PROGRESS);
     return result;
   };

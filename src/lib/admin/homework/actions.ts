@@ -34,6 +34,13 @@ const coverSchema = z.object({
   height: z.number().int().positive(),
   alt: z.string().trim().min(1, "Describe the picture").max(MAX_ALT_TEXT_LENGTH),
 });
+const videoCoverSchema = coverSchema.omit({ alt: true });
+// Automatic covers (docs/cwr-video-auto-cover-plan.md): the description stays true if the title changes.
+const VIDEO_COVER_ALT = "Opening scene of this video";
+const VIDEO_COVER_MADE_MESSAGE = "Cover picture made from the video's opening scene. You can replace it below.";
+const UPLOADED_COVER_KEPT_MESSAGE = "Your own cover picture was kept.";
+// Matches only items without a cover or with an automatic one, so an uploaded cover is never replaced.
+const REPLACEABLE_COVER_FILTER = "photo_path.is.null,is_photo_from_video.eq.true";
 
 type CreateResult = { id: string } | { error: { code?: string; message: string } };
 
@@ -153,16 +160,22 @@ export async function setHomeworkVisibilityAction(itemId: string, isVisible: boo
   });
 }
 
+/** Why a cover's files can't be used, or null when they belong to this item and are all uploaded. */
+async function fetchCoverFilesProblem({ itemId, folder }: { itemId: string; folder: string }): Promise<string | null> {
+  if (!folder.startsWith(`homework/${itemId}/`)) return "That picture belongs to another item.";
+  const filesCheck = await fetchPhotoFilesCheck(folder);
+  return filesCheck === "complete" ? null : getPhotoFilesMessage(filesCheck);
+}
+
 export async function setHomeworkCoverAction(input: z.input<typeof coverSchema>): Promise<QuickResult> {
   return runQuickAction({ action: "homework.set_cover", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const parsed = coverSchema.safeParse(input);
     if (!parsed.success) return getQuickError(parsed.error.issues[0]?.message ?? "Check the picture details.");
-    if (!parsed.data.folder.startsWith(`homework/${parsed.data.itemId}/`)) return getQuickError("That picture belongs to another item.");
-    const filesCheck = await fetchPhotoFilesCheck(parsed.data.folder);
-    if (filesCheck !== "complete") return getQuickError(getPhotoFilesMessage(filesCheck));
+    const filesProblem = await fetchCoverFilesProblem(parsed.data);
+    if (filesProblem) return getQuickError(filesProblem);
     const { data: updated, error } = await supabase
       .from("homework_items")
-      .update({ photo_path: parsed.data.folder, photo_alt: parsed.data.alt, photo_width: parsed.data.width, photo_height: parsed.data.height })
+      .update({ photo_path: parsed.data.folder, photo_alt: parsed.data.alt, photo_width: parsed.data.width, photo_height: parsed.data.height, is_photo_from_video: false })
       .eq("id", parsed.data.itemId)
       .eq("tenant_id", tenantId)
       .select("id");
@@ -173,17 +186,47 @@ export async function setHomeworkCoverAction(input: z.input<typeof coverSchema>)
   });
 }
 
+/** Saves a cover made from the video's opening scene, unless an uploaded cover is already there. */
+export async function setHomeworkVideoCoverAction(input: z.input<typeof videoCoverSchema>): Promise<QuickResult> {
+  return runQuickAction({ action: "homework.make_cover", roles: EDITOR_ROLES }, async (admin) => {
+    const parsed = videoCoverSchema.safeParse(input);
+    if (!parsed.success) return getQuickError("Check the picture details.");
+    const filesProblem = await fetchCoverFilesProblem(parsed.data);
+    if (filesProblem) return getQuickError(filesProblem);
+    const { data: updated, error } = await admin.supabase
+      .from("homework_items")
+      .update({ photo_path: parsed.data.folder, photo_alt: VIDEO_COVER_ALT, photo_width: parsed.data.width, photo_height: parsed.data.height, is_photo_from_video: true })
+      .eq("id", parsed.data.itemId)
+      .eq("tenant_id", admin.tenantId)
+      .or(REPLACEABLE_COVER_FILTER)
+      .select("id");
+    if (error) return getQuickError(getDatabaseErrorMessage(error));
+    if (updated?.length) {
+      refreshHomeworkPages();
+      return getQuickSuccess(VIDEO_COVER_MADE_MESSAGE);
+    }
+    return getKeptCoverResult(admin, parsed.data.itemId);
+  });
+}
+
+// Nothing was updated: either someone uploaded their own cover meanwhile, or the item is gone.
+async function getKeptCoverResult(admin: AdminContext, itemId: string): Promise<QuickResult> {
+  const { item, error } = await fetchStoredItem(admin, itemId);
+  if (error) return getQuickError(getItemLoadErrorMessage(error));
+  return item ? getQuickSuccess(UPLOADED_COVER_KEPT_MESSAGE) : getQuickError(ITEM_NOT_FOUND_MESSAGE);
+}
+
 export async function removeHomeworkCoverAction(itemId: string): Promise<QuickResult> {
   return runQuickAction({ action: "homework.remove_cover", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const { data: updated, error } = await supabase
       .from("homework_items")
-      .update({ photo_path: null, photo_alt: null, photo_width: null, photo_height: null })
+      .update({ photo_path: null, photo_alt: null, photo_width: null, photo_height: null, is_photo_from_video: false })
       .eq("id", z.uuid().parse(itemId))
       .eq("tenant_id", tenantId)
       .select("id");
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     if (!updated?.length) return getQuickError(ITEM_NOT_FOUND_MESSAGE);
     refreshHomeworkPages();
-    return getQuickSuccess("Cover picture removed. Visitors see the video's first frame.");
+    return getQuickSuccess("Cover picture removed. Visitors see a dark box until a cover is added.");
   });
 }
