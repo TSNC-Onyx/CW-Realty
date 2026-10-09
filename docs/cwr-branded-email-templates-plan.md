@@ -1,6 +1,6 @@
 # CWR branded email templates — plan
 
-Status: rev 3, 2026-10-08 (rev 1 audited B-, rev 2 A-/A; all fixes applied, rev 3 audited ALL A; owner decisions recorded 2026-10-08). Plan only; nothing built. **Owner decisions 2026-10-08:** look A, with "Charlie Ward Realty" beside the header logo (as in B); the email color exception to the design-token rule is approved. Build waits for an explicit "build it".
+Status: rev 3, 2026-10-08 (rev 1 audited B-, rev 2 A-/A; all fixes applied, rev 3 audited ALL A; owner decisions recorded 2026-10-08). **Owner decisions 2026-10-08:** look A, with "Charlie Ward Realty" beside the header logo (as in B); the email color exception to the design-token rule is approved. **Built 2026-10-08, PR #34.** After-merge steps and follow-ups are open items 14–17 in `docs/cwr-website-build-plan.md`.
 
 ## Goal
 
