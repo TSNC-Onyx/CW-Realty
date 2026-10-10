@@ -139,12 +139,14 @@ export async function moveListingAction(listingId: string, direction: "up" | "do
   return moveItem({ action: "listings.move", table: "listings", id: listingId, direction });
 }
 
-export async function moveListingPhotoAction(photoId: string, direction: "up" | "down"): Promise<QuickResult> {
-  return moveItem({ action: "listings.move_photo", table: "listing_photos", id: photoId, direction });
+
+function getPhotoMovedMessage(steps: number): string {
+  if (Math.abs(steps) > 1) return "Photo moved.";
+  return steps < 0 ? "Moved up." : "Moved down.";
 }
 
-/** Drag and drop: moves a photo several places in one call (steps < 0 = earlier), one cwr.move_item step at a time. */
-export async function moveListingPhotoToAction(input: z.input<typeof photoMoveSchema>): Promise<QuickResult> {
+/** Moves a photo one place (Earlier / Later) or several (drag and drop); steps < 0 = earlier. One cwr.move_item step at a time. */
+export async function moveListingPhotoAction(input: z.input<typeof photoMoveSchema>): Promise<QuickResult> {
   return runQuickAction({ action: "listings.move_photo", roles: EDITOR_ROLES }, async ({ supabase }) => {
     const parsed = photoMoveSchema.safeParse(input);
     if (!parsed.success) return getQuickError("That photo couldn't be moved. Refresh the page and try again.");
@@ -159,7 +161,7 @@ export async function moveListingPhotoToAction(input: z.input<typeof photoMoveSc
       }
     }
     refreshListingPages();
-    return getQuickSuccess("Photo moved.");
+    return getQuickSuccess(getPhotoMovedMessage(steps));
   });
 }
 

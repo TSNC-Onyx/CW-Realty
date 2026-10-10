@@ -9,7 +9,7 @@ import { SavedStateLine, useTypedValue } from "@/components/admin/saved-state";
 import { useToast } from "@/components/admin/toast-provider";
 import { useDragReorder } from "@/components/admin/uploads/use-drag-reorder";
 import { ResponsivePhoto } from "@/components/content/responsive-photo";
-import { moveListingPhotoAction, moveListingPhotoToAction, updatePhotoAltAction } from "@/lib/admin/listings/actions";
+import { moveListingPhotoAction, updatePhotoAltAction } from "@/lib/admin/listings/actions";
 import { getMovedItems } from "@/lib/admin/moved-items";
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
 import { getSavedState } from "@/lib/admin/saved-state";
@@ -89,8 +89,8 @@ function PhotoTools({ photo, position, count, label }: Omit<PhotoCardProps, "dra
   const trashTarget = { table: "listing_photos" as const, id: photo.id };
   return (
     <div className="absolute top-2 right-2 flex gap-1 bg-surface/90 p-1 transition-opacity pointer-fine:lg:opacity-0 pointer-fine:lg:group-focus-within:opacity-100 pointer-fine:lg:group-hover:opacity-100">
-      <QuickActionButton label="Earlier" accessibleLabel={`Move ${label} earlier`} icon={ArrowLeft} isLabelHidden isDisabled={position === 1} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction(photo.id, "up")} />
-      <QuickActionButton label="Later" accessibleLabel={`Move ${label} later`} icon={ArrowRight} isLabelHidden isDisabled={position === count} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction(photo.id, "down")} />
+      <QuickActionButton label="Earlier" accessibleLabel={`Move ${label} earlier`} icon={ArrowLeft} isLabelHidden isDisabled={position === 1} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction({ photoId: photo.id, steps: -1 })} />
+      <QuickActionButton label="Later" accessibleLabel={`Move ${label} later`} icon={ArrowRight} isLabelHidden isDisabled={position === count} problemAction="listings.move_photo" onRun={() => moveListingPhotoAction({ photoId: photo.id, steps: 1 })} />
       <QuickActionButton
         label="Remove"
         accessibleLabel={`Remove ${label}`}
@@ -132,7 +132,7 @@ export function ListingPhotos({ listingId, photos }: { listingId: string; photos
     if (!photo) return;
     startTransition(async () => {
       setOrderedPhotos(getMovedItems(orderedPhotos, move));
-      const result = await callQuickAction("listings.move_photo", () => moveListingPhotoToAction({ photoId: photo.id, steps: move.to - move.from }));
+      const result = await callQuickAction("listings.move_photo", () => moveListingPhotoAction({ photoId: photo.id, steps: move.to - move.from }));
       showToast({ tone: result.status === "success" ? "success" : "error", title: result.message });
     });
   };

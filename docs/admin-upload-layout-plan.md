@@ -58,9 +58,10 @@ schema, the photo encoder, storage rules, mobile-specific redesign (layouts stac
   random uuid, so a batch would land in random order. Change to `max(sort_order) + 1` for the listing
   (non-deleted), or 1 when it has none. `move_item` renumbers
   1..n by (sort_order, id) so this stays consistent.
-- Drag reorder: new `moveListingPhotoToAction(photoId, steps)` runs the existing `move_item` RPC
-  |steps| times in one server call (each step is its own transaction; no migration). It records
-  problems under the existing catalog entry `listings.move_photo` (a new entry would need a migration).
+- Drag reorder: `moveListingPhotoAction({ photoId, steps })` now takes a number of places (±1 for
+  Earlier / Later, more for a drag) and runs the existing `move_item` RPC |steps| times in one server
+  call (each step is its own transaction; no migration). It keeps its catalog entry
+  `listings.move_photo`; CI requires one entry per action, and a new entry would need a migration.
 - CSP: admin pages allow `blob:` images and media (local previews); no inline `style` attributes
   (strict CSP) — Tailwind classes only.
 
