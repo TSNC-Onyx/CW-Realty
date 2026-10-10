@@ -1,6 +1,8 @@
 // Selected services content (docs/cwr-selected-services-plan.md): the owner's deck, with
 // copy and prices approved over the previews (2026-09-30 → 2026-10-02). The plan names
 // start with C, W, and R — Charlie Ward Realty.
+// Labels read Self-guided → Value Plus → Best Value (owner choice 2026-10-09,
+// docs/cwr-plan-labels-plan.md); the dark featured look stays on Working With You for now.
 
 export type PlanTone = "light" | "dark";
 
@@ -61,7 +63,7 @@ const BUYER_PLANS: Plan[] = [
     slug: "working-with-you",
     name: "Working With You",
     tone: "dark",
-    eyebrow: "Best Value",
+    eyebrow: "Value Plus",
     price: "$500",
     priceNote: "per service",
     summary: "Help after your offer is accepted. Pick one service or both.",
@@ -89,7 +91,7 @@ const BUYER_PLANS: Plan[] = [
     slug: "ready-through-close",
     name: "Ready Through Close",
     tone: "light",
-    eyebrow: "Full service",
+    eyebrow: "Best Value",
     price: "Commission",
     priceNote: "based on each home sale",
     summary: "Your agent from the first showing to the keys.",
@@ -138,7 +140,7 @@ const SELLER_PLANS: Plan[] = [
     slug: "working-with-you",
     name: "Working With You",
     tone: "dark",
-    eyebrow: "Best Value",
+    eyebrow: "Value Plus",
     price: "$1,000",
     priceNote: "flat fee",
     summary: "Expert help from listing to closing. You stay in charge.",
@@ -159,7 +161,7 @@ const SELLER_PLANS: Plan[] = [
     slug: "ready-through-close",
     name: "Ready Through Close",
     tone: "light",
-    eyebrow: "Full service",
+    eyebrow: "Best Value",
     price: "3%",
     priceNote: "commission",
     isPriceHighlighted: true,

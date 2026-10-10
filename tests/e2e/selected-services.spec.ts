@@ -133,6 +133,20 @@ test.describe("plan cards", () => {
     expect(oversized).toBe(0);
   });
 
+  for (const id of ["buyer-plans", "seller-plans"] as const) {
+    test(`${id} labels read Self-guided, Value Plus, Best Value (owner choice 2026-10-09)`, async ({ page }) => {
+      // Arrange
+      await page.setViewportSize(VIEWPORTS.desktop);
+      await page.goto(PAGE_PATH);
+
+      // Act
+      const labels = await getSection(page, id).locator("article p.type-eyebrow").allTextContents();
+
+      // Assert
+      expect(labels.map((label) => label.trim())).toEqual(["Self-guided", "Value Plus", "Best Value"]);
+    });
+  }
+
   test("the plan initials C, W, R are bold and gold", async ({ page }) => {
     // Arrange
     await page.goto(PAGE_PATH);
@@ -157,7 +171,7 @@ test.describe("plan carousel on phones", () => {
     await page.waitForTimeout(SETTLE_MS);
   });
 
-  test("opens on the Best Value plan, with no scroll bar", async ({ page }) => {
+  test("opens on the featured plan, with no scroll bar", async ({ page }) => {
     // Arrange
     const track = getSection(page, "buyer-plans").locator(".plan-track");
 
