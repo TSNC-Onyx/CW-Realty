@@ -91,6 +91,6 @@ Files in the table above. Contracts: `recordPageNotFound`, `ProblemCause` (adds 
 - #8 uses a shared helper, `src/lib/observability/once-per-copy.ts`, for the chat note; the
   email note caches its first reference so callers keep showing a reference.
 - #10 applied to production 2026-10-10 (version 20261010000100 recorded in schema_migrations).
-- Verified: 941 unit tests, 285 database tests, 446 browser tests passed; the new save test
+- Verified: 940 unit tests, 285 database tests, 446 browser tests passed; the new save test
   fails when the old "not found" screen is restored. One existing browser test ("turn the chat
   assistant off and back on") is flaky when runs overlap with chat-policy.spec.ts; unrelated.
