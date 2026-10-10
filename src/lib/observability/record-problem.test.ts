@@ -88,4 +88,30 @@ describe("recording a problem", () => {
     // Assert
     expect(payloads[0]).toMatchObject({ p: { id: "0f8fad5b-d9cb-469f-a165-70867728950e" } });
   });
+
+  it("hands a problem the database refused to the queue, with its id, to write later", async () => {
+    // Arrange
+    const db = getDatabase(async () => ({ data: null, error: { code: "PGRST000", message: "down" } }));
+    const sent: unknown[] = [];
+    const retryQueue = { send: async (job: unknown) => void sent.push(job) };
+
+    // Act
+    await recordProblem(db, EVENT, { id: "11111111-1111-4111-8111-111111111111", retryQueue });
+
+    // Assert
+    expect(sent).toEqual([expect.objectContaining({ kind: "record_problem", payload: expect.objectContaining({ id: "11111111-1111-4111-8111-111111111111", severity: "error" }) })]);
+  });
+
+  it("doesn't use the queue when the database took the problem", async () => {
+    // Arrange
+    const db = getDatabase(async () => ({ data: { reference: "CWR-AAA-BBB", stored: true, suppressed: false }, error: null }));
+    const retryQueue = { send: vi.fn(async () => undefined) };
+
+    // Act
+    await recordProblem(db, EVENT, { retryQueue });
+
+    // Assert
+    expect(retryQueue.send).not.toHaveBeenCalled();
+  });
 });
+

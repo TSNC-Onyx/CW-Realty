@@ -34,6 +34,7 @@ export const ADMIN_AREAS: AdminArea[] = [
   { key: "tracking", label: "Ads & analytics", href: "/admin/tracking", description: "Google Tag Manager, Meta, and the quarterly tag review.", group: "settings", roles: OWNER_ROLES },
   { key: "chats", label: "Chat history", href: "/admin/chats", description: "Read what visitors asked the chat assistant, for the weekly review.", group: "daily", roles: EDITOR_ROLES },
   { key: "trash", label: "Trash", href: "/admin/trash", description: "Restore anything deleted in the last 30 days.", group: "settings", roles: EDITOR_ROLES },
+  { key: "problems", label: "Problems", href: "/admin/problems", description: "See what went wrong on the site, grouped, and mark it resolved.", group: "settings", roles: OWNER_ROLES },
   { key: "users", label: "Users & roles", href: "/admin/users", description: "Invite people and choose what they can change.", group: "settings", roles: OWNER_ROLES },
 ];
 

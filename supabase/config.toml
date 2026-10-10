@@ -137,6 +137,14 @@ allowed_mime_types = [
   "text/vtt",
 ]
 
+# Source maps for reading stack traces back to our files (docs/error-logging-a-grade-plan.md).
+# Private: only the service role reads or writes; owners get 5-minute links from the server.
+# In production, scripts/store-source-maps.mjs creates it the same way on first use.
+[storage.buckets.source-maps]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = ["application/gzip", "application/json"]
+
 # Uncomment to configure local storage buckets
 # [storage.buckets.images]
 # public = false

@@ -12,6 +12,7 @@
 /out/
 /build
 /.open-next
+/.release-maps
 /.wrangler
 next-env.d.ts
 *.tsbuildinfo

@@ -5,8 +5,9 @@ import { ADMIN_FORGOT_PASSWORD_PATH, ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_MFA
 import { BROWSER_PROBLEM_CODES, BROWSER_PROBLEM_STAGES } from "@/lib/observability/client-problem";
 import { isAuthOutage } from "@/lib/observability/auth-outage";
 import { isProblemAction, type ProblemAction } from "@/lib/observability/problem-catalog";
-import { getCappedSeverity, getVisitorBrowserCode, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
+import { getCappedSeverity, getVisitorBrowserCode, getVisitorDigest, getVisitorStackFrames, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
 import type { ProblemOrigin, ProblemSeverity } from "@/lib/observability/problem-types";
+import { getValidRelease } from "@/lib/observability/release";
 import { reportProblem } from "@/lib/observability/report-problem";
 import { getPathOnly } from "@/lib/observability/scrub";
 import { isOverProblemReportLimit } from "@/lib/security/rate-limit";
@@ -34,6 +35,7 @@ const reportSchema = z.object({
   detail: z.string().max(2000).optional(),
   pagePath: z.string().max(300),
   digest: z.string().max(64).optional(),
+  release: z.string().max(40).optional(),
 });
 
 type Reporter = { origin: ProblemOrigin; tenantId: string | null; actorId: string | null; actorRole: string | null; maxSeverity: ProblemSeverity };
@@ -95,9 +97,9 @@ async function parseReport(request: Request): Promise<ParsedReport | null> {
   }
 }
 
-/** A visitor's report keeps only the fixed fields: anything typed could be anyone's words. */
+/** A visitor's report keeps only the fixed fields and our code locations: anything typed could be anyone's words. */
 function getVisitorReport(report: ParsedReport): ParsedReport {
-  return { ...report, code: getVisitorBrowserCode(report.code), shownMessage: undefined, detail: undefined, digest: undefined };
+  return { ...report, code: getVisitorBrowserCode(report.code), shownMessage: undefined, detail: getVisitorStackFrames(report.detail), digest: getVisitorDigest(report) };
 }
 
 /** A website page (not the admin portal) reporting one of the visitor actions. */
@@ -107,7 +109,8 @@ function isVisitorReport({ report, pagePath }: { report: ParsedReport; pagePath:
 
 async function getRecordedResponse({ report, reporter, pagePath }: { report: ParsedReport; reporter: Reporter; pagePath: string | null }): Promise<Response> {
   const existingReference = await fetchExistingReference(report.digest);
-  if (existingReference) return Response.json({ reference: existingReference, isStored: true });
+  // Visitors never see reference codes, even for a crash the server already recorded.
+  if (existingReference) return Response.json({ reference: reporter.origin === "browser_visitor" ? null : existingReference, isStored: true });
   const result = await reportProblem({
     problemId: report.id,
     action: report.action,
@@ -117,6 +120,7 @@ async function getRecordedResponse({ report, reporter, pagePath }: { report: Par
     shownMessage: report.shownMessage,
     detail: report.detail,
     digest: report.digest,
+    release: getValidRelease(report.release) ?? undefined,
     pagePath,
     origin: reporter.origin,
     tenantId: reporter.tenantId,

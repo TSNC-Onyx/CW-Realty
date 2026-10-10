@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
   },
   globalIgnores([
     ".next/**",
+    ".release-maps/**",
     "out/**",
     "build/**",
     ".open-next/**",
