@@ -108,11 +108,8 @@ New migration; `src/lib/tracking/*`; `src/components/tracking/*`; `content-secur
 
 ## Launch notes (for the Phase 7 runbook)
 
-- Ads & analytics page: paste the Tag Manager container ID (`GTM-…`) and Meta Pixel ID.
-- Worker secret `META_CAPI_ACCESS_TOKEN` (Meta Events Manager → Conversions API → access token). Optional Worker variable `TAG_SERVER_URL` (server-side tagging address, e.g. `https://data.charliewardrealty.com`); add it to every Wrangler environment (including `env.preview` when it exists).
-- In Tag Manager: set every Google Ads and Meta tag to require `ad_storage` consent (Consent Overview); GA4 tags use built-in consent. Trigger tags on the event names in decision 8; the Meta Pixel tag must send `event_id` as its eventID. Map `user_data` for Google Ads Enhanced Conversions. Avoid Custom HTML tags (the security policy may block them); use gallery templates.
-- In Google Ads: a conversion action named exactly **Closed deal** (import, clicks). In Meta and Google Ads: mark campaigns as Housing (Special Ad Category).
-- Tag every campaign link with UTM tags.
+Moved to `docs/runbooks/ads-analytics-setup.md` (2026-10-09, `docs/cwr-ads-analytics-review-plan.md`), the
+single source for Tag Manager, Google, and Meta setup.
 
 ## Known exceptions (owner decisions)
 

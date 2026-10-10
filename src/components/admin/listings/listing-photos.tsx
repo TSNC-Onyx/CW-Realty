@@ -5,9 +5,11 @@ import { useId, useRef } from "react";
 
 import { PhotoPicker } from "@/components/admin/photos/photo-picker";
 import { QuickActionButton } from "@/components/admin/quick-action-button";
+import { SavedStateLine, useTypedValue } from "@/components/admin/saved-state";
 import { ResponsivePhoto } from "@/components/content/responsive-photo";
 import { addListingPhotoAction, moveListingPhotoAction, updatePhotoAltAction } from "@/lib/admin/listings/actions";
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
+import { getSavedState } from "@/lib/admin/saved-state";
 import { moveToTrashAction, restoreFromTrashAction } from "@/lib/admin/trash/actions";
 
 export type ListingPhotoItem = { id: string; folder: string; alt: string; width: number; height: number };
@@ -17,6 +19,7 @@ type PhotoCardProps = { photo: ListingPhotoItem; position: number; count: number
 function PhotoCard({ photo, position, count }: PhotoCardProps) {
   const altId = useId();
   const altRef = useRef<HTMLTextAreaElement>(null);
+  const [typedAlt, setTypedAlt] = useTypedValue(photo.alt);
   const trashTarget = { table: "listing_photos" as const, id: photo.id };
   const label = `photo ${position}`;
   return (
@@ -27,7 +30,18 @@ function PhotoCard({ photo, position, count }: PhotoCardProps) {
         <label htmlFor={altId} className="mb-1 block text-base font-bold">
           Description
         </label>
-        <textarea id={altId} ref={altRef} rows={2} maxLength={MAX_ALT_TEXT_LENGTH} defaultValue={photo.alt} className="field-input" />
+        <textarea
+          key={photo.alt}
+          id={altId}
+          ref={altRef}
+          rows={2}
+          maxLength={MAX_ALT_TEXT_LENGTH}
+          defaultValue={photo.alt}
+          onChange={(event) => setTypedAlt(event.target.value)}
+          aria-describedby={`${altId}-saved`}
+          className="field-input"
+        />
+        <SavedStateLine id={`${altId}-saved`} state={getSavedState({ current: typedAlt, saved: photo.alt })} />
       </div>
       <div className="flex flex-wrap gap-2">
         <QuickActionButton label="Save description" accessibleLabel={`Save the description of ${label}`} icon={Save} problemAction="listings.update_photo_alt" onRun={() => updatePhotoAltAction(photo.id, altRef.current?.value ?? "")} />

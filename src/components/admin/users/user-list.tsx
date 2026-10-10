@@ -1,26 +1,21 @@
 "use client";
 
-import { KeyRound, Save, UserX } from "lucide-react";
+import { Save, UserX } from "lucide-react";
 import { useId, useRef } from "react";
 
 import { QuickActionButton } from "@/components/admin/quick-action-button";
+import { SavedStateLine, useTypedValue } from "@/components/admin/saved-state";
 import { ROLE_OPTIONS } from "@/components/admin/users/role-options";
-import { changeRoleAction, removeAccessAction, resetSignInCodesAction, restoreAccessAction } from "@/lib/admin/users/actions";
+import { changeRoleAction, removeAccessAction, restoreAccessAction } from "@/lib/admin/users/actions";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
-import type { SignInCodeStatus } from "@/lib/admin/users/queries";
+import { getSavedState } from "@/lib/admin/saved-state";
 
-const SIGN_IN_CODE_LABELS: Record<SignInCodeStatus, string> = {
-  on: "Sign-in codes on",
-  "not-set-up": "Hasn't finished setting up sign-in codes",
-  unknown: "Sign-in code status unavailable right now",
-  "not-loaded": "Couldn't load sign-in status",
-};
-
-export type UserListItem = { userId: string; email: string; role: AdminRole; signInCodes: SignInCodeStatus; isCurrentUser: boolean };
+export type UserListItem = { userId: string; email: string; role: AdminRole; isCurrentUser: boolean };
 
 function UserRow({ user }: { user: UserListItem }) {
   const selectId = useId();
   const roleRef = useRef<HTMLSelectElement>(null);
+  const [typedRole, setTypedRole] = useTypedValue(user.role);
   return (
     <li className="grid gap-3 border-t border-line py-4 md:grid-cols-12 md:items-end">
       <div className="md:col-span-4">
@@ -28,23 +23,30 @@ function UserRow({ user }: { user: UserListItem }) {
           {user.email}
           {user.isCurrentUser && " (you)"}
         </p>
-        <p className="type-small text-muted">{SIGN_IN_CODE_LABELS[user.signInCodes]}</p>
       </div>
       <div className="md:col-span-3">
         <label htmlFor={selectId} className="mb-1 block text-base font-bold">
           Role
         </label>
-        <select id={selectId} ref={roleRef} defaultValue={user.role} className="field-input">
+        <select
+          key={user.role}
+          id={selectId}
+          ref={roleRef}
+          defaultValue={user.role}
+          onChange={(event) => setTypedRole(event.target.value)}
+          aria-describedby={`${selectId}-saved`}
+          className="field-input"
+        >
           {ROLE_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
           ))}
         </select>
+        <SavedStateLine id={`${selectId}-saved`} state={getSavedState({ current: typedRole, saved: user.role })} />
       </div>
       <div className="flex flex-wrap gap-2 md:col-span-5 md:justify-end">
         <QuickActionButton label="Save role" accessibleLabel={`Save the role for ${user.email}`} icon={Save} problemAction="users.change_role" onRun={() => changeRoleAction(user.userId, roleRef.current?.value ?? user.role)} />
-        <QuickActionButton label="Reset sign-in codes" accessibleLabel={`Reset sign-in codes for ${user.email}`} icon={KeyRound} problemAction="users.reset_sign_in_codes" onRun={() => resetSignInCodesAction(user.userId)} />
         {!user.isCurrentUser && (
           <QuickActionButton
             label="Remove access"

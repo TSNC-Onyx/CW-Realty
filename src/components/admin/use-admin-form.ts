@@ -11,6 +11,8 @@ import type { ProblemAction } from "@/lib/observability/problem-catalog";
 // Admin form behavior: submit without the browser's automatic form reset (so nothing
 // typed is lost), toast each result, focus the first field to fix, and track unsaved changes.
 // A call that fails outright (stale page, dropped connection) is recorded and shown plainly.
+// savedVersion changes after each successful save: a form keyed on it restarts from the stored
+// values, so every box shows exactly what was saved (docs/cwr-ads-analytics-review-plan.md Part B).
 
 export type AdminAction = (state: ActionState, formData: FormData) => Promise<ActionState>;
 
@@ -25,13 +27,17 @@ export function useAdminForm(action: AdminAction, { problemAction, onSuccess }: 
   const [state, dispatch, isPending] = useActionState(reportingAction, IDLE_ACTION_STATE);
   const [isDirty, setIsDirty] = useState(false);
   const [handledResponseId, setHandledResponseId] = useState(state.responseId);
+  const [savedVersion, setSavedVersion] = useState(0);
   const formRef = useRef<HTMLFormElement>(null);
   const { showToast } = useToast();
   useUnsavedChanges(isDirty);
 
   if (state.responseId !== handledResponseId) {
     setHandledResponseId(state.responseId);
-    if (state.status === "success") setIsDirty(false);
+    if (state.status === "success") {
+      setIsDirty(false);
+      setSavedVersion((version) => version + 1);
+    }
   }
 
   useEffect(() => {
@@ -52,5 +58,5 @@ export function useAdminForm(action: AdminAction, { problemAction, onSuccess }: 
     startTransition(() => dispatch(formData));
   };
 
-  return { state, isPending, isDirty, formRef, handleSubmit, handleInput: () => setIsDirty(true) };
+  return { state, isPending, isDirty, savedVersion, formRef, handleSubmit, handleInput: () => setIsDirty(true) };
 }

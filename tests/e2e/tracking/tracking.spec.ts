@@ -247,3 +247,35 @@ test("owners see tracking is on and get a clear message for a wrong container ID
   // Assert
   await expect(page.getByText("Enter the container ID from Google Tag Manager, like GTM-AB12CD3")).toBeVisible();
 });
+
+test("each ID field says whether it is live, not saved yet, or off", async ({ page }) => {
+  // Arrange
+  const owner = await createTestAdmin("owner");
+  const live = new RegExp(`Live on the website: ${TEST_CONTAINER_ID}$`);
+  const stillUsed = new RegExp(`Not saved yet — the website still uses ${TEST_CONTAINER_ID}$`);
+  await signInFully(page, owner);
+  await page.goto("/admin/tracking");
+  const container = page.getByLabel("Container ID (optional)");
+  const pixel = page.getByLabel("Pixel ID (optional)");
+  await expect(container).toHaveAccessibleDescription(live);
+  await expect(pixel).toHaveAccessibleDescription(/Off — nothing saved$/);
+
+  // Act
+  await container.fill("GTM-OTHER12");
+  await expect(container).toHaveAccessibleDescription(stillUsed);
+  await container.fill(TEST_CONTAINER_ID.toLowerCase());
+  await expect(container).toHaveAccessibleDescription(live);
+  await container.fill("");
+  await expect(container).toHaveAccessibleDescription(/Not saved yet — saving will turn tracking off$/);
+  await container.fill("UA-12345");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Enter the container ID from Google Tag Manager, like GTM-AB12CD3")).toBeVisible();
+  await expect(container).toHaveAccessibleDescription(stillUsed);
+  await container.fill(TEST_CONTAINER_ID.toLowerCase());
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Saved. Visitors now see the cookie choices." })).toBeVisible();
+
+  // Assert
+  await expect(container).toHaveValue(TEST_CONTAINER_ID);
+  await expect(container).toHaveAccessibleDescription(live);
+});

@@ -12,14 +12,14 @@ import { runOnce } from "@/lib/admin/idempotency";
 import { fetchPhotoFilesCheck, getPhotoFilesMessage } from "@/lib/admin/photos/photo-storage";
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
-import { EDITOR_ROLES } from "@/lib/admin/require-admin";
+import { EDITOR_ROLES, OWNER_ROLES } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
+import { CONNECTIONS_PAGE_PATH } from "@/lib/site/navigation";
 
 // Admin → Connections, built like Team (owner approval 2026-09-26).
 
 const CONNECTIONS_ADMIN_PATH = "/admin/connections";
-const CONNECTIONS_PAGE_PATH = "/connections";
 const NOT_FOUND_MESSAGE = "That connection no longer exists. It may have been moved to the trash.";
 // New partners start at the end of the list; cwr.move_item renumbers on the first move.
 const NEW_ITEM_SORT_ORDER = 9999;
@@ -128,5 +128,18 @@ export async function setConnectionVisibilityAction(connectionId: string, isVisi
     if (!updated?.length) return getQuickError(NOT_FOUND_MESSAGE);
     refreshConnectionPages();
     return getQuickSuccess(isVisible ? "Shown on the Connections page." : "Hidden from the Connections page.");
+  });
+}
+
+/** Owners only: hides or shows the whole public Connections page (docs/cwr-connections-page-switch-plan.md). */
+export async function setConnectionsPageVisibilityAction(isVisible: boolean): Promise<QuickResult> {
+  return runQuickAction({ action: "connections.set_page_visibility", roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
+    const { data: updated, error } = await supabase.from("site_settings").update({ is_connections_page_visible: z.boolean().parse(isVisible) }).eq("tenant_id", tenantId).select("id");
+    if (error) return getQuickError(getDatabaseErrorMessage(error));
+    if (!updated?.length) return getQuickError("The website settings weren't found. Add the contact details first, then try again.");
+    // Every public page's menu and footer change, so the whole site refreshes.
+    revalidatePath("/", "layout");
+    revalidatePath(CONNECTIONS_ADMIN_PATH, "layout");
+    return getQuickSuccess(isVisible ? "The Connections page is showing on the website again." : "The Connections page is hidden. Visitors are sent to Resources.");
   });
 }

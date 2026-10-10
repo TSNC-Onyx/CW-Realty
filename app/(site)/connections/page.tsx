@@ -1,5 +1,6 @@
 import { Globe, Handshake, Mail, Phone, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { ResponsivePhoto } from "@/components/content/responsive-photo";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -9,16 +10,20 @@ import { Section } from "@/components/ui/section";
 import { fetchConnections, getCategoriesHeading, type Connection } from "@/lib/content/connections";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
+import { fetchPageListing } from "@/lib/site/page-listing";
 import { getCallHref, getDisplayPhone } from "@/lib/site/phone";
 
 // Referral partners from Admin → Connections (navigation-reconciliation #5; owner-approved
 // design with partner photos, 2026-09-26, docs/cwr-site-review-round-plan.md Step 8).
+// While an owner has the page hidden, its address sends visitors to Resources with a temporary
+// redirect, so search engines keep it for when it comes back (docs/cwr-connections-page-switch-plan.md).
 
 export const metadata: Metadata = {
   title: "Connections",
   description: "Trusted local professionals Charlie Ward Realty refers clients to.",
 };
 
+const HIDDEN_PAGE_DESTINATION = "/resources";
 const PORTRAIT_SIZES = "(min-width: 1024px) 416px, (min-width: 768px) 50vw, 100vw";
 const LINK_CLASS = "flex min-h-11 items-center gap-2 font-semibold underline underline-offset-4";
 
@@ -94,6 +99,8 @@ function ReferralBox() {
 }
 
 export default async function ConnectionsPage() {
+  const { isConnectionsPageVisible } = await fetchPageListing();
+  if (!isConnectionsPageVisible) redirect(HIDDEN_PAGE_DESTINATION);
   const connections = await fetchConnectionsOrEmpty();
   return (
     <>

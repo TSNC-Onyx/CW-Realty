@@ -9,7 +9,7 @@ import { getButtonClassName } from "@/components/ui/button-link";
 import { Logo } from "@/components/layout/logo";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
-import { MENU_SECTIONS, SITE_FOOTER_ID, isCurrentPath, isCurrentSection, type NavLink, type NavSection } from "@/lib/site/navigation";
+import { SITE_FOOTER_ID, isCurrentPath, isCurrentSection, type NavLink, type NavSection } from "@/lib/site/navigation";
 
 // Style §11.9 mobile menu. A native modal <dialog> traps focus, closes on Escape,
 // and returns focus to the Menu button; sub-pages open with native <details>.
@@ -85,7 +85,7 @@ function ContactButtons({ contact, onNavigate }: { contact: ContactLinks | null;
   );
 }
 
-export function MobileMenu({ contact }: { contact: ContactLinks | null }) {
+export function MobileMenu({ contact, sections }: { contact: ContactLinks | null; sections: NavSection[] }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pathname = usePathname();
   // Without JavaScript the link jumps to the footer menu; with it, the dialog opens.
@@ -117,7 +117,7 @@ export function MobileMenu({ contact }: { contact: ContactLinks | null }) {
           </div>
           <nav aria-label="Main" className="flex-1 overflow-y-auto">
             <ul>
-              {MENU_SECTIONS.map((section) => (
+              {sections.map((section) => (
                 <MenuSection key={section.label} section={section} pathname={pathname} onNavigate={handleClose} />
               ))}
             </ul>

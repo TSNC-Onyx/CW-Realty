@@ -44,7 +44,7 @@ async function fetchBrokerOrNull(): Promise<TeamMember | null> {
 function BrokerByline({ broker }: { broker: TeamMember | null }) {
   return (
     <div className="profile-byline grid items-center gap-4 md:grid-cols-1 md:items-start md:gap-3">
-      <ResponsivePhoto photo={broker?.photo ?? null} ratio="portrait" sizes={PORTRAIT_SIZES} isPriority />
+      <ResponsivePhoto photo={broker?.photo ?? null} ratio="portrait" shape="arch" sizes={PORTRAIT_SIZES} isPriority />
       <div>
         <Link href={`/team/${BROKER_SLUG}`} className="type-team-name inline-flex min-h-11 items-center underline-offset-4 hover:underline">
           {broker?.fullName ?? BROKER_FALLBACK.fullName}
@@ -103,10 +103,11 @@ function getCarouselPlans(section: PlanSection): CarouselPlan[] {
   return section.plans.map((plan) => ({ slug: plan.slug, name: plan.name, listPrice: getListPrice(plan), isRecommended: plan.tone === "dark", isWide: plan.isWide ?? false }));
 }
 
-function PlansSection({ section }: { section: PlanSection }) {
+// Plan sections after the first share the page background, so they follow on instead of doubling the padding.
+function PlansSection({ section, isFollowOn }: { section: PlanSection; isFollowOn: boolean }) {
   const headingId = `${section.id}-heading`;
   return (
-    <Section id={section.id} labelledBy={headingId}>
+    <Section id={section.id} labelledBy={headingId} isFollowOn={isFollowOn}>
       <h2 id={headingId} className="type-h2 mb-4">{section.heading}</h2>
       <p className="mb-6 max-w-prose md:mb-10">{section.lead}</p>
       <PlanCarousel
@@ -145,7 +146,7 @@ export default async function SelectedServicesPage() {
   return (
     <>
       <Intro broker={broker} />
-      {PLAN_SECTIONS.map((section) => <PlansSection key={section.id} section={section} />)}
+      {PLAN_SECTIONS.map((section, index) => <PlansSection key={section.id} section={section} isFollowOn={index > 0} />)}
       <AgreementNote />
       <Section tone="soft" id="request" labelledBy="request-heading">
         <h2 id="request-heading" className="type-h2 mb-4">Get started</h2>

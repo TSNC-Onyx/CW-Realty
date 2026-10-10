@@ -4,9 +4,11 @@ import { ArrowRight, CircleAlert, CircleCheck, Save } from "lucide-react";
 import { useEffect, useState, useTransition } from "react";
 
 import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft-state";
+import { SavedStateLine } from "@/components/admin/saved-state";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { saveQuickAnswersAction } from "@/lib/admin/chat-policy/actions";
 import type { QuickResult } from "@/lib/admin/quick-result";
+import { getSavedState } from "@/lib/admin/saved-state";
 import type { GuidedLink } from "@/lib/chat/guided-tree";
 import { getSingleLineAnswer } from "@/lib/chat/quick-answer-sections";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -56,12 +58,17 @@ function AnswerPreview({ row, text }: { row: QuickAnswerRow; text: string }) {
 
 function AnswerField({ row, text, onChange }: { row: QuickAnswerRow; text: string; onChange: (text: string) => void }) {
   const fieldId = `quick-answer-${row.nodeId}`;
+  // Saved answers are one line, so spacing and line breaks typed here don't count as changes.
+  const savedState = getSavedState({ current: getSingleLineAnswer(text), saved: getSingleLineAnswer(row.text) });
   return (
     <li className="border-t border-line py-4">
       <label htmlFor={fieldId} className="block font-bold">{row.label}</label>
       <p className="type-small mb-2 text-muted">{row.link ? `Links to “${row.link.label}” (${row.link.href})` : "No page link"}</p>
       <textarea id={fieldId} value={text} maxLength={MAX_ANSWER_LENGTH} rows={2} onChange={(event) => onChange(event.target.value)} aria-describedby={`${fieldId}-status`} className="field-input min-h-20" />
-      <div id={`${fieldId}-status`}><AnswerStatus text={text} /></div>
+      <div id={`${fieldId}-status`}>
+        <AnswerStatus text={text} />
+        <SavedStateLine id={`${fieldId}-saved`} state={savedState} />
+      </div>
       <AnswerPreview row={row} text={text} />
     </li>
   );

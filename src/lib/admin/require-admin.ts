@@ -3,7 +3,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH, ADMIN_MFA_PATH, ADMIN_MFA_SETUP_PATH } from "@/lib/admin/paths";
+import { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH } from "@/lib/admin/paths";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
 import { setActionActor } from "@/lib/observability/action-context";
 import { getAuthErrorCode, isAuthOutage } from "@/lib/observability/auth-outage";
@@ -15,8 +15,9 @@ import { createSessionClient, type SessionClient } from "@/lib/supabase/server-c
 import { CWR_TENANT_SLUG } from "@/lib/supabase/public-client";
 
 // Service-layer check for every admin page and server action (Infra §2 "tenant isolation
-// in both the service layer and the database"): signed in, authenticator-verified
-// (aal2), a member of the CWR tenant, and holding one of the allowed roles.
+// in both the service layer and the database"): signed in with email and password (no
+// authenticator code since 2026-10-09, docs/cwr-password-only-sign-in-plan.md), a member of
+// the CWR tenant, and holding one of the allowed roles.
 
 export { ALL_ROLES, EDITOR_ROLES, OWNER_ROLES, type AdminRole } from "@/lib/admin/require-admin-roles";
 
@@ -37,18 +38,11 @@ export class AdminAccessError extends Error {
 
 const ACCESS_CHECK_MESSAGE = "We couldn't check your access right now. Try again in a moment.";
 
-// A failed check is never mistaken for "no access" or "set up your authenticator": it is
+// A failed check is never mistaken for "no access" or "signed out": it is
 // recorded as critical and shown with a reference code (docs/cwr-error-tracking-plan.md).
 async function throwAccessCheckProblem({ stage, code }: { stage: ProblemStage; code: string }): Promise<never> {
   const result = await reportProblem({ action: "auth.access_check", stage, severity: "critical", code, shownMessage: ACCESS_CHECK_MESSAGE });
   throw new ReportedProblemError(`${ACCESS_CHECK_MESSAGE}${getReferenceSuffix({ reference: result.reference, isStored: result.stored === true })}`, { reference: result.reference });
-}
-
-async function getMfaPath(supabase: SessionClient): Promise<string> {
-  const { data, error } = await supabase.auth.mfa.listFactors();
-  if (error) return throwAccessCheckProblem({ stage: "auth", code: getAuthErrorCode(error) });
-  const hasVerifiedFactor = data.totp.some((factor) => factor.status === "verified");
-  return hasVerifiedFactor ? ADMIN_MFA_PATH : ADMIN_MFA_SETUP_PATH;
 }
 
 async function fetchMembership(supabase: SessionClient, userId: string) {
@@ -73,7 +67,6 @@ const fetchAdminContext = cache(async (): Promise<AdminContext> => {
   const supabase = await createSessionClient();
   const claims = await fetchClaims(supabase);
   if (!claims) redirect(ADMIN_LOGIN_PATH);
-  if (claims.aal !== "aal2") redirect(await getMfaPath(supabase));
   const membership = await fetchMembership(supabase, claims.sub);
   if (!membership) redirect(`${ADMIN_LOGIN_PATH}?reason=no-access`);
   return {
@@ -85,7 +78,7 @@ const fetchAdminContext = cache(async (): Promise<AdminContext> => {
   };
 });
 
-/** Redirects to sign-in or MFA when needed; throws AdminAccessError for the wrong role. */
+/** Redirects to sign-in when needed; throws AdminAccessError for the wrong role. */
 export async function requireAdmin(allowedRoles: AdminRole[]): Promise<AdminContext> {
   const context = await fetchAdminContext();
   setActionActor({ tenantId: context.tenantId, actorId: context.userId, actorRole: context.role });

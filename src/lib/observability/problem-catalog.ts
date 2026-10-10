@@ -36,9 +36,11 @@ export const PROBLEM_SECTIONS = {
 
 export const PROBLEM_ACTIONS = {
   "auth.sign_in": { label: "Sign in", fn: "signInAction", spikeCodes: ["invalid_credentials"] },
-  "auth.verify_code": { label: "Enter authenticator code", fn: "verifyMfaAction", spikeCodes: ["mfa_verification_failed"] },
-  "auth.start_code_setup": { label: "Start authenticator setup", fn: "startMfaSetupAction" },
-  "auth.confirm_code_setup": { label: "Finish authenticator setup", fn: "confirmMfaSetupAction" },
+  // Authenticator-code steps, retired 2026-10-09 (docs/cwr-password-only-sign-in-plan.md); kept so
+  // problems recorded before then still show their labels.
+  "auth.verify_code": { label: "Enter authenticator code (retired)", spikeCodes: ["mfa_verification_failed"] },
+  "auth.start_code_setup": { label: "Start authenticator setup (retired)" },
+  "auth.confirm_code_setup": { label: "Finish authenticator setup (retired)" },
   "auth.request_password_reset": { label: "Ask for a password reset", fn: "requestPasswordResetAction" },
   "auth.set_password": { label: "Set a new password", fn: "setPasswordAction" },
   "auth.open_email_link": { label: "Open an invite or reset link" },
@@ -86,6 +88,7 @@ export const PROBLEM_ACTIONS = {
   "connections.remove_photo": { label: "Remove a connection's photo", fn: "removeConnectionPhotoAction" },
   "connections.move": { label: "Reorder connections", fn: "moveConnectionAction" },
   "connections.set_visibility": { label: "Show or hide a connection", fn: "setConnectionVisibilityAction" },
+  "connections.set_page_visibility": { label: "Show or hide the Connections page", fn: "setConnectionsPageVisibilityAction" },
 
   "homework.load": { label: "Load Homework" },
   "homework.create_video": { label: "Add a Homework video", fn: "createHomeworkVideoAction" },
@@ -128,7 +131,7 @@ export const PROBLEM_ACTIONS = {
   "users.change_role": { label: "Change a user's role", fn: "changeRoleAction" },
   "users.remove_access": { label: "Remove a user's access", fn: "removeAccessAction" },
   "users.restore_access": { label: "Undo removing a user's access", fn: "restoreAccessAction" },
-  "users.reset_sign_in_codes": { label: "Reset a user's sign-in codes", fn: "resetSignInCodesAction" },
+  "users.reset_sign_in_codes": { label: "Reset a user's sign-in codes (retired 2026-10-09)" },
 
   "chat_policy.load": { label: "Load the chat policy" },
   "chat_policy.save_draft": { label: "Save the chat policy draft", fn: "savePolicyDraftAction" },

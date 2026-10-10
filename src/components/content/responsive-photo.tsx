@@ -1,4 +1,4 @@
-import { PhotoPlaceholder, type PhotoRatio } from "@/components/ui/photo-placeholder";
+import { PhotoPlaceholder, SHAPE_CLASSES, type PhotoRatio, type PhotoShape } from "@/components/ui/photo-placeholder";
 import { getPhotoSources, getSitePhotoSources, type PhotoSources } from "@/lib/content/media";
 import type { SitePhoto } from "@/lib/content/site-photos";
 
@@ -60,20 +60,22 @@ export type ResponsivePhotoProps = {
   /** Replaces the ratio when the frame sets its own size (the full-screen viewer). */
   frameClassName?: string;
   fit?: PhotoFit;
+  /** Applies to the photo and its placeholder alike, so the shape never changes while loading. */
+  shape?: PhotoShape;
   /** The file didn't load (missing or blocked); the caller shows the placeholder instead. */
   onError?: () => void;
 };
 
-export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "", frameClassName, fit, onError }: ResponsivePhotoProps) {
+export function ResponsivePhoto({ photo, ratio, sizes, isPriority = false, imageClassName = "", frameClassName, fit, shape = "rect", onError }: ResponsivePhotoProps) {
   const sources = photo ? getPhotoSources({ folder: photo.folder, originalWidth: photo.width }) : null;
-  if (!photo || !sources) return <PhotoPlaceholder ratio={ratio} />;
+  if (!photo || !sources) return <PhotoPlaceholder ratio={ratio} shape={shape} />;
   return (
     <Picture
       photo={photo}
       sources={sources}
       sizes={sizes}
       isPriority={isPriority}
-      frameClassName={frameClassName ?? RATIO_CLASSES[ratio]}
+      frameClassName={`${frameClassName ?? RATIO_CLASSES[ratio]} ${SHAPE_CLASSES[shape]}`}
       imageClassName={imageClassName}
       fit={fit}
       onError={onError}
