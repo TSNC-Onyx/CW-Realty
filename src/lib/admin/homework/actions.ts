@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
+import { getCreatedState, getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
 import { getFieldErrorsFromZod } from "@/lib/admin/auth-schemas";
 import { getDatabaseErrorMessage } from "@/lib/admin/database-errors";
 import { downloadDetailsSchema, getDownloadRow, getVideoRow, videoDetailsSchema } from "@/lib/admin/homework/homework-schema";
@@ -77,7 +77,8 @@ export async function createHomeworkVideoAction(_state: ActionState, formData: F
     const created = await insertItem(admin, { key: values.idempotencyKey ?? "", row: { kind: "video", ...getVideoRow(parsed.data), is_visible: false } });
     if ("error" in created) return getErrorState({ message: getDatabaseErrorMessage(created.error), values });
     refreshHomeworkPages();
-    redirect(`${HOMEWORK_ADMIN_PATH}/${created.id}?created=1`);
+    // The page uploads the chosen files to the new item, then opens it.
+    return getCreatedState("Saved.", created.id);
   });
 }
 

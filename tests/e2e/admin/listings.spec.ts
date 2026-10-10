@@ -4,7 +4,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully } from "./admin-helpers";
 
-// Listings editor (Admin §2): draft → photo → preview → publish → status → trash.
+// Listings editor (Admin §2): draft → photo → preview → publish → status → trash, and photos
+// added with the listing in the order chosen (docs/admin-upload-layout-plan.md).
 
 const TEST_PHOTO = path.join(__dirname, "..", "..", "fixtures", "test-house.jpg");
 const PHOTO_TIMEOUT_MS = 90_000;
@@ -34,9 +35,9 @@ test("a listing can't be published without a photo, then goes live with one", as
   await expect(page.getByRole("button", { name: "Publish this listing to the website" })).toBeDisabled();
 
   // Act
-  await page.getByLabel("Choose a photo").setInputFiles(TEST_PHOTO);
-  await page.getByLabel("Describe the photo").fill("Front of the test home");
-  await page.getByRole("button", { name: "Add photo" }).click();
+  await page.getByLabel("Choose photos").setInputFiles(TEST_PHOTO);
+  await page.getByLabel("Describe the main photo").fill("Front of the test home");
+  await page.getByRole("button", { name: "Upload 1 photo" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Photo added." })).toBeVisible({ timeout: PHOTO_TIMEOUT_MS });
   await page.getByRole("button", { name: "Publish this listing to the website" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Published." })).toBeVisible();
@@ -108,4 +109,70 @@ test("moving a listing to trash can be undone", async ({ page }) => {
 
   // Assert
   await expect(page.getByRole("button", { name: `Move ${streetAddress} to trash` })).toBeVisible();
+});
+
+test("photos chosen on Add listing upload with it, in the order chosen, and can be reordered", async ({ page }) => {
+  // Arrange
+  test.setTimeout(PHOTO_TIMEOUT_MS * 2 + 60_000);
+  const admin = await createTestAdmin("manager");
+  await signInFully(page, admin);
+  await page.goto("/admin/listings/new");
+  await page.getByLabel("Street address").fill(`${Date.now() % 100000} Photo Path`);
+  await page.getByLabel("City").fill("Greensboro");
+  await page.getByLabel("ZIP code").fill("27401");
+  await page.getByLabel("Price").fill("299,000");
+  await page.getByLabel("About this property").fill("A test home with two photos.");
+  await page.getByLabel("Choose photos").setInputFiles([TEST_PHOTO, TEST_PHOTO]);
+  await page.getByLabel("Describe the main photo").fill("Front of the test home");
+  await page.getByLabel("Describe the photo 2").fill("Back yard of the test home");
+
+  // Act
+  await page.getByRole("button", { name: "Save as draft" }).click();
+  await expect(page.getByText("Listing saved as a draft")).toBeVisible({ timeout: PHOTO_TIMEOUT_MS * 2 });
+  await page.getByRole("button", { name: "Move photo 2 earlier" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Moved up." })).toBeVisible();
+
+  // Assert
+  await expect(page.getByLabel("Describe the main photo")).toHaveValue("Back yard of the test home");
+  await expect(page.getByLabel("Describe the photo 2")).toHaveValue("Front of the test home");
+});
+
+test("dragging a listing photo onto another moves it there", async ({ page }) => {
+  // Arrange
+  test.setTimeout(PHOTO_TIMEOUT_MS * 2 + 60_000);
+  const admin = await createTestAdmin("manager");
+  await signInFully(page, admin);
+  await createDraftListing(page, `${Date.now() % 100000} Drag Ct`);
+  await page.getByLabel("Choose photos").setInputFiles([TEST_PHOTO, TEST_PHOTO, TEST_PHOTO]);
+  await page.getByLabel("Describe the main photo").fill("First photo");
+  await page.getByLabel("Describe the new photo 2").fill("Second photo");
+  await page.getByLabel("Describe the new photo 3").fill("Third photo");
+  await page.getByRole("button", { name: "Upload 3 photos" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "3 photos added." })).toBeVisible({ timeout: PHOTO_TIMEOUT_MS * 2 });
+  const handles = page.getByTitle("Drag to change the order");
+
+  // Act
+  await handles.nth(2).dragTo(handles.nth(0));
+
+  // Assert
+  await expect(page.getByRole("status").filter({ hasText: "Photo moved." })).toBeVisible();
+  await expect(page.getByLabel("Describe the main photo")).toHaveValue("Third photo");
+  await expect(page.getByLabel("Describe the photo 2")).toHaveValue("First photo");
+  await expect(page.getByLabel("Describe the photo 3")).toHaveValue("Second photo");
+});
+
+test("Add listing asks for a description of every chosen photo before saving", async ({ page }) => {
+  // Arrange
+  const admin = await createTestAdmin("manager");
+  await signInFully(page, admin);
+  await page.goto("/admin/listings/new");
+  await page.getByLabel("Street address").fill("2 Describe St");
+  await page.getByLabel("Choose photos").setInputFiles(TEST_PHOTO);
+
+  // Act
+  await page.getByRole("button", { name: "Save as draft" }).click();
+
+  // Assert
+  await expect(page.getByLabel("Describe the main photo")).toBeFocused();
+  await expect(page).toHaveURL(/\/admin\/listings\/new$/);
 });

@@ -3,10 +3,12 @@ import path from "node:path";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
-import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully } from "./admin-helpers";
+import { HAS_ADMIN_DATABASE, createTestAdmin, getServiceClient, signInFully } from "./admin-helpers";
 
 // Admin → Homework end to end (owner approval 2026-09-27): add a guide and upload its file,
 // add a link, add a video with captions, refuse the wrong file type, and pass WCAG 2.2 AA.
+// Add video takes the video itself (docs/admin-upload-layout-plan.md); the cover tests start
+// from a video saved without its file (as after a failed upload) and upload it on the Edit page.
 
 const FIXTURES = path.join(__dirname, "..", "..", "fixtures");
 const TEST_GUIDE = path.join(FIXTURES, "test-guide.pdf");
@@ -26,10 +28,11 @@ const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 test.skip(!HAS_ADMIN_DATABASE, "Needs the local database and service-role key");
 
 async function addVideo(page: Page, title: string): Promise<void> {
-  await page.goto("/admin/homework/new-video");
-  await page.getByLabel("Title").fill(title);
-  await page.getByRole("button", { name: "Add video" }).click();
-  await expect(page.getByText("Video added")).toBeVisible();
+  const client = getServiceClient();
+  const { data: tenant } = await client.from("tenants").select("id").eq("slug", "cwr").single();
+  const { data: item, error } = await client.from("homework_items").insert({ tenant_id: tenant?.id, kind: "video", title, description: "", is_visible: false, sort_order: 9999 }).select("id").single();
+  if (error || !item) throw new Error(`Could not add the video: ${error?.message}`);
+  await page.goto(`/admin/homework/${item.id as string}`);
 }
 
 async function uploadVideo(page: Page, video: string): Promise<void> {
@@ -131,11 +134,9 @@ test("a video shows once uploaded, and captions clear the warning", async ({ pag
   const title = `Test video ${Date.now()}`;
   await page.goto("/admin/homework/new-video");
   await page.getByLabel("Title").fill(title);
-  await page.getByRole("button", { name: "Add video" }).click();
-  await expect(page.getByText("Video added")).toBeVisible();
   await page.getByLabel("Choose a video").setInputFiles(TEST_VIDEO);
-  await page.getByRole("button", { name: "Upload video" }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Uploaded and shown on the Homework page." })).toBeVisible({ timeout: UPLOAD_TIMEOUT_MS });
+  await page.getByRole("button", { name: "Add video" }).click();
+  await expect(page.getByText("It shows on the Homework page now.")).toBeVisible({ timeout: UPLOAD_TIMEOUT_MS });
   await page.goto("/admin/homework");
   const listRow = page.getByRole("listitem").filter({ hasText: title });
   await expect(listRow.getByText("No captions yet")).toBeVisible();
@@ -299,4 +300,39 @@ test("an edit screen with an automatic cover passes WCAG 2.2 AA", async ({ page 
 
   // Assert
   expect(results.violations).toEqual([]);
+});
+
+test("Add video uploads the video, its own cover, and its captions in one step", async ({ page }) => {
+  // Arrange
+  test.setTimeout(UPLOAD_TIMEOUT_MS * 2);
+  await signInFully(page, await createTestAdmin("manager"));
+  const title = `One step video ${Date.now()}`;
+  await page.goto("/admin/homework/new-video");
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Choose a video").setInputFiles(COVER_NORMAL_VIDEO);
+  await page.getByLabel("Choose a cover picture").setInputFiles(TEST_PHOTO);
+  await page.getByLabel("Describe the photo").fill("Title card for the one step video");
+  await page.getByLabel("Choose a captions file").setInputFiles(TEST_CAPTIONS);
+
+  // Act
+  await page.getByRole("button", { name: "Add video" }).click();
+
+  // Assert
+  await expect(page.getByText("It shows on the Homework page now.")).toBeVisible({ timeout: UPLOAD_TIMEOUT_MS * 2 });
+  await expect(page.getByRole("img", { name: "Title card for the one step video" })).toBeVisible();
+  await expect(page.getByText("Captions added", { exact: true })).toBeVisible();
+});
+
+test("Add video asks for the video before saving", async ({ page }) => {
+  // Arrange
+  await signInFully(page, await createTestAdmin("manager"));
+  await page.goto("/admin/homework/new-video");
+  await page.getByLabel("Title").fill(`No file video ${Date.now()}`);
+
+  // Act
+  await page.getByRole("button", { name: "Add video" }).click();
+
+  // Assert
+  await expect(page.getByText("Choose the video to upload").first()).toBeVisible();
+  await expect(page).toHaveURL(/\/admin\/homework\/new-video$/);
 });

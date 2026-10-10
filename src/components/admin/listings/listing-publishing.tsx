@@ -30,14 +30,16 @@ function PublishButton({ listingId, publishState, photoCount }: Omit<ListingPubl
 // Status and publishing go through the workflow engine (Infra §4); preview before publish (Admin §1).
 export function ListingPublishing({ listingId, status, publishState, photoCount }: ListingPublishingProps) {
   return (
-    <div className="grid gap-4">
-      <p>
-        <span className="font-bold">On the website:</span> {publishState === "live" ? "Yes — visitors can see it." : "No — this is a draft."}
-        <br />
-        <span className="font-bold">Status:</span> {LISTING_STATUS_LABELS[status]}
-      </p>
-      {publishState === "draft" && photoCount === 0 && <p className="type-small text-muted">Add at least one photo before publishing.</p>}
-      <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-4 border border-line bg-surface p-4">
+      <div>
+        <p>
+          <span className="font-bold">On the website:</span> {publishState === "live" ? "Yes — visitors can see it." : "No — this is a draft."}
+          <br />
+          <span className="font-bold">Status:</span> {LISTING_STATUS_LABELS[status]}
+        </p>
+        {publishState === "draft" && photoCount === 0 && <p className="type-small text-muted">Add at least one photo before publishing.</p>}
+      </div>
+      <div className="flex flex-wrap gap-2 min-[1280px]:ml-auto">
         <ButtonLink href={`/admin/listings/${listingId}/preview`} size="s" variant="secondary">
           <Eye aria-hidden size={ICON_SIZE.button} />
           Preview

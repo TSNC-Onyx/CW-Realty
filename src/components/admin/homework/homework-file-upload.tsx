@@ -27,7 +27,7 @@ type HomeworkFileUploadProps = {
   isMakingCover?: boolean;
 };
 
-function getStageText(progress: HomeworkUploadProgress): string {
+export function getStageText(progress: HomeworkUploadProgress): string {
   if (progress.stage === "checking") return "Checking the file…";
   if (progress.stage === "uploading") return `Uploading… ${Math.round(progress.share * PERCENT)}%`;
   if (progress.stage === "saving") return "Saving…";
@@ -35,7 +35,7 @@ function getStageText(progress: HomeworkUploadProgress): string {
   return "";
 }
 
-function getAcceptList(purpose: UploadPurpose): string {
+export function getAcceptList(purpose: UploadPurpose): string {
   return UPLOAD_FORMATS[purpose].flatMap((format) => [format.mime, ...format.extensions.map((extension) => `.${extension}`)]).join(",");
 }
 
