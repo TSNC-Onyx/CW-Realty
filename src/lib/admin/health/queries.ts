@@ -12,8 +12,11 @@ const SERIOUS_SEVERITIES = ["error", "critical"];
 // Website visitors' problems are counted on their own line, so the team's figure keeps its meaning.
 const VISITOR_ORIGINS = ["server_visitor", "browser_visitor"];
 
-/** total and serious: the team's own problems; serious = errors or worse. visitors: website visitors' problems. */
-export type ProblemCounts = { total: number; serious: number; visitors: number };
+/**
+ * total and serious: the team's own problems; serious = errors or worse. visitors: website
+ * visitors' problems. groups: how many distinct problems (team and visitors) happened.
+ */
+export type ProblemCounts = { total: number; serious: number; visitors: number; groups: number };
 
 /** problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4). */
 export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemCounts: LoadResult<ProblemCounts>; problemRecipientCount: LoadResult<number> };
@@ -27,10 +30,11 @@ async function fetchProblemCounts({ supabase, tenantId }: AdminContext, now: Dat
   const dayAgo = new Date(now.getTime() - DAY_MS).toISOString();
   const countSince = () => supabase.from("problem_events").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("occurred_at", dayAgo);
   const countTeamSince = () => countSince().not("origin", "in", `(${VISITOR_ORIGINS.join(",")})`);
-  const [all, serious, visitors] = await Promise.all([countTeamSince(), countTeamSince().in("severity", SERIOUS_SEVERITIES), countSince().in("origin", VISITOR_ORIGINS)]);
-  const error = all.error ?? serious.error ?? visitors.error;
+  const countGroups = () => supabase.from("problem_groups").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("last_seen_at", dayAgo);
+  const [all, serious, visitors, groups] = await Promise.all([countTeamSince(), countTeamSince().in("severity", SERIOUS_SEVERITIES), countSince().in("origin", VISITOR_ORIGINS), countGroups()]);
+  const error = all.error ?? serious.error ?? visitors.error ?? groups.error;
   if (error) return getLoadFailure("problems in the last 24 hours", error);
-  return getLoaded({ total: all.count ?? 0, serious: serious.count ?? 0, visitors: visitors.count ?? 0 });
+  return getLoaded({ total: all.count ?? 0, serious: serious.count ?? 0, visitors: visitors.count ?? 0, groups: groups.count ?? 0 });
 }
 
 async function fetchProblemRecipientCount({ supabase, tenantId }: AdminContext): Promise<LoadResult<number>> {

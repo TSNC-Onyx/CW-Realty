@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCappedSeverity, getVisitorBrowserCode, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
+import { getCappedSeverity, getVisitorBrowserCode, getVisitorDigest, getVisitorStackFrames, isBrowserReportable, isSameSiteOrigin, isVisitorBrowserAction } from "@/lib/observability/problem-report-rules";
 
 describe("browser problem report rules", () => {
   it.each([
@@ -72,5 +72,56 @@ describe("browser problem report rules", () => {
 
     // Assert
     expect(code).toBe("other");
+  });
+});
+
+describe("what a website visitor's report may carry", () => {
+  it("keeps only code locations from our own built code, without query strings", () => {
+    // Arrange
+    const detail = [
+      "TypeError: Nothing found for jo@example.com",
+      "    at a (https://www.example.com/_next/static/chunks/0f3a.js?v=1:1:200)",
+      "b@https://www.example.com/_next/static/chunks/9c1d.js:3:44",
+      "    at c (chrome-extension://abc/x.js:1:1)",
+      "my phone is 555 123 4567",
+    ].join("\n");
+
+    // Act
+    const frames = getVisitorStackFrames(detail);
+
+    // Assert
+    expect(frames).toBe("TypeError\nat a (https://www.example.com/_next/static/chunks/0f3a.js:1:200)\nb@https://www.example.com/_next/static/chunks/9c1d.js:3:44");
+  });
+
+  it("keeps nothing when there are no code locations", () => {
+    // Act
+    const frames = getVisitorStackFrames("Something the visitor typed");
+
+    // Assert
+    expect(frames).toBeUndefined();
+  });
+
+  it("keeps a digest only for a page crash, where it links to the server's record", () => {
+    // Act
+    const digests = [getVisitorDigest({ action: "site.page_crash", digest: "123" }), getVisitorDigest({ action: "site.contact_form", digest: "123" })];
+
+    // Assert
+    expect(digests).toEqual(["123", undefined]);
+  });
+
+  it("lets a visitor's browser report a page crash and an uncaught error", () => {
+    // Act
+    const answers = [isVisitorBrowserAction("site.page_crash"), isVisitorBrowserAction("site.browser_error")];
+
+    // Assert
+    expect(answers).toEqual([true, true]);
+  });
+
+  it("keeps the error's kind but not its message when there are no code locations", () => {
+    // Act
+    const frames = getVisitorStackFrames("TypeError: Nothing found for jo@example.com");
+
+    // Assert
+    expect(frames).toBe("TypeError");
   });
 });

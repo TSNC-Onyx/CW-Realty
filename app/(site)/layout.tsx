@@ -1,4 +1,5 @@
 import { ChatLauncher } from "@/components/chat/chat-launcher";
+import { VisitorProblemReporter } from "@/components/content/visitor-problem-reporter";
 import { ActionBar } from "@/components/layout/action-bar";
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -10,13 +11,15 @@ import { fetchPageListing } from "@/lib/site/page-listing";
 import { fetchSiteSettings } from "@/lib/site/site-settings";
 
 // Public site frame: skip link, header, footer, the phone Call/Text/Chat bar, the chat
-// assistant launcher (its panel loads only when opened), and the cookie choices (Phase 6).
+// assistant launcher (its panel loads only when opened), the cookie choices (Phase 6), and
+// the error watcher (docs/error-logging-a-grade-plan.md, Phase B).
 export default async function SiteLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const [settings, listing] = await Promise.all([fetchSiteSettings(), fetchPageListing()]);
   const contact = getContactLinks(settings);
   const menuSections = getMenuSections(listing);
   return (
     <>
+      <VisitorProblemReporter />
       <SkipLink />
       {/* Early in the page so keyboard users reach the cookie choices right after the skip link. */}
       <Tracking />

@@ -10,6 +10,7 @@
     "dev": "next dev",
     "prebuild": "node scripts/build-photo-encoder.mjs",
     "build": "next build",
+    "postbuild": "node scripts/hide-browser-source-maps.mjs",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
@@ -29,10 +30,14 @@
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "upload": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
-    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "postinstall": "node scripts/patch-opennext-sourcemap.mjs",
+    "release:build": "node scripts/patch-opennext-sourcemap.mjs --strict && opennextjs-cloudflare build && node scripts/store-source-maps.mjs",
+    "problem:trace": "node --experimental-strip-types scripts/trace-problem.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.128.0",
+    "@jridgewell/trace-mapping": "0.3.31",
     "@jsquash/avif": "2.1.1",
     "@jsquash/webp": "1.5.0",
     "@marsidev/react-turnstile": "1.6.1",

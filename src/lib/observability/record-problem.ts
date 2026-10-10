@@ -1,10 +1,14 @@
+import { getGroupKey } from "@/lib/observability/group-key";
+import { queueProblemRetry, type ProblemRetryQueue } from "@/lib/observability/problem-retry";
 import { getReference } from "@/lib/observability/reference";
-import { getPathOnly, getScrubbedText } from "@/lib/observability/scrub";
+import { getPathOnly, getScrubbedDetail, getScrubbedText } from "@/lib/observability/scrub";
 import type { ProblemEvent, ProblemRecordResult } from "@/lib/observability/problem-types";
 
 // Records one problem: a structured server-log line first (Workers Observability always has
-// it), then the problem log in the database. Free of Next.js imports so the Worker's queue
-// and scheduled handlers can use it. Never throws, and never reports its own failures.
+// it), then the problem log in the database. A write that fails or is slow is handed to the
+// queue and written later (docs/error-logging-a-grade-plan.md, Phase A). Free of Next.js
+// imports so the Worker's queue and scheduled handlers can use it. Never throws, and never
+// reports its own failures.
 
 /** The part of a service-role Supabase client this needs. */
 export type ProblemDatabase = {
@@ -12,6 +16,8 @@ export type ProblemDatabase = {
 };
 
 type StoredResponse = { reference: string | null; stored: boolean; suppressed: boolean };
+
+type StoreOptions = { db: ProblemDatabase; payload: Record<string, unknown>; timeoutMs: number; retryQueue: ProblemRetryQueue | null };
 
 const MAX_SHOWN_MESSAGE = 300;
 const MAX_DETAIL = 2000;
@@ -37,7 +43,7 @@ function getRpcPayload(event: ProblemEvent, { id, reference }: { id: string; ref
     severity: event.severity,
     code: event.code?.slice(0, MAX_CODE) ?? null,
     shown_message: getScrubbedText(event.shownMessage, MAX_SHOWN_MESSAGE),
-    detail: getScrubbedText(event.detail, MAX_DETAIL),
+    detail: getScrubbedDetail(event.detail, MAX_DETAIL),
     actor_id: event.actorId ?? null,
     actor_role: event.actorRole ?? null,
     record_table: event.recordTable ?? null,
@@ -46,6 +52,7 @@ function getRpcPayload(event: ProblemEvent, { id, reference }: { id: string; ref
     page_path: getPathOnly(event.pagePath),
     release: event.release ?? null,
     digest: event.digest ?? null,
+    group_key: getGroupKey(event),
   };
 }
 
@@ -69,7 +76,7 @@ async function markLogUnhealthy({ db, tenantId, error, timeoutMs }: { db: Proble
   await withTimeout(mark, timeoutMs).catch(() => undefined);
 }
 
-async function storeProblem({ db, payload, timeoutMs }: { db: ProblemDatabase; payload: Record<string, unknown>; timeoutMs: number }): Promise<ProblemRecordResult> {
+async function storeProblem({ db, payload, timeoutMs, retryQueue }: StoreOptions): Promise<ProblemRecordResult> {
   const reference = payload.reference as string;
   const startedAtMs = Date.now();
   try {
@@ -78,7 +85,9 @@ async function storeProblem({ db, payload, timeoutMs }: { db: ProblemDatabase; p
     const stored = data as StoredResponse;
     return { reference: stored.reference ?? reference, stored: stored.stored, isSuppressed: stored.suppressed };
   } catch (error) {
-    writeLogLine(payload, error instanceof ProblemWriteTimeoutError ? "problem_log_write_slow" : "problem_log_write_failed");
+    const isQueued = await queueProblemRetry({ queue: retryQueue, payload });
+    const outcome = error instanceof ProblemWriteTimeoutError ? "problem_log_write_slow" : "problem_log_write_failed";
+    writeLogLine(payload, isQueued ? `${outcome}_queued` : outcome);
     // The health mark only uses what is left of the time limit, so the whole wait stays within it.
     const remainingMs = Math.min(HEALTH_MARK_TIMEOUT_MS, timeoutMs - (Date.now() - startedAtMs));
     if (!(error instanceof ProblemWriteTimeoutError) && remainingMs > 0) await markLogUnhealthy({ db, tenantId: (payload.tenant_id as string | null) ?? null, error, timeoutMs: remainingMs });
@@ -86,14 +95,17 @@ async function storeProblem({ db, payload, timeoutMs }: { db: ProblemDatabase; p
   }
 }
 
-/** db is null when the service key is missing: the problem then reaches the server log only. */
+/**
+ * db is null when the service key is missing: the problem then reaches the server log only.
+ * retryQueue keeps a problem the database couldn't take; null where there is no queue.
+ */
 export async function recordProblem(
   db: ProblemDatabase | null,
   event: ProblemEvent,
-  { id = crypto.randomUUID(), timeoutMs = 1500 }: { id?: string; timeoutMs?: number } = {},
+  { id = crypto.randomUUID(), timeoutMs = 1500, retryQueue = null }: { id?: string; timeoutMs?: number; retryQueue?: ProblemRetryQueue | null } = {},
 ): Promise<ProblemRecordResult> {
   const payload = getRpcPayload(event, { id, reference: getReference(id) });
   writeLogLine(payload, "problem");
   if (!db) return { reference: payload.reference as string, stored: false, isSuppressed: false };
-  return storeProblem({ db, payload, timeoutMs });
+  return storeProblem({ db, payload, timeoutMs, retryQueue });
 }
