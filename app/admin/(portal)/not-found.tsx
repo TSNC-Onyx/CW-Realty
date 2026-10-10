@@ -1,9 +1,8 @@
 import { ButtonLink } from "@/components/ui/button-link";
-import { recordPageNotFound } from "@/lib/admin/record-page-not-found";
-import { ALL_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
-export default async function AdminNotFound() {
-  await recordPageNotFound({ admin: await requireAdminPage(ALL_ROLES), path: null });
+// Shown, never recorded: Next.js builds this screen into every render, so the page that
+// found nothing records the miss instead (src/lib/admin/record-page-not-found.ts).
+export default function AdminNotFound() {
   return (
     <>
       <h1 className="type-h1 mb-4">That page isn&apos;t here</h1>

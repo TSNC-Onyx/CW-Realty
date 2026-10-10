@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { isAdminPath } from "@/lib/admin/paths";
+import { isOutsideBrowserError } from "@/lib/observability/browser-noise";
 import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
 import "./globals.css";
@@ -14,7 +15,8 @@ export default function GlobalError({ error, reset }: { error: Error & { digest?
   const [reference, setReference] = useState<string | null>(null);
   useEffect(() => {
     if (!isAdminPath(window.location.pathname)) return;
-    void reportClientProblem({ action: "portal.page_crash", stage: "unexpected", severity: "error", code: "script_error", digest: error.digest }).then(setReference);
+    const severity = isOutsideBrowserError(error) ? "info" : "error";
+    void reportClientProblem({ action: "portal.page_crash", stage: "unexpected", severity, code: "script_error", digest: error.digest }).then(setReference);
   }, [error]);
   return (
     <html lang="en">

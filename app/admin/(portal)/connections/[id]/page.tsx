@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ConnectionForm } from "@/components/admin/connections/connection-form";
@@ -9,6 +8,7 @@ import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getConnectionPhoto } from "@/lib/admin/connections/connection-photo";
 import { fetchAdminConnection } from "@/lib/admin/connections/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { CONNECTIONS_PAGE_PATH } from "@/lib/site/navigation";
@@ -33,12 +33,12 @@ export default async function EditConnectionPage({ params, searchParams }: EditC
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/connections/${id}` });
   const connectionLoad = await fetchAdminConnection(admin, parsedId.data);
   const notice = await reportPageLoad({ admin, action: "connections.load", results: [connectionLoad] });
   if (!connectionLoad.isLoaded) return <ConnectionLoadProblem notice={notice} />;
   const connection = connectionLoad.data;
-  if (!connection) notFound();
+  if (!connection) return showPageNotFound({ admin, path: `/admin/connections/${id}` });
   const { isConnectionsPageVisible } = await fetchPageListing();
   return (
     <>

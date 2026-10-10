@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ListingForm } from "@/components/admin/listings/listing-form";
@@ -10,6 +9,7 @@ import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getListingDefaults } from "@/lib/admin/listings/mappers";
 import { fetchAdminListing } from "@/lib/admin/listings/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
@@ -31,12 +31,12 @@ export default async function EditListingPage({ params, searchParams }: EditList
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/listings/${id}` });
   const listingLoad = await fetchAdminListing(admin, parsedId.data);
   const notice = await reportPageLoad({ admin, action: "listings.load", results: [listingLoad] });
   if (!listingLoad.isLoaded) return <ListingLoadProblem notice={notice} />;
   const listing = listingLoad.data;
-  if (!listing) notFound();
+  if (!listing) return showPageNotFound({ admin, path: `/admin/listings/${id}` });
   return (
     <>
       <TextLink href="/admin/listings">Back to listings</TextLink>

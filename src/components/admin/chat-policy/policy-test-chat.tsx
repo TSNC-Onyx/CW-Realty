@@ -11,7 +11,7 @@ import { sendTestChatAction, type TestChatInput, type TestChatResult } from "@/l
 import type { ChatTurn } from "@/lib/chat/answer-question";
 import { MAX_CHAT_MESSAGE_LENGTH } from "@/lib/chat/chat-schemas";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
-import { getCallFailure } from "@/lib/observability/call-server-action";
+import { getCallFailure, getErrorDigest } from "@/lib/observability/call-server-action";
 import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
 // Live test chat (Admin §6): asks the assistant using the text currently in the editor.
@@ -27,7 +27,7 @@ async function fetchTestChatResult(input: TestChatInput): Promise<TestChatResult
     unstable_rethrow(error);
     const failure = getCallFailure(error);
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    const reference = await reportClientProblem({ action: "chat_policy.test_chat", stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail });
+    const reference = await reportClientProblem({ action: "chat_policy.test_chat", stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail, digest: getErrorDigest(error) });
     return { status: "error", message: reference ? `${failure.message} (Ref ${reference})` : failure.message };
   }
 }

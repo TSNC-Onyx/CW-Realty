@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fetchChatResult } from "@/components/chat/use-chat-conversation";
 import * as chatActions from "@/lib/chat/chat-actions";
@@ -12,6 +12,10 @@ const INPUT = { sessionId: null, message: "Do you work in High Point?", turnstil
 describe("a chat message call from the widget", () => {
   beforeEach(() => {
     vi.mocked(reporting.reportVisitorClientProblem).mockReset();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("asks an out-of-date page to refresh when the site was updated while it was open", async () => {
@@ -45,5 +49,17 @@ describe("a chat message call from the widget", () => {
 
     // Assert
     expect(reporting.reportVisitorClientProblem).toHaveBeenCalledWith(expect.objectContaining({ action: "site.chat_widget", code: "network" }));
+  });
+
+  it("isn't recorded while the visitor's own browser is offline", async () => {
+    // Arrange
+    vi.stubGlobal("navigator", { onLine: false });
+    vi.mocked(chatActions.sendChatMessageAction).mockRejectedValue(new TypeError("Failed to fetch"));
+
+    // Act
+    const result = await fetchChatResult(INPUT);
+
+    // Assert
+    expect({ status: result.status, calls: vi.mocked(reporting.reportVisitorClientProblem).mock.calls.length }).toEqual({ status: "error", calls: 0 });
   });
 });

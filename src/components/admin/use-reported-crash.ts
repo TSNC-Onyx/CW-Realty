@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { isOutsideBrowserError } from "@/lib/observability/browser-noise";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
@@ -12,7 +13,8 @@ export function useReportedCrash(error: Error & { digest?: string }, action: Pro
   const [reference, setReference] = useState<string | null>(null);
   useEffect(() => {
     const detail = error.digest ? undefined : `${error.name}: ${error.message}\n${error.stack ?? ""}`.slice(0, 2000);
-    void reportClientProblem({ action, stage: "unexpected", severity: "error", code: "script_error", digest: error.digest, detail }).then(setReference);
+    const severity = isOutsideBrowserError(error) ? "info" : "error";
+    void reportClientProblem({ action, stage: "unexpected", severity, code: "script_error", digest: error.digest, detail }).then(setReference);
   }, [error, action]);
   return reference;
 }

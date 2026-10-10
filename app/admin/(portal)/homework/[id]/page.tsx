@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { DownloadDetailsForm } from "@/components/admin/homework/download-details-form";
@@ -10,6 +9,7 @@ import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getItemCover, getStoredFileDetail } from "@/lib/admin/homework/item-labels";
 import { fetchAdminHomeworkItem, type AdminHomeworkItem } from "@/lib/admin/homework/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
@@ -76,12 +76,12 @@ export default async function EditHomeworkItemPage({ params, searchParams }: Edi
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/homework/${id}` });
   const loaded = await fetchAdminHomeworkItem(admin, parsedId.data);
   const notice = await reportPageLoad({ admin, action: "homework.load", results: [loaded] });
   if (!loaded.isLoaded) return <ItemLoadProblem notice={notice} />;
   const item = loaded.data;
-  if (!item) notFound();
+  if (!item) return showPageNotFound({ admin, path: `/admin/homework/${id}` });
   return (
     <>
       <TextLink href="/admin/homework">Back to Homework</TextLink>

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HANDOFF_TEXT } from "@/lib/chat/assistant-reply";
 import { EMERGENCY_TEXT } from "@/lib/chat/handoff-text";
+import * as oncePerCopy from "@/lib/observability/once-per-copy";
 import * as reporting from "@/lib/observability/report-visitor-problem";
 import * as chatLog from "@/lib/chat/chat-log";
 import * as claudeModel from "@/lib/chat/claude-model";
@@ -23,6 +24,7 @@ vi.mock("@/lib/chat/claude-model", () => ({ getClaudeAnswerModel: vi.fn() }));
 vi.mock("@/lib/security/rate-limit", () => ({ isOverChatLimit: vi.fn().mockResolvedValue(false) }));
 vi.mock("@/lib/security/visitor-bot-check", () => ({ passesVisitorBotCheck: vi.fn() }));
 vi.mock("@/lib/observability/report-visitor-problem", () => ({ reportVisitorProblem: vi.fn() }));
+vi.mock("@/lib/observability/once-per-copy", () => ({ isFirstInThisCopy: vi.fn(() => true) }));
 
 const SESSION_ID = "0b6f7c1e-2f4a-4b8e-9a51-6c1d2e3f4a5b";
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
@@ -211,6 +213,19 @@ describe("sendChatMessage", () => {
 
     // Assert
     expect(reporting.reportVisitorProblem).toHaveBeenCalledWith(expect.objectContaining({ action: "site.chat_assistant", code: "no_published_policy", severity: "warning" }));
+  });
+
+  it("records that the assistant isn't set up only once, not for every visitor", async () => {
+    // Arrange
+    vi.mocked(chatLog.fetchPublishedPolicy).mockResolvedValue(null);
+    vi.mocked(oncePerCopy.isFirstInThisCopy).mockReturnValueOnce(false);
+    vi.mocked(reporting.reportVisitorProblem).mockClear();
+
+    // Act
+    await sendChatMessage({ input: getInput(), visitor: VISITOR });
+
+    // Assert
+    expect(reporting.reportVisitorProblem).not.toHaveBeenCalledWith(expect.objectContaining({ code: "no_published_policy" }));
   });
 
   it("records a failed model call with how serious it is", async () => {

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { LoadProblem } from "@/components/admin/load-problem";
@@ -8,6 +7,7 @@ import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
 import { getPreviewListing } from "@/lib/admin/listings/mappers";
 import { fetchAdminListing } from "@/lib/admin/listings/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getContactLinks } from "@/lib/site/contact-links";
@@ -30,12 +30,12 @@ export default async function ListingPreviewPage({ params }: { params: Promise<{
   const { id } = await params;
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/listings/${id}/preview` });
   const [listingLoad, settingsLoad] = await Promise.all([fetchAdminListing(admin, parsedId.data), fetchSiteSettingsLoad()]);
   const notice = await reportPageLoad({ admin, action: "listings.load", results: [listingLoad, settingsLoad] });
   if (!listingLoad.isLoaded) return <PreviewLoadProblem notice={notice} />;
   const listing = listingLoad.data;
-  if (!listing) notFound();
+  if (!listing) return showPageNotFound({ admin, path: `/admin/listings/${id}/preview` });
   const isLive = listing.publish_state === "live";
   return (
     <>

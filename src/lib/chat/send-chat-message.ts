@@ -10,6 +10,7 @@ import { getClaudeAnswerModel, type NoAnswerReason } from "@/lib/chat/claude-mod
 import { getEmergencyReply, isEmergencyMessage } from "@/lib/chat/emergency";
 import { getPublicSections } from "@/lib/chat/policy-sections";
 import { getRedactedText, hasRestrictedNumber } from "@/lib/chat/restricted-data";
+import { isFirstInThisCopy } from "@/lib/observability/once-per-copy";
 import type { ProblemSeverity } from "@/lib/observability/problem-types";
 import { reportVisitorProblem } from "@/lib/observability/report-visitor-problem";
 import { isOutdatedBotCheckKey } from "@/lib/security/bot-check-key";
@@ -48,6 +49,8 @@ const EMAIL_PATTERN = /\S+@\S+/g;
 function isEmergencyQuestion(question: string): boolean {
   return isEmergencyMessage(question) && !hasRestrictedNumber(question);
 }
+
+type NotReadyCode = "no_api_key" | "no_published_policy";
 
 type OpenedSession = { session: ChatSession } | { result: SendChatResult };
 
@@ -99,7 +102,9 @@ async function reportNoAnswer(reason: NoAnswerReason): Promise<void> {
   await reportVisitorProblem({ action: "site.chat_assistant", stage: "external", severity: "info", code: reason, detail: "Claude gave no usable answer; the visitor was offered a person." });
 }
 
-async function reportNotReady(code: "no_api_key" | "no_published_policy"): Promise<AssistantReply> {
+async function reportNotReady(code: NotReadyCode): Promise<AssistantReply> {
+  // Comes from this deployment's own settings: one record per running copy, not per visitor.
+  if (!isFirstInThisCopy(`site.chat_assistant:${code}`)) return getHandoffReply(HANDOFF_TEXT.unavailable);
   await reportVisitorProblem({ action: "site.chat_assistant", stage: "setup", severity: "warning", code, detail: "The assistant isn't set up; every visitor is offered a person." });
   return getHandoffReply(HANDOFF_TEXT.unavailable);
 }

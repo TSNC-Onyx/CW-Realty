@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { LoadProblem } from "@/components/admin/load-problem";
 import { TextLink } from "@/components/ui/text-link";
 import { fetchChatSession, type ChatMessageRow } from "@/lib/admin/chats/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
@@ -27,7 +27,7 @@ export default async function ChatPage({ params }: ChatPageProps) {
   const { id } = await params;
   const admin = await requireAdminPage(EDITOR_ROLES);
   const sessionId = z.uuid().safeParse(id);
-  if (!sessionId.success) notFound();
+  if (!sessionId.success) return showPageNotFound({ admin, path: `/admin/chats/${id}` });
   const sessionLoad = await fetchChatSession(admin, sessionId.data);
   if (!sessionLoad.isLoaded) {
     return (
@@ -40,7 +40,7 @@ export default async function ChatPage({ params }: ChatPageProps) {
     );
   }
   const session = sessionLoad.data;
-  if (!session) notFound();
+  if (!session) return showPageNotFound({ admin, path: `/admin/chats/${id}` });
   return (
     <>
       <TextLink href="/admin/chats">Back to chat history</TextLink>

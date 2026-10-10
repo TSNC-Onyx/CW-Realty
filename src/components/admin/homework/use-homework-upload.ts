@@ -8,7 +8,7 @@ import { getHttpProblem, getMessageWithReference, getTransferProblem, getUploadT
 import { getQuickError, type QuickResult } from "@/lib/admin/quick-result";
 import { requestHomeworkUploadAction, saveHomeworkFileAction, type UploadTicket } from "@/lib/admin/homework/upload-actions";
 import { getUploadProblem, type UploadPurpose } from "@/lib/content/homework-rules";
-import { callQuickAction, getCallFailure } from "@/lib/observability/call-server-action";
+import { callQuickAction, getCallFailure, getErrorDigest } from "@/lib/observability/call-server-action";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { reportClientProblem } from "@/lib/observability/report-client-problem";
 
@@ -116,7 +116,7 @@ async function fetchUploadTicket(input: Parameters<typeof requestHomeworkUploadA
     unstable_rethrow(error);
     const failure = getCallFailure(error);
     const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-    const reference = await reportClientProblem({ action: REQUEST_UPLOAD_ACTION, stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail });
+    const reference = await reportClientProblem({ action: REQUEST_UPLOAD_ACTION, stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail, digest: getErrorDigest(error) });
     return { status: "error", message: getMessageWithReference({ message: failure.message, severity: failure.severity, reference }) };
   }
 }

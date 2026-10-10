@@ -2,12 +2,14 @@
 
 import { useEffect } from "react";
 
+import { isOutsideBrowserError } from "@/lib/observability/browser-noise";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { flushQueuedProblems, reportClientProblem, setProblemReporterUser } from "@/lib/observability/report-client-problem";
 
 // Watches an admin or sign-in page for browser errors nobody caught, and sends reports kept
 // while offline (docs/cwr-error-tracking-plan.md). Errors from our own code count as errors;
-// errors from browser extensions or other scripts are only noted. Each distinct error is
+// errors from browser extensions or other scripts, old code after a site update, and page
+// translators are only noted. Each distinct error is
 // reported once per browser session.
 
 const SEEN_KEY = "cwr-problem-seen";
@@ -30,7 +32,8 @@ function reportUncaught({ action, error, source }: { action: ProblemAction; erro
   if (!isFirstSighting(message)) return;
   const isOwnCode = `${stack}\n${source}`.includes(OWN_CODE_MARKER);
   const code = error instanceof Error && error.name === "ChunkLoadError" ? "chunk_load" : "script_error";
-  void reportClientProblem({ action, stage: "browser", severity: isOwnCode ? "error" : "info", code, detail: `${message}\n${stack}`.slice(0, 2000) });
+  const severity = isOwnCode && !isOutsideBrowserError(error) ? "error" : "info";
+  void reportClientProblem({ action, stage: "browser", severity, code, detail: `${message}\n${stack}`.slice(0, 2000) });
 }
 
 export function ProblemReporter({ userId, action }: { userId: string | null; action: ProblemAction }) {
