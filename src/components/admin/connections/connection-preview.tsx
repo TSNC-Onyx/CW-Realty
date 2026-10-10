@@ -33,8 +33,8 @@ export function ConnectionPreview({ values, photo }: { values: ConnectionPreview
         Preview
       </h2>
       <p className="type-small text-muted">How the partner looks on the Connections page.</p>
-      <div className="grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-4 border border-line bg-surface p-4">
-        <div>{photo}</div>
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-4 border border-line bg-surface p-4">
+        <div className="w-28">{photo}</div>
         <div className="grid min-w-0 gap-1">
           <p className="type-small font-semibold text-muted">{values.category}</p>
           <p className="font-display text-xl font-semibold break-words">{name}</p>

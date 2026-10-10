@@ -132,7 +132,7 @@ export function ListingPhotos({ listingId, photos }: { listingId: string; photos
     if (!photo) return;
     startTransition(async () => {
       setOrderedPhotos(getMovedItems(orderedPhotos, move));
-      const result = await callQuickAction("listings.move_photo_to", () => moveListingPhotoToAction({ photoId: photo.id, steps: move.to - move.from }));
+      const result = await callQuickAction("listings.move_photo", () => moveListingPhotoToAction({ photoId: photo.id, steps: move.to - move.from }));
       showToast({ tone: result.status === "success" ? "success" : "error", title: result.message });
     });
   };
@@ -141,7 +141,7 @@ export function ListingPhotos({ listingId, photos }: { listingId: string; photos
   return (
     <div className="grid gap-10">
       {orderedPhotos.length > 0 ? (
-        <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 min-[1280px]:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 desktop:grid-cols-5">
           {orderedPhotos.map((photo, index) => (
             <PhotoCard key={photo.id} photo={photo} position={index + 1} count={orderedPhotos.length} drag={drag} />
           ))}

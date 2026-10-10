@@ -115,7 +115,7 @@ export function PendingPhotoList({ pending, isFirstMain = false, isDisabled = fa
         const label = getPhotoLabel({ position, count, isMain, photoNoun });
         const dragClass = getDragClass({ index, draggedIndex, targetIndex });
         return (
-          <li key={photo.key} {...getTargetProps(index)} className={`grid grid-cols-[6rem_minmax(0,1fr)] gap-3 border border-line bg-surface p-3 ${dragClass}`}>
+          <li key={photo.key} {...getTargetProps(index)} className={`grid grid-cols-[auto_minmax(0,1fr)] gap-3 border border-line bg-surface p-3 ${dragClass}`}>
             <div {...(isDisabled ? {} : getHandleProps(index))} className="relative cursor-grab self-start" title="Drag to change the order">
               {/* eslint-disable-next-line @next/next/no-img-element -- local preview of the chosen file */}
               <img src={photo.previewUrl} alt="" width={PREVIEW_WIDTH} height={PREVIEW_HEIGHT} className="aspect-photo w-24 object-cover" />

@@ -39,7 +39,7 @@ export function ListingPublishing({ listingId, status, publishState, photoCount 
         </p>
         {publishState === "draft" && photoCount === 0 && <p className="type-small text-muted">Add at least one photo before publishing.</p>}
       </div>
-      <div className="flex flex-wrap gap-2 min-[1280px]:ml-auto">
+      <div className="flex flex-wrap gap-2 desktop:ml-auto">
         <ButtonLink href={`/admin/listings/${listingId}/preview`} size="s" variant="secondary">
           <Eye aria-hidden size={ICON_SIZE.button} />
           Preview

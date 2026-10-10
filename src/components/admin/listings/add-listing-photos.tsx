@@ -49,7 +49,7 @@ export function AddListingPhotos({ listingId, hasPhotos }: { listingId: string; 
       <h3 id="add-photos-heading" className="type-h3">
         Add photos
       </h3>
-      <div className="grid gap-6 min-[1280px]:grid-cols-[24rem_minmax(0,1fr)] min-[1280px]:items-start">
+      <div className="grid gap-6 desktop:grid-cols-[var(--container-admin-side)_minmax(0,1fr)] desktop:items-start">
         <FileDropZone
           icon={ImagePlus}
           title="Drag photos here"

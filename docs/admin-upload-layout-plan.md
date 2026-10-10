@@ -59,8 +59,8 @@ schema, the photo encoder, storage rules, mobile-specific redesign (layouts stac
   (non-deleted), or 1 when it has none. `move_item` renumbers
   1..n by (sort_order, id) so this stays consistent.
 - Drag reorder: new `moveListingPhotoToAction(photoId, steps)` runs the existing `move_item` RPC
-  |steps| times in one server call (each step is its own transaction; no migration). New catalog
-  entry `listings.move_photo_to`.
+  |steps| times in one server call (each step is its own transaction; no migration). It records
+  problems under the existing catalog entry `listings.move_photo` (a new entry would need a migration).
 - CSP: admin pages allow `blob:` images and media (local previews); no inline `style` attributes
   (strict CSP) — Tailwind classes only.
 
@@ -72,7 +72,7 @@ schema, the photo encoder, storage rules, mobile-specific redesign (layouts stac
      appends after the last photo; add `moveListingPhotoToAction`.
    - `src/lib/admin/connections/actions.ts`: create returns `getCreatedState` (keeps refresh).
    - `src/lib/admin/homework/actions.ts`: `createHomeworkVideoAction` returns `getCreatedState`.
-   - `src/lib/observability/problem-catalog.ts`: add `listings.move_photo_to`.
+   - Problems from the drag action are recorded under the existing `listings.move_photo`.
 3. Upload helpers:
    - `src/components/admin/photos/use-photo-upload.ts`: extract `uploadPhotoFile`.
    - `src/components/admin/homework/use-homework-upload.ts`: export `uploadHomeworkFile`.
@@ -142,8 +142,9 @@ Risk: none.
 
 ## Build notes (2026-10-10)
 
-- The theme defines only `md` and `lg` breakpoints, so the desktop layout uses `min-[1280px]:`
-  (adding `xl` would wake dormant `xl:` classes on public pages — flagged separately).
+- The theme defined only `md` and `lg` breakpoints. Added a `desktop` (1280px) breakpoint and an
+  `admin-side` (384px) size token; not `xl`, which would wake dormant `xl:` classes on public pages
+  (flagged separately). The design-token check forbids raw sizes like `min-[1280px]:`.
 - Create actions reply "Saved."; the Edit page banner carries the full message, so it isn't shown twice.
 - Photos queued on the Edit page are labelled "new photo N" so they never share a name with saved photos.
 - Verified: typecheck, lint, 957 unit tests, 102 admin e2e tests (incl. drag reorder), screenshots at 1440px.

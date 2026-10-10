@@ -145,7 +145,7 @@ export async function moveListingPhotoAction(photoId: string, direction: "up" | 
 
 /** Drag and drop: moves a photo several places in one call (steps < 0 = earlier), one cwr.move_item step at a time. */
 export async function moveListingPhotoToAction(input: z.input<typeof photoMoveSchema>): Promise<QuickResult> {
-  return runQuickAction({ action: "listings.move_photo_to", roles: EDITOR_ROLES }, async ({ supabase }) => {
+  return runQuickAction({ action: "listings.move_photo", roles: EDITOR_ROLES }, async ({ supabase }) => {
     const parsed = photoMoveSchema.safeParse(input);
     if (!parsed.success) return getQuickError("That photo couldn't be moved. Refresh the page and try again.");
     const { photoId, steps } = parsed.data;

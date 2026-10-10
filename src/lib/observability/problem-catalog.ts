@@ -66,7 +66,6 @@ export const PROBLEM_ACTIONS = {
   "listings.change_state": { label: "Publish or change a listing's status", fn: "transitionListingAction" },
   "listings.move": { label: "Reorder listings", fn: "moveListingAction" },
   "listings.move_photo": { label: "Reorder listing photos", fn: "moveListingPhotoAction" },
-  "listings.move_photo_to": { label: "Drag a listing photo to a new place", fn: "moveListingPhotoToAction" },
   "listings.add_photo": { label: "Add a listing photo", fn: "addListingPhotoAction" },
   "listings.update_photo_alt": { label: "Edit a photo description", fn: "updatePhotoAltAction" },
 
