@@ -7,13 +7,15 @@ import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully } from "./admin-helper
 
 // Problem tracking end to end (docs/cwr-error-tracking-plan.md): what a person sees on screen
 // is recorded with the same reference code; uploads that break always finish with a message;
-// only owners choose who gets problem emails.
+// only owners choose who gets problem emails; a save never records a "page not found"
+// (docs/false-alarm-cleanup-plan.md #1).
 
 const FIXTURES = path.join(__dirname, "..", "..", "fixtures");
 const TEST_GUIDE = path.join(FIXTURES, "test-guide.pdf");
 const NOT_A_GUIDE = path.join(FIXTURES, "not-a-guide.txt");
 const REFERENCE_PATTERN = /CWR-[0-9A-Z]{3}-[0-9A-Z]{3}/;
 const SERVER_ACTION_HEADER = "next-action";
+const MISSING_LISTING_PATH = "/admin/listings/00000000-0000-4000-8000-000000000000";
 
 test.skip(!HAS_ADMIN_DATABASE, "Needs the local database and service-role key");
 
@@ -28,6 +30,12 @@ async function fetchProblem(reference: string) {
   const { data, error } = await getServiceClient().from("problem_events").select("action, stage, severity, code").eq("reference", reference).maybeSingle();
   if (error) throw new Error(`Could not read the problem log: ${error.message}`);
   return data;
+}
+
+async function fetchNotFoundCount(pagePath: string): Promise<number> {
+  const { count, error } = await getServiceClient().from("problem_events").select("id", { count: "exact", head: true }).eq("action", "portal.page_not_found").eq("page_path", pagePath);
+  if (error) throw new Error(`Could not read the problem log: ${error.message}`);
+  return count ?? 0;
 }
 
 async function addDownload(page: Page, title: string): Promise<void> {
@@ -104,3 +112,32 @@ test("only owners choose who gets problem emails", async ({ page }) => {
   // Assert
   await expect(page.getByRole("status").filter({ hasText: "They'll get problem emails." })).toBeVisible();
 });
+
+test("saving an item doesn't record a page not found", async ({ page }) => {
+  // Arrange
+  await signInFully(page, await createTestAdmin("manager"));
+  await addDownload(page, `Saved twice ${Date.now()}`);
+  const itemPath = new URL(page.url()).pathname;
+
+  // Act
+  await page.getByLabel("Title").fill(`Renamed ${Date.now()}`);
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await expect(page.getByText("Saved. The Homework page shows the changes now.")).toBeVisible();
+
+  // Assert
+  expect(await fetchNotFoundCount(itemPath)).toBe(0);
+});
+
+test("opening an item that isn't there records its address", async ({ page }) => {
+  // Arrange
+  await signInFully(page, await createTestAdmin("manager"));
+  const before = await fetchNotFoundCount(MISSING_LISTING_PATH);
+
+  // Act
+  await page.goto(MISSING_LISTING_PATH);
+  await expect(page.getByRole("heading", { name: "That page isn't here" })).toBeVisible();
+
+  // Assert
+  await expect.poll(() => fetchNotFoundCount(MISSING_LISTING_PATH)).toBe(before + 1);
+});
+

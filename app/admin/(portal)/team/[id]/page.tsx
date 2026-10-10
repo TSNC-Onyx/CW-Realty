@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { LoadProblem } from "@/components/admin/load-problem";
@@ -7,6 +6,7 @@ import { TeamMemberForm } from "@/components/admin/team/team-member-form";
 import { TeamPhoto } from "@/components/admin/team/team-photo";
 import { Message } from "@/components/ui/message";
 import { TextLink } from "@/components/ui/text-link";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { fetchAdminTeamMember, type AdminTeamMember } from "@/lib/admin/team/queries";
@@ -35,12 +35,12 @@ export default async function EditTeamMemberPage({ params, searchParams }: EditT
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/team/${id}` });
   const memberLoad = await fetchAdminTeamMember(admin, parsedId.data);
   const notice = await reportPageLoad({ admin, action: "team.load", results: [memberLoad] });
   if (!memberLoad.isLoaded) return <MemberLoadProblem notice={notice} />;
   const member = memberLoad.data;
-  if (!member) notFound();
+  if (!member) return showPageNotFound({ admin, path: `/admin/team/${id}` });
   return (
     <>
       <TextLink href="/admin/team">Back to team</TextLink>

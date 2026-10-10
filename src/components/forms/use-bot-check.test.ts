@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { isTokenFresh } from "@/components/forms/use-bot-check";
+import { isCheckTimerRunning, isLastingWidgetError, isTokenFresh } from "@/components/forms/use-bot-check";
 
 const NOW = 1_000_000_000;
 
@@ -79,3 +79,37 @@ describe("what a production page reports about its Quick Check key", () => {
     expect(code).toBeNull();
   });
 });
+
+describe("which Quick Check errors are real", () => {
+  it.each([
+    ["a first glitch Cloudflare retries by itself", "300030", false, false],
+    ["a first visitor-side clock problem", "200100", false, false],
+    ["the same kind of glitch a second time in a row", "300030", true, true],
+    ["a site key set up wrong", "110100", false, true],
+    ["a domain that isn't allowed", "110200", false, true],
+    ["a disabled site key", "400070", false, true],
+  ])("decides for %s", (_label, errorCode, hasErroredBefore, expected) => {
+    // Act
+    const isLasting = isLastingWidgetError({ errorCode, hasErroredBefore });
+
+    // Assert
+    expect(isLasting).toBe(expected);
+  });
+});
+
+describe("when the Quick Check's 10-second limit counts", () => {
+  it.each([
+    ["a check running in view", { isEnabled: true, status: "checking", isVisible: true }, true],
+    ["a check in a background tab", { isEnabled: true, status: "checking", isVisible: false }, false],
+    ["a tick box waiting for the person", { isEnabled: true, status: "needs_click", isVisible: true }, false],
+    ["a check that already passed", { isEnabled: true, status: "ready", isVisible: true }, false],
+    ["a form that doesn't show the check", { isEnabled: false, status: "checking", isVisible: true }, false],
+  ] as const)("decides for %s", (_label, state, expected) => {
+    // Act
+    const isRunning = isCheckTimerRunning(state);
+
+    // Assert
+    expect(isRunning).toBe(expected);
+  });
+});
+

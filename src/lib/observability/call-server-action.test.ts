@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { IDLE_ACTION_STATE, type ActionState } from "@/lib/admin/action-state";
 import { callQuickAction, getCallFailure, withCallReporting, withCallReportingFor } from "@/lib/observability/call-server-action";
@@ -155,3 +155,52 @@ describe("a website visitor's form call that fails", () => {
     expect(reportClientProblem).not.toHaveBeenCalled();
   });
 });
+
+describe("a server crash during a call", () => {
+  it("sends the server's digest so the crash is counted once", async () => {
+    // Arrange
+    reportClientProblem.mockClear();
+    const crash = Object.assign(new Error("An error occurred in the Server Components render."), { digest: "4012345678" });
+
+    // Act
+    await callQuickAction("homework.move", async () => {
+      throw crash;
+    });
+
+    // Assert
+    expect(reportClientProblem).toHaveBeenCalledWith(expect.objectContaining({ digest: "4012345678" }));
+  });
+});
+
+describe("a visitor's call that fails", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("isn't recorded while the visitor's browser is offline", async () => {
+    // Arrange
+    reportVisitorClientProblem.mockClear();
+    vi.stubGlobal("navigator", { onLine: false });
+    const action = withCallReportingFor({ action: "site.contact_form", mode: "visitor", onFailure: (failure) => failure.message }, getThrowingAction<string>(new TypeError("Failed to fetch")));
+
+    // Act
+    const message = await action("", getFormData());
+
+    // Assert
+    expect({ message, calls: reportVisitorClientProblem.mock.calls.length }).toEqual({ message: "Connection problem. Check your internet and try again.", calls: 0 });
+  });
+
+  it("is still recorded while the browser is online", async () => {
+    // Arrange
+    reportVisitorClientProblem.mockClear();
+    vi.stubGlobal("navigator", { onLine: true });
+    const action = withCallReportingFor({ action: "site.contact_form", mode: "visitor", onFailure: (failure) => failure.message }, getThrowingAction<string>(new TypeError("Failed to fetch")));
+
+    // Act
+    await action("", getFormData());
+
+    // Assert
+    expect(reportVisitorClientProblem).toHaveBeenCalledTimes(1);
+  });
+});
+

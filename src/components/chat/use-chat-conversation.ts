@@ -9,6 +9,7 @@ import type { AssistantReply } from "@/lib/chat/assistant-reply";
 import type { SendChatResult } from "@/lib/chat/chat-results";
 import type { ChatMessageInput } from "@/lib/chat/chat-schemas";
 import { getRedactedText } from "@/lib/chat/restricted-data";
+import { isBrowserOffline } from "@/lib/observability/browser-offline";
 import { getCallFailure } from "@/lib/observability/call-server-action";
 import { reportVisitorClientProblem } from "@/lib/observability/report-client-problem";
 import { BOT_CHECK_MESSAGES } from "@/lib/security/bot-check-messages";
@@ -66,7 +67,7 @@ export async function fetchChatResult(input: ChatMessageInput): Promise<SendChat
     return await sendChatMessageAction(input);
   } catch (error) {
     const failure = getCallFailure(error);
-    void reportVisitorClientProblem({ action: "site.chat_widget", stage: "network", severity: failure.severity, code: failure.code === "other" ? "action_failed" : failure.code });
+    if (!isBrowserOffline()) void reportVisitorClientProblem({ action: "site.chat_widget", stage: "network", severity: failure.severity, code: failure.code === "other" ? "action_failed" : failure.code });
     if (failure.code === "stale_page") return { status: "error", message: BOT_CHECK_MESSAGES.outdatedRefreshButton, recovery: "refresh" };
     return { status: "error", message: UNREACHABLE_NOTICE };
   }

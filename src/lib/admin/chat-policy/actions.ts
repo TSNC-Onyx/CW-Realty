@@ -21,7 +21,7 @@ import type { AnswerModel } from "@/lib/chat/answer-question";
 import { getClaudeAnswerModel } from "@/lib/chat/claude-model";
 import { getGuidedNode, getQuickAnswerLeaves } from "@/lib/chat/guided-tree";
 import { getPolicyWithQuickAnswers, type QuickAnswerText } from "@/lib/chat/quick-answer-sections";
-import { noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
+import { noteExpectedOutcome, noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { reportProblem } from "@/lib/observability/report-problem";
 import { createServiceClient } from "@/lib/supabase/service-client";
@@ -550,6 +550,9 @@ export async function finishPolicyTestRunAction({ runKey }: { runKey: string }):
     const { error } = await saveTestRun({ job, results, userId: admin.userId });
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     await reportCleanupFailure("chat_policy.finish_tests", await deleteTestJob(job.run_key));
-    return results.every((result) => result.isPassed) ? getQuickSuccess(getRunSummary(results)) : getQuickError(getRunSummary(results));
+    if (results.every((result) => result.isPassed)) return getQuickSuccess(getRunSummary(results));
+    // Failing questions are the run's result, not a problem with the site.
+    noteExpectedOutcome();
+    return getQuickError(getRunSummary(results));
   });
 }

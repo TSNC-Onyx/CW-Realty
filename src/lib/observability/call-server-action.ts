@@ -2,6 +2,7 @@ import { unstable_rethrow } from "next/navigation";
 
 import { getErrorState, getFormValues, type ActionState } from "@/lib/admin/action-state";
 import { getQuickError, type QuickResult } from "@/lib/admin/quick-result";
+import { isBrowserOffline } from "@/lib/observability/browser-offline";
 import type { BrowserProblemCode } from "@/lib/observability/client-problem";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import type { ProblemSeverity } from "@/lib/observability/problem-types";
@@ -41,15 +42,23 @@ export function getCallFailure(error: unknown): CallFailure {
   return OTHER_FAILURE;
 }
 
+/** A server crash's digest, which the server recorded first; the report then shares its reference. */
+export function getErrorDigest(error: unknown): string | undefined {
+  const digest = error instanceof Error ? (error as Error & { digest?: unknown }).digest : undefined;
+  return typeof digest === "string" ? digest : undefined;
+}
+
 async function getReportedCallMessage(action: ProblemAction, error: unknown): Promise<string> {
   const failure = getCallFailure(error);
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-  const reference = await reportClientProblem({ action, stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail });
+  const reference = await reportClientProblem({ action, stage: "network", severity: failure.severity, code: failure.code, shownMessage: failure.message, detail, digest: getErrorDigest(error) });
   return reference ? `${failure.message} (Ref ${reference})` : failure.message;
 }
 
+// A visitor whose own browser is offline isn't a problem with the site (docs/false-alarm-cleanup-plan.md #9).
 async function getReportedVisitorFailure(action: ProblemAction, error: unknown): Promise<CallFailure> {
   const failure = getCallFailure(error);
+  if (isBrowserOffline()) return failure;
   await reportVisitorClientProblem({ action, stage: "network", severity: failure.severity, code: failure.code === "other" ? "action_failed" : failure.code });
   return failure;
 }

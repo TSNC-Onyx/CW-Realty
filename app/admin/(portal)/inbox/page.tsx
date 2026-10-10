@@ -1,7 +1,6 @@
 import { Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { InboxStatusLabel } from "@/components/admin/inbox/inbox-status";
 import { LoadProblem } from "@/components/admin/load-problem";
@@ -10,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { ButtonLink } from "@/components/ui/button-link";
 import { INBOX_FILTERS, SOURCE_LABELS, getInboxFilter } from "@/lib/admin/inbox/inbox-labels";
 import { INBOX_PAGE_SIZE, fetchInboxPage, fetchTeammates, type InboxThreadSummary } from "@/lib/admin/inbox/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { ALL_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getPageNumber, getTotalPages } from "@/lib/content/page-number";
@@ -50,7 +50,7 @@ export default async function InboxPage({ searchParams }: InboxPageProps) {
   const admin = await requireAdminPage(ALL_ROLES);
   const filter = getInboxFilter(params.status);
   const page = getPageNumber(params.page);
-  if (page === null) notFound();
+  if (page === null) return showPageNotFound({ admin, path: "/admin/inbox" });
   const [inboxPage, teammates] = await Promise.all([fetchInboxPage(admin, { filter, page }), fetchTeammates(admin)]);
   const notice = await reportPageLoad({ admin, action: "inbox.load", results: [inboxPage, teammates] });
   const names = new Map(teammates.isLoaded ? teammates.data.map((teammate) => [teammate.userId, teammate.label]) : []);
