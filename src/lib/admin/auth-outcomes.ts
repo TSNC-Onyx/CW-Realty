@@ -22,11 +22,13 @@ const INVALID_CREDENTIALS_CODE = "invalid_credentials";
 const SAME_PASSWORD_CODE = "same_password";
 const WEAK_PASSWORD_CODE = "weak_password";
 const LINK_EXPIRED_CODE = "otp_expired";
+// Supabase refuses a password change at password-only level for an account that still has an
+// authenticator set up; those are removed at release (docs/cwr-password-only-sign-in-plan.md).
+const INSUFFICIENT_AAL_CODE = "insufficient_aal";
 
 export const SIGN_IN_UNAVAILABLE_MESSAGE = "Sign-in isn't working right now. Try again in a few minutes.";
 export const PASSWORD_NOT_SAVED_MESSAGE = "We couldn't save your new password right now. Try again in a few minutes.";
 export const RESET_LINK_SENT_MESSAGE = "If that email belongs to an admin account, a reset link is on its way. It works for one hour.";
-const SETUP_NOT_STARTED_MESSAGE = "We couldn't start the setup. Refresh the page and try again.";
 
 /** What gets recorded about an Auth error. */
 export type AuthProblemOutcome = { severity: ProblemSeverity; code: string; shownMessage?: string };
@@ -54,7 +56,11 @@ const WEAK_PASSWORD_OUTCOME: AuthOutcome = {
   shownMessage: "We couldn't save that password. Choose a longer, less common one.",
   fieldErrors: { password: "Choose a stronger password" },
 };
-const CODE_FIELD_ERRORS: FieldErrors = { code: "Enter the current 6-digit code" };
+const OLD_SIGN_IN_CODE_OUTCOME: AuthOutcome = {
+  severity: "warning",
+  code: INSUFFICIENT_AAL_CODE,
+  shownMessage: "This account still has an old sign-in code from the authenticator app. Ask the site owner to remove it, then try again.",
+};
 
 /** A refused Quick Check: expired tokens are told apart from other refusals in the log. */
 function getCaptchaOutcome(error: AuthError): AuthOutcome {
@@ -75,7 +81,7 @@ export function getFailedStepOutcome({ error, shownMessage }: { error: unknown; 
   return { severity: "critical", code: getAuthErrorCode(error), shownMessage };
 }
 
-export function getSignInUnavailableOutcome(error: unknown): AuthOutcome {
+function getSignInUnavailableOutcome(error: unknown): AuthOutcome {
   return getFailedStepOutcome({ error, shownMessage: SIGN_IN_UNAVAILABLE_MESSAGE });
 }
 
@@ -85,17 +91,6 @@ export function getSignInOutcome(error: AuthError): AuthOutcome {
   if (error.status === TOO_MANY_ATTEMPTS_STATUS) return TOO_MANY_ATTEMPTS_OUTCOME;
   if (error.code === CAPTCHA_FAILED_CODE) return getCaptchaOutcome(error);
   return getSignInUnavailableOutcome(error);
-}
-
-/** Authenticator code checks (sign-in and setup). A wrong code arrives as "mfa_verification_failed". */
-export function getCodeCheckOutcome({ error, rejectedMessage }: { error: AuthError; rejectedMessage: string }): AuthOutcome {
-  if (isAuthOutage(error)) return getSignInUnavailableOutcome(error);
-  return { severity: "info", code: getAuthErrorCode(error), shownMessage: rejectedMessage, fieldErrors: CODE_FIELD_ERRORS };
-}
-
-export function getSetupStartOutcome(error: AuthError): AuthOutcome {
-  if (isAuthOutage(error)) return getSignInUnavailableOutcome(error);
-  return { severity: "error", code: getAuthErrorCode(error), shownMessage: SETUP_NOT_STARTED_MESSAGE };
 }
 
 /**
@@ -109,9 +104,9 @@ export function getPasswordResetOutcome(error: AuthError): AuthOutcome {
   return { severity: "error", code: getAuthErrorCode(error), shownMessage: RESET_LINK_SENT_MESSAGE };
 }
 
-/** New password. "insufficient_aal" is not here: it sends the person to the code step. */
 export function getSetPasswordOutcome(error: AuthError): AuthOutcome {
   if (error.code === SAME_PASSWORD_CODE) return SAME_PASSWORD_OUTCOME;
+  if (error.code === INSUFFICIENT_AAL_CODE) return OLD_SIGN_IN_CODE_OUTCOME;
   if (error.code === WEAK_PASSWORD_CODE) return WEAK_PASSWORD_OUTCOME;
   const severity: ProblemSeverity = isAuthOutage(error) ? "critical" : "error";
   return { severity, code: getAuthErrorCode(error), shownMessage: PASSWORD_NOT_SAVED_MESSAGE };

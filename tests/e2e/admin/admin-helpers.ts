@@ -5,15 +5,15 @@ import { expect, type Page } from "@playwright/test";
 import { Secret, TOTP } from "otpauth";
 
 // Test-only helpers: create admin accounts with the service-role key and sign in through
-// the real screens, answering the authenticator step with a generated code.
+// the real screens with email and password (no authenticator code since 2026-10-09).
 
 export type TestAdminRole = "owner" | "manager" | "staff";
 
-export type TestAdmin = { email: string; password: string; totpSecret: string | null };
+export type TestAdmin = { email: string; password: string };
 
 export const HAS_ADMIN_DATABASE = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-function getServiceClient() {
+export function getServiceClient() {
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", process.env.SUPABASE_SERVICE_ROLE_KEY ?? "", {
     db: { schema: "cwr" },
     auth: { persistSession: false, autoRefreshToken: false },
@@ -31,7 +31,7 @@ export async function createTestAdmin(role: TestAdminRole | null): Promise<TestA
     const { error: membershipError } = await client.from("memberships").insert({ tenant_id: tenant?.id, user_id: data.user.id, role });
     if (membershipError) throw new Error(`Could not add membership: ${membershipError.message}`);
   }
-  return { email, password, totpSecret: null };
+  return { email, password };
 }
 
 export function getTotpCode(secret: string): string {
@@ -52,17 +52,34 @@ export async function signInWithPassword(page: Page, admin: TestAdmin): Promise<
   await page.getByRole("button", { name: "Sign in" }).click();
 }
 
-/** Signs in and, the first time, sets up the authenticator. Mutates admin.totpSecret. */
+/** Signs in with email and password and waits for the dashboard. */
 export async function signInFully(page: Page, admin: TestAdmin): Promise<void> {
   await signInWithPassword(page, admin);
-  if (admin.totpSecret === null) {
-    await page.getByRole("button", { name: "Show my setup code" }).click();
-    admin.totpSecret = (await page.getByTestId("mfa-secret").textContent())?.trim() ?? "";
-    await page.getByLabel("6-digit code").fill(getTotpCode(admin.totpSecret));
-    await page.getByRole("button", { name: "Turn on sign-in codes" }).click();
-  } else {
-    await page.getByLabel("6-digit code").fill(getTotpCode(admin.totpSecret));
-    await page.getByRole("button", { name: "Verify code" }).click();
-  }
   await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
+}
+
+/** Gives an account a working authenticator, as accounts set up before 2026-10-09 have. */
+export async function addOldSignInCode(admin: TestAdmin): Promise<void> {
+  // A one-time sign-in link starts the session here, so the website's bot check isn't needed.
+  const { data: link, error: linkError } = await getServiceClient().auth.admin.generateLink({ type: "magiclink", email: admin.email });
+  if (linkError) throw new Error(`Could not make a sign-in link: ${linkError.message}`);
+  const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "", process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "", { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error: signInError } = await client.auth.verifyOtp({ type: "magiclink", token_hash: link.properties.hashed_token });
+  if (signInError) throw new Error(`Could not sign in to add a code: ${signInError.message}`);
+  const { data: factor, error: enrollError } = await client.auth.mfa.enroll({ factorType: "totp" });
+  if (enrollError) throw new Error(`Could not add a code: ${enrollError.message}`);
+  const { error: verifyError } = await client.auth.mfa.challengeAndVerify({ factorId: factor.id, code: getTotpCode(factor.totp.secret) });
+  if (verifyError) throw new Error(`Could not confirm the code: ${verifyError.message}`);
+}
+
+/**
+ * The emailed password-reset link for an account. Opened on "localhost": the local server
+ * forwards to localhost after checking the link, so the sign-in cookie must be set there too.
+ */
+export async function fetchResetLink({ email, baseUrl }: { email: string; baseUrl: string }): Promise<string> {
+  const { data, error } = await getServiceClient().auth.admin.generateLink({ type: "recovery", email });
+  if (error) throw new Error(`Could not make a reset link: ${error.message}`);
+  const link = new URL(`/admin/auth/confirm?token_hash=${data.properties.hashed_token}&type=recovery`, baseUrl);
+  link.hostname = "localhost";
+  return link.toString();
 }

@@ -16,7 +16,7 @@ export default async function UsersPage() {
   return (
     <>
       <h1 className="type-h1 mb-2">Users &amp; roles</h1>
-      <p className="type-lead mb-10 max-w-prose text-muted">Everyone signs in with a password plus a code from an authenticator app. Changes apply right away.</p>
+      <p className="type-lead mb-10 max-w-prose text-muted">Everyone signs in with their email and a password. Changes apply right away.</p>
       <section aria-labelledby="invite-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="invite-heading" className="type-h3 mb-4">Invite someone</h2>
         <InviteForm idempotencyKey={crypto.randomUUID()} />
@@ -25,7 +25,7 @@ export default async function UsersPage() {
         <h2 id="people-heading" className="type-h3 mb-4">People with access</h2>
         {users.isLoaded && !authAccounts.isLoaded && (
           <div className="mb-4">
-            <LoadProblem notice={notice} title="Emails and sign-in status didn't load" />
+            <LoadProblem notice={notice} title="Emails didn't load" />
           </div>
         )}
         {users.isLoaded ? <UserList users={users.data} /> : <LoadProblem notice={notice} />}

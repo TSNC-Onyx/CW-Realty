@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { mfaCodeSchema, newPasswordSchema } from "@/lib/admin/auth-schemas";
+import { newPasswordSchema } from "@/lib/admin/auth-schemas";
 
 describe("password rules", () => {
   it("accepts a long mixed password typed the same twice", () => {
@@ -14,10 +14,22 @@ describe("password rules", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts an 8-character password with both cases and a number (owner choice 2026-10-09)", () => {
+    // Arrange
+    const values = { password: "Short1Ab", confirmPassword: "Short1Ab" };
+
+    // Act
+    const result = newPasswordSchema.safeParse(values);
+
+    // Assert
+    expect(result.success).toBe(true);
+  });
+
   it.each([
-    ["Short1A", "Use at least 12 characters"],
-    ["alllowercase123", "Include an uppercase letter"],
-    ["NoNumbersHereAtAll", "Include a number"],
+    ["Short1A", "Use at least 8 characters"],
+    ["lower123", "Include an uppercase letter"],
+    ["UPPER123", "Include a lowercase letter"],
+    ["NoNumber", "Include a number"],
   ])("explains what %s is missing", (password, message) => {
     // Arrange
     const values = { password, confirmPassword: password };
@@ -38,23 +50,5 @@ describe("password rules", () => {
 
     // Assert
     expect(result.success ? "" : result.error.issues[0]?.message).toBe("The two passwords don't match");
-  });
-});
-
-describe("sign-in code", () => {
-  it.each([
-    ["123456", true],
-    ["123 456", true],
-    ["12345", false],
-    ["abcdef", false],
-  ])("%s → %s", (code, expected) => {
-    // Arrange
-    const input = code;
-
-    // Act
-    const result = mfaCodeSchema.safeParse(input);
-
-    // Assert
-    expect(result.success).toBe(expected);
   });
 });

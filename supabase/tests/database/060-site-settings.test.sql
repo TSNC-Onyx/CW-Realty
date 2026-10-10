@@ -43,14 +43,6 @@ select is_empty(
   'Staff cannot hide the Connections page'
 );
 
-reset role;
-select cwr_test.sign_in('owner', 'aal1');
-set local role authenticated;
-select is_empty(
-  $$ update cwr.site_settings set email = 'owner@example.com' returning 1 $$,
-  'Even an owner cannot change them without a multi-factor sign-in'
-);
-
 -- Connections page switch (owners only, 2026-10-09) -----------------------------------
 reset role;
 select cwr_test.sign_in('manager');
@@ -65,12 +57,17 @@ select throws_ok(
   null,
   'A manager cannot hide the Connections page, even outside the website'
 );
+-- Password-only sessions (owner choice 2026-10-09): no authenticator code needed.
 reset role;
-select cwr_test.sign_in('owner');
+select cwr_test.sign_in('owner', 'aal1');
 set local role authenticated;
+select isnt_empty(
+  $$ update cwr.site_settings set email = 'owner@example.com' where tenant_id = cwr_test.id('tenant_a') returning 1 $$,
+  'An owner signed in with a password alone can change the contact details'
+);
 select lives_ok(
   $$ update cwr.site_settings set is_connections_page_visible = false where tenant_id = cwr_test.id('tenant_a') $$,
-  'An owner can hide the Connections page'
+  'An owner signed in with a password alone can hide the Connections page'
 );
 reset role;
 

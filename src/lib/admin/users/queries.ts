@@ -4,25 +4,18 @@ import { getLoaded, getLoadFailure, getQueryLoad, type LoadResult } from "@/lib/
 import type { AdminContext, AdminRole } from "@/lib/admin/require-admin";
 import { createServiceClient, isServiceAccessConfigured } from "@/lib/supabase/service-client";
 
-// People with access, with emails and sign-in code status from Supabase Auth
-// (service role, owner-only page).
+// People with access, with emails from Supabase Auth (service role, owner-only page).
 
 const MAX_USERS = 1000;
 const UNKNOWN_EMAIL = "(unknown email)";
 const EMAIL_NOT_LOADED = "(email didn't load)";
 
-/**
- * "unknown" when the service-role secret is missing and Supabase Auth cannot be read;
- * "not-loaded" when reading Supabase Auth failed (never shown as "not set up").
- */
-export type SignInCodeStatus = "on" | "not-set-up" | "unknown" | "not-loaded";
+export type AdminUser = { userId: string; email: string; role: AdminRole; isCurrentUser: boolean };
 
-export type AdminUser = { userId: string; email: string; role: AdminRole; signInCodes: SignInCodeStatus; isCurrentUser: boolean };
-
-/** users: the people with access; authAccounts: whether their emails and sign-in codes loaded. */
+/** users: the people with access; authAccounts: whether their emails loaded. */
 export type AdminUsersLoad = { users: LoadResult<AdminUser[]>; authAccounts: LoadResult<unknown> };
 
-type AuthUser = { id: string; email?: string; factors?: { status: string }[] };
+type AuthUser = { id: string; email?: string };
 
 type Membership = { user_id: string; role: AdminRole };
 
@@ -41,19 +34,12 @@ async function fetchMemberships({ supabase, tenantId }: AdminContext): Promise<L
   return getQueryLoad({ part: "people with access", result, empty: [] });
 }
 
-function getSignInCodeStatus({ user, authUsers }: { user: AuthUser | undefined; authUsers: AuthUsersLoad }): SignInCodeStatus {
-  if (!authUsers.isLoaded) return "not-loaded";
-  if (!authUsers.data) return "unknown";
-  return (user?.factors ?? []).some((factor) => factor.status === "verified") ? "on" : "not-set-up";
-}
-
 function getAdminUser({ membership, authUsers, currentUserId }: { membership: Membership; authUsers: AuthUsersLoad; currentUserId: string }): AdminUser {
   const user = authUsers.isLoaded ? authUsers.data?.get(membership.user_id) : undefined;
   return {
     userId: membership.user_id,
     email: authUsers.isLoaded ? (user?.email ?? UNKNOWN_EMAIL) : EMAIL_NOT_LOADED,
     role: membership.role,
-    signInCodes: getSignInCodeStatus({ user, authUsers }),
     isCurrentUser: membership.user_id === currentUserId,
   };
 }

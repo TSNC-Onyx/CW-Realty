@@ -1,20 +1,11 @@
-import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { MfaForm } from "@/components/admin/auth/mfa-form";
-import { fetchHasVerifiedFactor, requirePasswordOnlyStage } from "@/lib/admin/auth-pages";
-import { ADMIN_MFA_SETUP_PATH, getSafeAdminPath } from "@/lib/admin/paths";
+import { getSafeAdminPath } from "@/lib/admin/paths";
 
-export const metadata: Metadata = { title: "Enter your code" };
-
-export default async function MfaPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+// Sign-in codes were removed (owner choice 2026-10-09, docs/cwr-password-only-sign-in-plan.md).
+// Old bookmarks and email links land here: forward to where they were going (the admin pages
+// send anyone signed out to sign in).
+export default async function OldCodePage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
-  await requirePasswordOnlyStage();
-  if (!(await fetchHasVerifiedFactor())) redirect(ADMIN_MFA_SETUP_PATH);
-  return (
-    <>
-      <h1 className="type-h1 mb-6">Enter your code</h1>
-      <MfaForm next={getSafeAdminPath(next)} />
-    </>
-  );
+  redirect(getSafeAdminPath(next));
 }

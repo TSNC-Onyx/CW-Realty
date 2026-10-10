@@ -12,7 +12,7 @@ import { ALL_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 // The badge hides at zero, so an unknown count shows no badge rather than a wrong number.
 const NO_BADGE_COUNT = 0;
 
-// Signed-in admin frame: every page under it has already passed the aal2 + membership check.
+// Signed-in admin frame: every page under it has already passed the sign-in + membership check.
 // Dark top bar across the page; grouped sidebar on desktop, Menu on phones and tablets.
 export default async function PortalLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const admin = await requireAdminPage(ALL_ROLES);

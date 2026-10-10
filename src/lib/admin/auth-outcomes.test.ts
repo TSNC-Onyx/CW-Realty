@@ -2,12 +2,10 @@ import { AuthApiError, AuthRetryableFetchError, AuthUnknownError, AuthWeakPasswo
 import { describe, expect, it } from "vitest";
 
 import {
-  getCodeCheckOutcome,
   getEmailLinkOutcome,
   getOutcomeMessage,
   getPasswordResetOutcome,
   getSetPasswordOutcome,
-  getSetupStartOutcome,
   getSignInOutcome,
   PASSWORD_NOT_SAVED_MESSAGE,
   RESET_LINK_SENT_MESSAGE,
@@ -18,7 +16,6 @@ import {
 const OUTAGE = new AuthRetryableFetchError("fetch failed", 0);
 const SERVER_ERROR = new AuthApiError("Internal error", 503, "unexpected_failure");
 const UNREADABLE_REPLY = new AuthUnknownError("Auth failed", new SyntaxError("Unexpected token <"));
-const WRONG_CODE = new AuthApiError("Invalid TOTP code entered", 422, "mfa_verification_failed");
 
 describe("sign-in password step", () => {
   it.each([
@@ -56,64 +53,6 @@ describe("sign-in password step", () => {
 
     // Assert
     expect(outcome).toMatchObject({ severity: "critical", shownMessage: SIGN_IN_UNAVAILABLE_MESSAGE });
-  });
-});
-
-describe("authenticator code checks", () => {
-  it("treats a wrong code as the person's to fix", () => {
-    // Act
-    const outcome = getCodeCheckOutcome({ error: WRONG_CODE, rejectedMessage: "That code didn't work." });
-
-    // Assert
-    expect(outcome).toMatchObject({ severity: "info", code: "mfa_verification_failed", shownMessage: "That code didn't work." });
-  });
-
-  it("points at the code field when a code is rejected", () => {
-    // Act
-    const outcome = getCodeCheckOutcome({ error: WRONG_CODE, rejectedMessage: "That code didn't work." });
-
-    // Assert
-    expect(outcome.fieldErrors).toEqual({ code: "Enter the current 6-digit code" });
-  });
-
-  it("keeps the code of any other refusal", () => {
-    // Arrange
-    const error = new AuthApiError("Challenge expired", 400, "mfa_challenge_expired");
-
-    // Act
-    const outcome = getCodeCheckOutcome({ error, rejectedMessage: "That code didn't work." });
-
-    // Assert
-    expect(outcome).toMatchObject({ severity: "info", code: "mfa_challenge_expired" });
-  });
-
-  it("treats an outage as sign-in not working", () => {
-    // Act
-    const outcome = getCodeCheckOutcome({ error: SERVER_ERROR, rejectedMessage: "That code didn't work." });
-
-    // Assert
-    expect(outcome).toEqual({ severity: "critical", code: "unexpected_failure", shownMessage: SIGN_IN_UNAVAILABLE_MESSAGE });
-  });
-});
-
-describe("starting authenticator setup", () => {
-  it("treats an outage as sign-in not working", () => {
-    // Act
-    const outcome = getSetupStartOutcome(OUTAGE);
-
-    // Assert
-    expect(outcome).toMatchObject({ severity: "critical", shownMessage: SIGN_IN_UNAVAILABLE_MESSAGE });
-  });
-
-  it("treats any other refusal as a fault on our side", () => {
-    // Arrange
-    const error = new AuthApiError("Too many factors", 422, "too_many_enrolled_mfa_factors");
-
-    // Act
-    const outcome = getSetupStartOutcome(error);
-
-    // Assert
-    expect(outcome).toMatchObject({ severity: "error", code: "too_many_enrolled_mfa_factors" });
   });
 });
 
@@ -161,6 +100,17 @@ describe("choosing a new password", () => {
 
     // Assert
     expect(outcome).toMatchObject({ severity: "info", code: "weak_password", fieldErrors: { password: "Choose a stronger password" } });
+  });
+
+  it("explains an old sign-in code that still blocks the change, so the owner can remove it", () => {
+    // Arrange
+    const error = new AuthApiError("AAL2 session is required to update email or password when MFA is enabled.", 401, "insufficient_aal");
+
+    // Act
+    const outcome = getSetPasswordOutcome(error);
+
+    // Assert
+    expect(outcome).toMatchObject({ severity: "warning", code: "insufficient_aal", shownMessage: "This account still has an old sign-in code from the authenticator app. Ask the site owner to remove it, then try again." });
   });
 
   it("treats an outage as critical", () => {

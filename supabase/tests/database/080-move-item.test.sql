@@ -45,11 +45,9 @@ select throws_ok(
 reset role;
 select cwr_test.sign_in('owner', 'aal1');
 set local role authenticated;
-select throws_ok(
+select lives_ok(
   $$ select cwr.move_item('team_members', 'f0000000-0000-0000-0000-000000000001', 'down') $$,
-  '42501',
-  'Your role cannot reorder this list',
-  'An owner without a multi-factor sign-in cannot reorder'
+  'An owner signed in with a password alone can reorder (owner choice 2026-10-09)'
 );
 
 reset role;

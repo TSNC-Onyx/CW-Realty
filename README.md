@@ -26,7 +26,7 @@ Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_P
 
 ## Admin portal
 
-- Sign in at `/admin` with a password plus an authenticator-app code.
+- Sign in at `/admin` with email and password (no authenticator code since 2026-10-09; release steps in `docs/runbooks/password-only-sign-in.md`).
 - Create the first owner: `npm run admin:invite -- person@example.com owner` (with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set). Owners invite everyone else from **Users & roles**.
 
 ## Local development
