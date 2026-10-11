@@ -187,7 +187,9 @@ React Email adds React rendering to the Worker bundle (size limits) and can't pr
 
 # Phase 2 — replace every Supabase default email (rev 6, 2026-10-10)
 
-Owner asked 2026-10-10: Supabase's own default emails must never be sent; ours must be used for every Supabase email. Plan only — waits for owner approval. Audit: rev 4 graded B (7 fixes), rev 5 A- (1 fix), rev 6 ALL A.
+Owner asked 2026-10-10: Supabase's own default emails must never be sent; ours must be used for every Supabase email. Audit: rev 4 graded B (7 fixes), rev 5 A- (1 fix), rev 6 ALL A. **Owner approved all three recommendations and the build 2026-10-10. Built 2026-10-10 in PR #34.**
+
+**Update during build (2026-10-10):** `build1` now signs admins in with email and password only (no authenticator codes; `docs/cwr-password-only-sign-in-plan.md`). So a magic link would skip the only sign-in step — the confirm-page change (Approach 3) matters more, not less. Authenticator notices (8, 9) can still fire: `scripts/remove-sign-in-codes.mjs` removes leftover codes at release, so notice 9 is worded as expected and reassuring. Email change (5) needs only a signed-in admin.
 
 ## Findings
 
@@ -199,7 +201,7 @@ Supabase Auth has 13 email types (https://supabase.com/docs/guides/auth/auth-ema
 | 2 | Reset password | Yes — site | "Forgot password" (ours, Phase 1) |
 | 3 | Magic link / sign-in code | Yes — direct API call | Anyone with the public key and a Quick Check token can request one for an existing admin; the site never offers it |
 | 4 | Confirm sign-up | Yes — direct API call | "Resend sign-up" works for an invited admin who hasn't accepted yet, even with sign-ups off (`resend.go` has no sign-ups-off check). The default carries a working link |
-| 5 | Change email address | Yes — direct API call | Needs a signed-in admin with sign-in codes; the site has no page for it |
+| 5 | Change email address | Yes — direct API call | Needs a signed-in admin; the site has no page for it |
 | 6 | Reauthentication code | Yes — direct API call | Needs a signed-in admin; the site doesn't use it |
 | 7 | Password changed (notice) | Only if switched on | Fires on every invite acceptance and reset |
 | 8 | Authenticator added (notice) | Only if switched on | Fires on sign-in code setup |
@@ -214,7 +216,7 @@ Notices are off unless switched on per project; the hosted settings can't be rea
 ## Approach
 
 1. **Brand all 13** through the same layout (`src/lib/email/auth-templates.ts` → `supabase/templates/*.html`), with our own subjects. Nothing stays on a Supabase default, so a later settings change can't bring one back.
-2. **No working link or code for flows the site doesn't offer (3, 4, 5, 6).** Each says what was asked, that the website doesn't use it, and to ignore it or tell the office. Least privilege: a link would only help someone calling Supabase directly.
+2. **No working link or code for flows the site doesn't offer (3, 4, 5, 6).** Each says what was asked, that the website doesn't use it, and to ignore it or tell the office. Least privilege: a link would only help someone calling Supabase directly. Supabase values may appear in text (e.g. the new address), never in `style` or other attributes.
 3. **Close the matching door in the site:** remove `"email"` from `ACCEPTED_TYPES` in `app/admin/auth/confirm/route.ts`, so magic-link and sign-up links can't sign anyone in even if one is ever sent. Only invite and reset links are accepted. Test added. (Security change — owner approval asked below.)
 4. **Notices (7–13)** use only the values Supabase gives each (e.g. `{{ .Email }}`, `{{ .OldEmail }}`, `{{ .FactorType }}`), which its engine escapes, and say to contact the office if it wasn't you. OWASP ASVS 5.0 V6.3 and NIST SP 800-63B both call for notices when a password or authenticator changes.
 5. **Notice on/off is the owner's choice.** Recommended: on for 7, 8, 9, 10; 11–13 stay off (can't happen) but branded.

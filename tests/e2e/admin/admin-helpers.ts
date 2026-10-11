@@ -72,6 +72,15 @@ export async function addOldSignInCode(admin: TestAdmin): Promise<void> {
   if (verifyError) throw new Error(`Could not confirm the code: ${verifyError.message}`);
 }
 
+/** A sign-in ("magic") link of the kind Supabase makes when someone calls it directly. */
+export async function fetchSignInLink({ email, baseUrl }: { email: string; baseUrl: string }): Promise<string> {
+  const { data, error } = await getServiceClient().auth.admin.generateLink({ type: "magiclink", email });
+  if (error) throw new Error(`Could not make a sign-in link: ${error.message}`);
+  const link = new URL(`/admin/auth/confirm?token_hash=${data.properties.hashed_token}&type=email`, baseUrl);
+  link.hostname = "localhost";
+  return link.toString();
+}
+
 /**
  * The emailed password-reset link for an account. Opened on "localhost": the local server
  * forwards to localhost after checking the link, so the sign-in cookie must be set there too.

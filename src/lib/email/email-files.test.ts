@@ -4,6 +4,9 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { getAuthEmailTemplates } from "@/lib/email/auth-templates";
+
+// The owner's live-site script, tested here so its 33 settings can't drift from the repo.
+import { getChangedKeys, getDesiredEmailSettings, getEmailSettingKeys, NOTIFICATION_TYPES, TEMPLATE_TYPES } from "../../../scripts/push-auth-email-templates.mjs";
 import { getNewRequestAlert, getProblemDigest, getReplyEmail, getTestAlert, getVisitorCopy } from "@/lib/email/messages";
 import { SITE_URL } from "@/lib/site/navigation";
 
@@ -14,7 +17,12 @@ import { SITE_URL } from "@/lib/site/navigation";
 
 const TEMPLATE_DIR = "supabase/templates";
 const PREVIEW_DIR = "email-preview";
-const ALLOWED_GO_VARIABLES = new Set(["{{ .SiteURL }}", "{{ .TokenHash }}"]);
+const CONFIG_FILE = "supabase/config.toml";
+const NOTICES_ON = ["password_changed", "email_changed", "mfa_factor_enrolled", "mfa_factor_unenrolled"];
+const NO_LINK_TYPES = ["confirmation", "magic_link", "email_change", "reauthentication"];
+const ONE_TIME_VALUES = ["{{ .TokenHash }}", "{{ .Token }}", "{{ .ConfirmationURL }}"];
+// Phrases from Supabase's own default emails; none may appear in ours.
+const SUPABASE_DEFAULT_PHRASES = ["Follow this link", "Confirm your signup", "Magic Link", "Enter the code"];
 const IS_LOCAL = !process.env.CI;
 const IS_WRITE_RUN = process.env.EMAIL_WRITE === "1" && IS_LOCAL;
 const IS_PREVIEW_RUN = process.env.EMAIL_PREVIEW === "1" && IS_LOCAL;
@@ -28,6 +36,14 @@ function getCommittedTemplate(fileName: string): string {
 
 function getHrefFreeHtml(html: string): string {
   return html.replace(/href="[^"]*"/g, "");
+}
+
+function getConfigToml(): string {
+  return readFileSync(CONFIG_FILE, "utf8");
+}
+
+function getDesiredSettings(): Record<string, string | boolean> {
+  return getDesiredEmailSettings({ toml: getConfigToml(), readTemplate: (filePath: string) => readFileSync(filePath, "utf8") });
 }
 
 function getRequestSummary(contactName: string, message: string) {
@@ -99,16 +115,95 @@ describe("Supabase sign-in templates", () => {
     expect(html).not.toContain("<!--");
   });
 
-  it.each(getAuthEmailTemplates())("$fileName uses only the two Supabase link variables", ({ html }) => {
+  it.each(getAuthEmailTemplates())("$fileName uses only the Supabase values it is given", ({ html, allowedVariables }) => {
     // Act
     const variables = html.match(/\{\{[^}]*\}\}/g) ?? [];
 
     // Assert
-    expect(variables.filter((variable) => !ALLOWED_GO_VARIABLES.has(variable))).toEqual([]);
+    expect(variables.filter((variable) => !allowedVariables.includes(variable))).toEqual([]);
   });
 
-  it.each(getAuthEmailTemplates())("$fileName uses Supabase variables only inside links", ({ html }) => {
+  it.each(getAuthEmailTemplates())("$fileName puts Supabase values only in links and text, never in other attributes", ({ html }) => {
     // Assert
-    expect(getHrefFreeHtml(html)).not.toContain("{{");
+    expect(getHrefFreeHtml(html)).not.toMatch(/<[^>]*\{\{/);
+  });
+
+  it.each(getAuthEmailTemplates())("$fileName has none of Supabase's default wording", ({ html }) => {
+    // Assert
+    expect(SUPABASE_DEFAULT_PHRASES.filter((phrase) => html.includes(phrase))).toEqual([]);
+  });
+
+  it.each(NO_LINK_TYPES)("%s has no working link or code (the site doesn't offer it)", (type) => {
+    // Arrange
+    const template = getAuthEmailTemplates().find((candidate) => candidate.type === type);
+
+    // Assert
+    expect(ONE_TIME_VALUES.filter((value) => template?.html.includes(value))).toEqual([]);
+  });
+
+  it("covers every email Supabase Auth can send", () => {
+    // Act
+    const types = getAuthEmailTemplates().map(({ type }) => type);
+
+    // Assert
+    expect(types.sort()).toEqual([...TEMPLATE_TYPES, ...NOTIFICATION_TYPES].sort());
+  });
+});
+
+describe("Supabase email settings", () => {
+  it.each(getAuthEmailTemplates())("config.toml uses $fileName with the same subject", ({ type, kind, fileName, subject }) => {
+    // Arrange
+    const section = kind === "template" ? `auth.email.template.${type}` : `auth.email.notification.${type}`;
+
+    // Act
+    const hasSection = getConfigToml().includes(`[${section}]\n${kind === "notification" ? "enabled = " : ""}`);
+    const hasFile = getConfigToml().includes(`subject = "${subject}"\ncontent_path = "./supabase/templates/${fileName}"`);
+
+    // Assert
+    expect([hasSection, hasFile]).toEqual([true, true]);
+  });
+
+  it("switches on only the password, email, and sign-in-code notices", () => {
+    // Act
+    const settings = getDesiredSettings();
+    const enabled = NOTIFICATION_TYPES.filter((type: string) => settings[`mailer_notifications_${type}_enabled`] === true);
+
+    // Assert
+    expect(enabled.sort()).toEqual([...NOTICES_ON].sort());
+  });
+
+  it("the live-site script changes exactly the 33 email settings", () => {
+    // Act
+    const keys = Object.keys(getDesiredSettings());
+
+    // Assert
+    expect([keys.length, keys.sort()]).toEqual([33, [...getEmailSettingKeys()].sort()]);
+  });
+
+  it("the live-site script sends each email's own file", () => {
+    // Act
+    const settings = getDesiredSettings();
+
+    // Assert
+    expect(getAuthEmailTemplates().every(({ type, kind, html }) => settings[kind === "template" ? `mailer_templates_${type}_content` : `mailer_templates_${type}_notification_content`] === html)).toBe(true);
+  });
+
+  it("the live-site script sends each email's own subject", () => {
+    // Act
+    const settings = getDesiredSettings();
+
+    // Assert
+    expect(getAuthEmailTemplates().every(({ type, kind, subject }) => settings[kind === "template" ? `mailer_subjects_${type}` : `mailer_subjects_${type}_notification`] === subject)).toBe(true);
+  });
+
+  it("a restore changes only the settings in the backup", () => {
+    // Arrange
+    const backup = { mailer_subjects_invite: "Old subject", site_url: "https://example.com" };
+
+    // Act
+    const changedKeys = getChangedKeys({ mailer_subjects_invite: "New subject", site_url: "https://other.example" }, backup);
+
+    // Assert
+    expect(changedKeys).toEqual(["mailer_subjects_invite"]);
   });
 });

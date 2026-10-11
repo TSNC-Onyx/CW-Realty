@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { getEmailLinkOutcome } from "@/lib/admin/auth-outcomes";
 import { reportAuthProblem } from "@/lib/admin/auth-problems";
-import { ADMIN_HOME_PATH, ADMIN_LOGIN_PATH, ADMIN_SET_PASSWORD_PATH } from "@/lib/admin/paths";
+import { ADMIN_LOGIN_PATH, ADMIN_SET_PASSWORD_PATH } from "@/lib/admin/paths";
 import type { ProblemAction } from "@/lib/observability/problem-catalog";
 import { reportProblem } from "@/lib/observability/report-problem";
 import { createSessionClient } from "@/lib/supabase/server-client";
@@ -15,8 +15,10 @@ import { createSessionClient } from "@/lib/supabase/server-client";
 const EMAIL_LINK_ACTION: ProblemAction = "auth.open_email_link";
 const INCOMPLETE_LINK_CODE = "incomplete_link";
 const LINK_EXPIRED_PATH = `${ADMIN_LOGIN_PATH}?reason=link-expired`;
-const SET_PASSWORD_TYPES: EmailOtpType[] = ["invite", "recovery"];
-const ACCEPTED_TYPES: EmailOtpType[] = [...SET_PASSWORD_TYPES, "email"];
+// Only invite and reset links are accepted. Sign-in links and sign-up confirmations are never
+// offered by the site, so a link Supabase makes for them must not sign anyone in (owner approved
+// 2026-10-10, docs/cwr-branded-email-templates-plan.md, Phase 2).
+const ACCEPTED_TYPES: EmailOtpType[] = ["invite", "recovery"];
 
 function getRedirect(request: NextRequest, path: string): NextResponse {
   return NextResponse.redirect(new URL(path, request.url), 303);
@@ -39,5 +41,5 @@ export async function GET(request: NextRequest) {
   const supabase = await createSessionClient();
   const { error } = await supabase.auth.verifyOtp({ type, token_hash: tokenHash });
   if (error) return reportRejectedLink(request, error);
-  return getRedirect(request, SET_PASSWORD_TYPES.includes(type) ? ADMIN_SET_PASSWORD_PATH : ADMIN_HOME_PATH);
+  return getRedirect(request, ADMIN_SET_PASSWORD_PATH);
 }

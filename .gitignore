@@ -6,6 +6,7 @@
 /playwright-report
 /test-results
 /email-preview
+/.auth-email-backup-*.json
 /.lighthouseci
 
 # next.js / opennext / wrangler
