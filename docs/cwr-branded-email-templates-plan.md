@@ -182,3 +182,79 @@ React Email adds React rendering to the Worker bundle (size limits) and can't pr
 - WCAG 2.2 contrast: https://www.w3.org/TR/WCAG22/#contrast-minimum
 - Supabase auth email templates: https://supabase.com/docs/guides/auth/auth-email-templates
 - Supabase template stripping reports: https://github.com/supabase/supabase/issues/13764, https://github.com/supabase/supabase/issues/15408
+
+---
+
+# Phase 2 — replace every Supabase default email (rev 6, 2026-10-10)
+
+Owner asked 2026-10-10: Supabase's own default emails must never be sent; ours must be used for every Supabase email. Plan only — waits for owner approval. Audit: rev 4 graded B (7 fixes), rev 5 A- (1 fix), rev 6 ALL A.
+
+## Findings
+
+Supabase Auth has 13 email types (https://supabase.com/docs/guides/auth/auth-email-templates). Only 2 use our templates today. Checked against the docs, the CLI v2.118 keys, and the Supabase Auth source.
+
+| # | Supabase email | Can it be sent today? | Why |
+|---|---|---|---|
+| 1 | Invite user | Yes — site | Owner invites an admin (ours, Phase 1) |
+| 2 | Reset password | Yes — site | "Forgot password" (ours, Phase 1) |
+| 3 | Magic link / sign-in code | Yes — direct API call | Anyone with the public key and a Quick Check token can request one for an existing admin; the site never offers it |
+| 4 | Confirm sign-up | Yes — direct API call | "Resend sign-up" works for an invited admin who hasn't accepted yet, even with sign-ups off (`resend.go` has no sign-ups-off check). The default carries a working link |
+| 5 | Change email address | Yes — direct API call | Needs a signed-in admin with sign-in codes; the site has no page for it |
+| 6 | Reauthentication code | Yes — direct API call | Needs a signed-in admin; the site doesn't use it |
+| 7 | Password changed (notice) | Only if switched on | Fires on every invite acceptance and reset |
+| 8 | Authenticator added (notice) | Only if switched on | Fires on sign-in code setup |
+| 9 | Authenticator removed (notice) | Only if switched on | Fires when sign-in codes are removed |
+| 10 | Email address changed (notice) | Only if switched on — and can't fire while #5 has no link | — |
+| 11 | Phone number changed (notice) | No | No phone sign-in |
+| 12 | Sign-in method linked (notice) | No | No Google/Apple sign-in |
+| 13 | Sign-in method removed (notice) | No | Same |
+
+Notices are off unless switched on per project; the hosted settings can't be read from the repo, so the script reports them first.
+
+## Approach
+
+1. **Brand all 13** through the same layout (`src/lib/email/auth-templates.ts` → `supabase/templates/*.html`), with our own subjects. Nothing stays on a Supabase default, so a later settings change can't bring one back.
+2. **No working link or code for flows the site doesn't offer (3, 4, 5, 6).** Each says what was asked, that the website doesn't use it, and to ignore it or tell the office. Least privilege: a link would only help someone calling Supabase directly.
+3. **Close the matching door in the site:** remove `"email"` from `ACCEPTED_TYPES` in `app/admin/auth/confirm/route.ts`, so magic-link and sign-up links can't sign anyone in even if one is ever sent. Only invite and reset links are accepted. Test added. (Security change — owner approval asked below.)
+4. **Notices (7–13)** use only the values Supabase gives each (e.g. `{{ .Email }}`, `{{ .OldEmail }}`, `{{ .FactorType }}`), which its engine escapes, and say to contact the office if it wasn't you. OWASP ASVS 5.0 V6.3 and NIST SP 800-63B both call for notices when a password or authenticator changes.
+5. **Notice on/off is the owner's choice.** Recommended: on for 7, 8, 9, 10; 11–13 stay off (can't happen) but branded.
+6. **Local config** (`supabase/config.toml`): `[auth.email.template.{confirmation,magic_link,email_change,reauthentication}]` and `[auth.email.notification.{password_changed,email_changed,phone_changed,identity_linked,identity_unlinked,mfa_factor_enrolled,mfa_factor_unenrolled}]` with `enabled`, `subject`, `content_path`. Invite/recovery unchanged. Locally, `enabled = true` for password_changed, mfa_factor_enrolled, mfa_factor_unenrolled and email_changed so the local sends in edge case 8 run; phone_changed and the two identity notices stay `false`. The hosted on/off follows owner question 1 and is set by the script, not config.toml.
+7. **Hosted rollout — recommended: one-time script** `scripts/push-auth-email-templates.mjs`, run by the owner in their own terminal (with Claude on hand):
+   - **Token:** a scoped Supabase access token — this project only, Auth Config read-write only, shortest expiry — typed into a hidden prompt (never a command argument or environment variable, so it isn't saved in shell history). The owner deletes it in Supabase right after.
+   - **Pre-checks:** reads the hosted settings and reports sign-ups on/off, double-confirm, and which notices are on; stops if sign-ups are on.
+   - **Backup:** saves only the 33 `mailer_*` email keys (no SMTP password or other secrets) to a git-ignored file readable only by the owner (mode 0600).
+   - **Dry run first:** `--dry-run` prints a key-by-key list of what will change; the real run asks "Apply?" before sending.
+   - **Apply:** `PATCH /v1/projects/{ref}/config/auth` with exactly the 33 email keys (`mailer_subjects_*`, `mailer_templates_*_content`, `mailer_notifications_*_enabled`). Templates and subjects go in the same request as the notice switches.
+   - **Check:** reads back and fails if any of the 33 differs from the repo.
+   - **Undo:** `--restore <backup file>` puts the saved 33 keys back.
+   - Never `supabase config push` (it would push the local site URL too).
+   **Fallback — manual paste:** runbook checklist for all 13 templates and subjects first, notices switched on last, then a test send for each type that can fire.
+8. **Tests:** every type has a generated file (drift guard); each file uses only its allowed values, only in allowed spots; no `<!--`; no Supabase default wording; config.toml lists all 13; the script's request body has exactly the 33 documented keys (one shared constant) and each subject/content pair maps to its own generated file; confirm route refuses `type=email`.
+
+## Edge cases (most → least critical)
+
+| # | Edge case | Solution |
+|---|---|---|
+| 1 | Notices are already on in hosted Supabase, so plain default emails go out after a password set or authenticator setup. | All 13 branded; the script reports what's on before changing anything. |
+| 2 | Someone triggers "resend sign-up" for an invited admin who hasn't accepted yet; the default email has a working sign-in link. | Our version has no link, and the confirm page stops accepting that link type. |
+| 3 | The backup file holds secrets (SMTP password) and leaks. | Backup keeps only the 33 email keys, in a git-ignored, owner-only file. |
+| 4 | Someone requests a magic link for an admin email and gets a working sign-in link. | No link in our version; confirm page refuses it; Quick Check is already required to ask. |
+| 5 | The access token leaks. | Scoped to this project's auth settings, short expiry, typed into a hidden prompt, deleted after the run. |
+| 6 | The script changes other auth settings (site URL, redirects, sign-ups) and breaks sign-in. | Request body is exactly the 33 email keys (tested); dry run first; backup and `--restore`. |
+| 7 | A paste or script mistake leaves one type on the default or broken. | Script reads back all 33; manual path has a per-type checklist, notices last. |
+| 8 | A template uses a value Supabase doesn't give that type, so the email fails to send. | Per-type allowed-value test; real local send through Supabase for each type that can fire locally (2–9). |
+| 9 | "Password changed" fires on every invite acceptance and reset, which could worry people. | Wording: "Your password was set or changed." |
+| 10 | Supabase adds a new email type later and it uses the default. | Test lists the 13 known types; runbook says to check the Dashboard's email list after Supabase announcements. |
+| 11 | PR #34 is 19 commits behind `build1`. | Bring it up to date first; rerun every check. |
+
+## No-regression guarantees
+
+- Invite and reset emails, links and subjects unchanged; app emails untouched.
+- The only site code change: the confirm page stops accepting `type=email` links. No current site flow sends one (only invite and reset exist), proven by tests and the e2e suite.
+- Only email settings change in hosted Supabase, with a backup and a restore command.
+
+## Owner questions
+
+1. Turn on security notices 7–10 (password set/changed, authenticator added/removed, email changed), branded? Recommended: yes.
+2. Hosted rollout: the one-time script (recommended) or manual paste of 13 templates?
+3. OK to make the sign-in link page accept only invite and reset links (security change)? Recommended: yes.
