@@ -167,6 +167,10 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 11 | **Problem emails are paused** (owner decision 2026-09-30): the account's Workers Free plan has no free Cron Trigger (5 per account, all used). To resume, free one or move to Workers Paid, then follow `docs/runbooks/problem-alerts.md` → Who gets the emails | Cloudflare, then developer |
 | 12 | Chat assistant launch: add Worker secret `ANTHROPIC_API_KEY`, set a monthly spend limit in the Claude Console, then write, test and publish the chat policy (Admin → Chatbot policy). Rate limiter `CHAT_RATE_LIMITER` (namespace 1002) is already configured. Steps: `docs/runbooks/chatbot-launch.md` §2 | Cloudflare, Claude Console, Admin |
 | 13 | Known gaps between the code and the constitution, and code bugs found on 2026-10-04 (none fixed yet): see `docs/cwr-document-reconciliation-plan.md` → Gap log | Owner picks when; developer |
+| 14 | Branded emails (PR #34, `docs/cwr-branded-email-templates-plan.md`), after merge: confirm `https://www.charliewardrealty.com/brand/cwr-logo-email.png` shows the logo, then copy all 13 Supabase emails and the 4 security-notice switches to the live project with `scripts/push-auth-email-templates.mjs` (short-lived token, dry run, backup, read-back check, undo): `docs/runbooks/auth-email-templates.md` | Owner's terminal, with Claude |
+| 15 | Branded emails real-inbox check: send yourself the emails and look at them in Gmail (web + iPhone), Outlook.com, classic and new Outlook for Windows, and Apple Mail (iPhone), in light and dark mode. Classic Outlook may draw the card wider than 600px | Owner's inboxes |
+| 16 | Follow-up idea, needs owner approval (security change): a "Continue" button on the sign-in link page so email security scanners can't use up one-time invite and reset links | Owner decision, then developer |
+| 17 | **Built 2026-10-10 (PR #34):** all 13 Supabase emails branded; security notices on for password, email, and sign-in-code changes (goes live with item 14) | — |
 
 ## DO NOT TOUCH
 

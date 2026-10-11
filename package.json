@@ -22,6 +22,8 @@
     "db:catalog": "node scripts/check-problem-catalog.mts",
     "errors:check": "node scripts/check-error-handling.mts",
     "design:check": "node scripts/check-design-tokens.mjs",
+    "email:templates": "EMAIL_WRITE=1 vitest run src/lib/email/email-files.test.ts",
+    "email:preview": "EMAIL_PREVIEW=1 vitest run src/lib/email/email-files.test.ts",
     "admin:invite": "node scripts/invite-admin.mjs",
     "content:import": "node scripts/import-live-site-content.mjs",
     "photos:site": "node scripts/build-site-photos.mjs",

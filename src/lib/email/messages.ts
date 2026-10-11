@@ -2,10 +2,13 @@
 // stripped of line breaks where it lands in a subject, so visitor input cannot change
 // the message structure.
 
+import { FIRM_NAME, getBrandedEmailHtml, getEscapedHtml } from "@/lib/email/layout";
 import type { OutgoingEmail } from "@/lib/email/mailersend";
 import { REPLY_PROMISE } from "@/lib/site/reply-promise";
 
-const FIRM_NAME = "Charlie Ward Realty";
+export { getEscapedHtml };
+
+const STAFF_FOOTER_LINES = [`Sent by the ${FIRM_NAME} website`];
 
 const SOURCE_LABELS: Record<string, string> = { contact: "Contact form", booking: "CWR TouchUp request", chat_handoff: "Chat assistant handoff" };
 
@@ -21,10 +24,8 @@ export type RequestSummary = {
 
 export type OfficeContact = { phoneDisplay: string; email: string };
 
-const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-
-export function getEscapedHtml(text: string): string {
-  return text.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character] ?? character);
+function getVisitorFooterLines(office: OfficeContact): string[] {
+  return [`${FIRM_NAME} · ${office.phoneDisplay}`];
 }
 
 function getSingleLine(text: string): string {
@@ -54,7 +55,13 @@ export function getNewRequestAlert(summary: RequestSummary, recipient: string): 
     to: { email: recipient },
     subject: `New ${kind.toLowerCase()} from ${getSingleLine(summary.contactName)}`,
     text: [...details, "", summary.message, "", `Open it in the inbox: ${summary.threadUrl}`].join("\n"),
-    html: `<p>${details.map(getEscapedHtml).join("<br>")}</p>${getHtmlParagraphs(summary.message)}<p><a href="${getEscapedHtml(summary.threadUrl)}">Open it in the inbox</a></p>`,
+    html: getBrandedEmailHtml({
+      preheader: `${kind} — open it in the inbox`,
+      heading: "New website request",
+      bodyHtml: `<p>${details.map(getEscapedHtml).join("<br>")}</p>${getHtmlParagraphs(summary.message)}`,
+      button: { label: "Open it in the inbox", url: summary.threadUrl },
+      footerLines: STAFF_FOOTER_LINES,
+    }),
   };
 }
 
@@ -76,7 +83,12 @@ export function getVisitorCopy({ name, email, office }: { name: string; email: s
     replyTo: { email: office.email, name: FIRM_NAME },
     subject: `We got your message — ${FIRM_NAME}`,
     text: [greeting, "", body].join("\n"),
-    html: `<p>${getEscapedHtml(greeting)}</p><p>${getEscapedHtml(body)}</p>`,
+    html: getBrandedEmailHtml({
+      preheader: `We'll reply ${REPLY_PROMISE}.`,
+      heading: "We got your message",
+      bodyHtml: `<p>${getEscapedHtml(greeting)}</p><p>${getEscapedHtml(body)}</p>`,
+      footerLines: getVisitorFooterLines(office),
+    }),
   };
 }
 
@@ -87,13 +99,19 @@ export function getReplyEmail({ name, email, reply, office }: { name: string; em
     replyTo: { email: office.email, name: FIRM_NAME },
     subject: `Re: your message to ${FIRM_NAME}`,
     text: [reply, "", "—", footer].join("\n"),
-    html: `${getHtmlParagraphs(reply)}<p>—<br>${getEscapedHtml(footer)}</p>`,
+    html: getBrandedEmailHtml({
+      preheader: "Reply to this email to answer.",
+      heading: `A reply from ${FIRM_NAME}`,
+      bodyHtml: `${getHtmlParagraphs(reply)}<p>—<br>${getEscapedHtml(footer)}</p>`,
+      footerLines: getVisitorFooterLines(office),
+    }),
   };
 }
 
 export function getTestAlert(recipient: string): OutgoingEmail {
   const body = "This is a test alert from the CWR website. If you can read this, new requests will reach you.";
-  return { to: { email: recipient }, subject: "Test alert from the CWR website", text: body, html: `<p>${getEscapedHtml(body)}</p>` };
+  const html = getBrandedEmailHtml({ preheader: "New requests will reach you.", heading: "Test alert", bodyHtml: `<p>${getEscapedHtml(body)}</p>`, footerLines: STAFF_FOOTER_LINES });
+  return { to: { email: recipient }, subject: "Test alert from the CWR website", text: body, html };
 }
 
 export type ProblemDigestGroup = {
@@ -131,6 +149,11 @@ export function getProblemDigest({ groups, recipient, adminUrl }: { groups: Prob
     to: { email: recipient },
     subject: `${isUrgent ? "Urgent: " : ""}CWR website problem${groups.length === 1 ? "" : "s"} need attention`,
     text: [intro, "", ...lines, "", `${footer} ${adminUrl}`].join("\n"),
-    html: `<p>${getEscapedHtml(intro)}</p><ul>${lines.map((line) => `<li>${getEscapedHtml(line)}</li>`).join("")}</ul><p>${getEscapedHtml(footer)} <a href="${getEscapedHtml(adminUrl)}">${getEscapedHtml(adminUrl)}</a></p>`,
+    html: getBrandedEmailHtml({
+      preheader: "Quote a reference code to your developer to find the details.",
+      heading: `${isUrgent ? "Urgent: " : ""}Website problems need attention`,
+      bodyHtml: `<p>${getEscapedHtml(intro)}</p><ul>${lines.map((line) => `<li>${getEscapedHtml(line)}</li>`).join("")}</ul><p>${getEscapedHtml(footer)} <a href="${getEscapedHtml(adminUrl)}">${getEscapedHtml(adminUrl)}</a></p>`,
+      footerLines: STAFF_FOOTER_LINES,
+    }),
   };
 }
