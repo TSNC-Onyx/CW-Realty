@@ -1,5 +1,6 @@
-// Admin session limits from NIST SP 800-63B for AAL2: sign in again after 30 minutes
-// without activity or 12 hours after signing in, whichever comes first (Admin §7).
+// Admin session limits (Admin §7, first taken from NIST SP 800-63B): sign in again after 30
+// minutes without activity or 12 hours after signing in, whichever comes first. Kept when
+// sign-in became email and password only (2026-10-09).
 
 export const IDLE_LIMIT_MS = 30 * 60 * 1000;
 export const IDLE_WARNING_MS = 28 * 60 * 1000;
@@ -20,7 +21,7 @@ export function getSignedInAtMs(authMethods: AuthMethodStamp[] | undefined): num
   return timestamps.length > 0 ? Math.min(...timestamps) : null;
 }
 
-/** Latest sign-in step (for example the authenticator code) — the start of activity. */
+/** Latest sign-in step (for example a password reset link) — the start of activity. */
 export function getLatestAuthAtMs(authMethods: AuthMethodStamp[] | undefined): number | null {
   const timestamps = getAuthTimestampsMs(authMethods);
   return timestamps.length > 0 ? Math.max(...timestamps) : null;

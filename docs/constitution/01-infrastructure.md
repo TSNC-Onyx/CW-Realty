@@ -1,6 +1,6 @@
 # Infrastructure Constitution
 
-> Section 1 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval.
+> Section 1 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §2 amended with owner approval on 2026-10-09 (password-only admin sign-in, `docs/cwr-password-only-sign-in-plan.md`).
 
 ## 1. Workflows (DORA, Trunk Based Development)
 
@@ -23,7 +23,7 @@
 - Least privilege access for every user, service, and API key
 - Scan dependencies automatically and patch critical issues within seven days
 - Verify every Stripe webhook signature and rate limit all public endpoints
-- Require multi factor authentication for all admin and owner accounts
+- Admin and owner accounts sign in with email and password (owner choice 2026-10-09, accepting the lower security of no second factor): passwords of at least 8 characters with both cases and a number, the Quick Check bot test on sign-in, and Supabase Auth's leaked-password protection where the Supabase plan offers it (`docs/runbooks/password-only-sign-in.md`)
 - Set security headers, including a strict Content Security Policy
 - Encrypt data in transit and at rest
 

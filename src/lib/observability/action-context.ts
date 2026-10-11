@@ -8,8 +8,13 @@ import type { ProblemSeverity, ProblemStage } from "@/lib/observability/problem-
 // Per-request memory for the admin action being run: which action it is, who is running it,
 // and the underlying cause of a failure (noted where it happens, reported by the wrapper).
 
-/** reference is set when the problem was already recorded where it happened. */
-export type ProblemCause = { stage: ProblemStage; severity: ProblemSeverity; code: string | null; detail: string | null; reference?: string };
+/**
+ * reference is set when the problem was already recorded where it happened. isExpected marks
+ * a normal outcome shown as a failure (a test run with failing questions): never recorded.
+ */
+export type ProblemCause = { stage: ProblemStage; severity: ProblemSeverity; code: string | null; detail: string | null; reference?: string; isExpected?: boolean };
+
+const EXPECTED_OUTCOME: ProblemCause = { stage: "rule", severity: "info", code: null, detail: null, isExpected: true };
 
 export type ActionActor = { tenantId: string; actorId: string; actorRole: string };
 
@@ -34,6 +39,11 @@ export function setActionActor(actor: ActionActor): void {
 export function noteProblemCause(cause: ProblemCause): void {
   const store = actionContextStorage.getStore();
   if (store) store.cause = cause;
+}
+
+/** The failure about to be shown is a normal outcome, not a problem (docs/false-alarm-cleanup-plan.md). */
+export function noteExpectedOutcome(): void {
+  noteProblemCause(EXPECTED_OUTCOME);
 }
 
 export function takeProblemCause(): ProblemCause | null {

@@ -1,13 +1,13 @@
 import { MessagesSquare } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { LoadProblem } from "@/components/admin/load-problem";
 import { Pagination } from "@/components/content/pagination";
 import { ButtonLink } from "@/components/ui/button-link";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CHATS_PAGE_SIZE, fetchChatPage, getChatFilter, type ChatFilter, type ChatSessionSummary } from "@/lib/admin/chats/queries";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { getPageNumber, getTotalPages } from "@/lib/content/page-number";
@@ -61,7 +61,7 @@ export default async function ChatsPage({ searchParams }: ChatsPageProps) {
   const admin = await requireAdminPage(EDITOR_ROLES);
   const filter = getChatFilter(params.show);
   const page = getPageNumber(params.page);
-  if (page === null) notFound();
+  if (page === null) return showPageNotFound({ admin, path: "/admin/chats" });
   const chatPage = await fetchChatPage(admin, { filter, page });
   const notice = await reportPageLoad({ admin, action: "chats.load", results: [chatPage] });
   return (

@@ -3,11 +3,12 @@ import type { ProblemCounts } from "@/lib/admin/health/queries";
 import type { LoadResult } from "@/lib/admin/load-result";
 
 // Owners only: how many problems the site recorded in the last day, and how many were
-// system faults rather than typing mistakes (docs/cwr-error-tracking-plan.md).
+// errors or worse (docs/cwr-error-tracking-plan.md). The rest are notes and warnings of
+// many kinds, so the line doesn't guess which (docs/false-alarm-cleanup-plan.md).
 
 function getSeriousText({ total, serious }: ProblemCounts): string {
   if (total === 0) return "Nothing went wrong.";
-  if (serious === 0) return "None were errors. Most are typing mistakes people fixed.";
+  if (serious === 0) return "None were errors.";
   return serious === 1 ? "1 was an error or worse." : `${serious} were errors or worse.`;
 }
 

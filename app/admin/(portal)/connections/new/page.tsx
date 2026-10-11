@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ConnectionForm } from "@/components/admin/connections/connection-form";
+import { NewConnectionForm } from "@/components/admin/connections/new-connection-form";
 import { TextLink } from "@/components/ui/text-link";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 import { CONNECTION_CATEGORIES } from "@/lib/content/connection-categories";
@@ -15,8 +15,8 @@ export default async function NewConnectionPage() {
     <>
       <TextLink href="/admin/connections">Back to connections</TextLink>
       <h1 className="type-h1 mt-4 mb-2">Add connection</h1>
-      <p className="type-lead mb-10 text-muted">You can add a photo after saving.</p>
-      <ConnectionForm mode="create" idempotencyKey={crypto.randomUUID()} defaults={EMPTY_CONNECTION} />
+      <p className="type-lead mb-10 text-muted">Add their details and photo, then save.</p>
+      <NewConnectionForm idempotencyKey={crypto.randomUUID()} defaults={EMPTY_CONNECTION} />
     </>
   );
 }

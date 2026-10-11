@@ -3,9 +3,11 @@ import { connection } from "next/server";
 
 import { fetchListingSlugs } from "@/lib/content/listings";
 import { fetchTeamMembers } from "@/lib/content/team";
-import { SITE_URL, STATIC_PAGE_PATHS } from "@/lib/site/navigation";
+import { SITE_URL, getListedPagePaths } from "@/lib/site/navigation";
+import { fetchPageListing } from "@/lib/site/page-listing";
 
-// Fixed pages plus every live listing and visible team member (navigation-reconciliation #1).
+// Fixed pages (minus any an owner has hidden) plus every live listing and visible team member
+// (navigation-reconciliation #1).
 // If the database is unavailable the fixed pages are still listed.
 
 async function fetchRecordPaths(): Promise<string[]> {
@@ -20,6 +22,7 @@ async function fetchRecordPaths(): Promise<string[]> {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
-  const paths = [...STATIC_PAGE_PATHS, ...(await fetchRecordPaths())];
+  const [listing, recordPaths] = await Promise.all([fetchPageListing(), fetchRecordPaths()]);
+  const paths = [...getListedPagePaths(listing), ...recordPaths];
   return paths.map((path) => ({ url: `${SITE_URL}${path === "/" ? "" : path}` }));
 }

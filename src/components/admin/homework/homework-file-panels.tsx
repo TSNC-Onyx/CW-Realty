@@ -7,7 +7,7 @@ import { PhotoPicker } from "@/components/admin/photos/photo-picker";
 import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { ResponsivePhoto } from "@/components/content/responsive-photo";
 import { Message } from "@/components/ui/message";
-import { removeHomeworkCoverAction, setHomeworkCoverAction } from "@/lib/admin/homework/actions";
+import { removeHomeworkCoverAction, setHomeworkCoverAction, setHomeworkVideoCoverAction } from "@/lib/admin/homework/actions";
 import { removeHomeworkCaptionsAction } from "@/lib/admin/homework/upload-actions";
 import type { HomeworkCover } from "@/lib/content/homework";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -39,7 +39,7 @@ function PanelHeading({ id, title, isOptional = false }: { id: string; title: st
   );
 }
 
-export function VideoFilePanel({ itemId, file }: { itemId: string; file: StoredFile | null }) {
+export function VideoFilePanel({ itemId, file, hasUploadedCover }: { itemId: string; file: StoredFile | null; hasUploadedCover: boolean }) {
   return (
     <section aria-labelledby="video-file-heading" className="grid gap-4 border-t-2 border-ink pt-6">
       <PanelHeading id="video-file-heading" title="Video file" />
@@ -50,6 +50,7 @@ export function VideoFilePanel({ itemId, file }: { itemId: string; file: StoredF
         chooseLabel={file ? "Choose a new video" : "Choose a video"}
         buttonLabel={file ? "Replace video" : "Upload video"}
         helperText="MP4 video, up to 50 MB. Under 25 MB loads faster on phones. The length and size are filled in for you."
+        isMakingCover={!hasUploadedCover}
       />
     </section>
   );
@@ -71,15 +72,24 @@ export function DocumentFilePanel({ itemId, file }: { itemId: string; file: Stor
   );
 }
 
-export function CoverPanel({ itemId, title, cover }: { itemId: string; title: string; cover: HomeworkCover | null }) {
+type CoverPanelProps = { itemId: string; title: string; cover: HomeworkCover | null; isFromVideo: boolean };
+
+// Undo after removing restores the cover as it was: an automatic cover stays automatic.
+function getRestoreCover({ itemId, cover, isFromVideo }: Omit<CoverPanelProps, "title"> & { cover: HomeworkCover }) {
+  const { folder, width, height } = cover;
+  return isFromVideo ? () => setHomeworkVideoCoverAction({ itemId, folder, width, height }) : () => setHomeworkCoverAction({ itemId, ...cover });
+}
+
+export function CoverPanel({ itemId, title, cover, isFromVideo }: CoverPanelProps) {
   return (
     <section aria-labelledby="cover-heading" className="grid gap-4 border-t-2 border-ink pt-6">
       <PanelHeading id="cover-heading" title="Cover picture" isOptional />
-      <p className="type-small max-w-prose text-muted">Shown before the video plays. Without one, visitors see the video&apos;s first frame. A wide picture (16:9) works best.</p>
+      <p className="type-small max-w-prose text-muted">Shown before the video plays. If you don&apos;t add one, a picture is made from the video&apos;s opening scene when you upload the video. A wide picture (16:9) works best.</p>
       {cover && (
         <div className="grid max-w-form gap-4">
           <div className="w-72">
             <ResponsivePhoto photo={cover} ratio="photo" sizes="288px" />
+            {isFromVideo && <p className="type-small mt-2 text-muted">Made from the video&apos;s opening scene</p>}
           </div>
           <div>
             <QuickActionButton
@@ -88,7 +98,7 @@ export function CoverPanel({ itemId, title, cover }: { itemId: string; title: st
               icon={ImageOff}
               problemAction="homework.remove_cover"
               onRun={() => removeHomeworkCoverAction(itemId)}
-              undo={{ label: "Undo", problemAction: "homework.set_cover", onRun: () => setHomeworkCoverAction({ itemId, ...cover }) }}
+              undo={{ label: "Undo", problemAction: isFromVideo ? "homework.make_cover" : "homework.set_cover", onRun: getRestoreCover({ itemId, cover, isFromVideo }) }}
             />
           </div>
         </div>

@@ -4,7 +4,8 @@ import { expect, test } from "@playwright/test";
 
 import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully } from "./admin-helpers";
 
-// Connections editor (owner approval 2026-09-26), including an in-browser photo upload.
+// Connections editor (owner approval 2026-09-26), including an in-browser photo upload chosen
+// on the Add page (docs/admin-upload-layout-plan.md).
 
 const TEST_PHOTO = path.join(__dirname, "..", "..", "fixtures", "test-house.jpg");
 const PHOTO_TIMEOUT_MS = 90_000;
@@ -21,16 +22,15 @@ test("a manager adds a connection with a photo and the Connections page shows it
   await page.getByLabel("Full name").fill(name);
   await page.getByLabel("Category").selectOption("Home warranty");
   await page.getByLabel("Phone (optional)").fill("336-555-0100");
-  await page.getByRole("button", { name: "Add connection" }).click();
-  await expect(page.getByText("Connection added")).toBeVisible();
-
-  // Act
   await page.getByLabel("Choose a photo").setInputFiles(TEST_PHOTO);
   await page.getByLabel("Describe the photo").fill("Portrait of a test partner");
-  await page.getByRole("button", { name: "Add photo" }).click();
+
+  // Act
+  await page.getByRole("button", { name: "Add connection" }).click();
 
   // Assert
-  await expect(page.getByRole("status").filter({ hasText: "Photo saved." })).toBeVisible({ timeout: PHOTO_TIMEOUT_MS });
+  await expect(page.getByText("Connection added")).toBeVisible({ timeout: PHOTO_TIMEOUT_MS });
+  await expect(page.getByRole("img", { name: "Portrait of a test partner" }).first()).toBeVisible();
   await page.goto("/connections");
   const card = page.getByRole("listitem").filter({ has: page.getByRole("heading", { level: 3, name }) });
   await expect(card.getByRole("img", { name: "Portrait of a test partner" })).toBeVisible();

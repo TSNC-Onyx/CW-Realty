@@ -146,7 +146,7 @@ Status colors (always with an icon and words, never color alone):
 
 ### 11.3 Shape, borders, and elevation
 
-- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners
+- Corner radius is **0** on every component: buttons, cards, fields, images, messages, panels, chat bubbles, tags. Exception (owner choice 2026-10-06, `docs/cwr-chat-guided-options-plan.md`): the chat topic buttons have 6px corners. Exception (owner choice 2026-10-09, `docs/cwr-owner-photo-arch-plan.md`): Charlie's portrait on About and Selected services has an arched top (half circle, square bottom corners)
 - Circles only for the logo, 64px round icon badges, and the 8px status dot
 - Borders: 1px `field-border` on inputs; 2px on buttons and invalid/valid fields; 2px `ink` rule on top of cards
 - No shadows and no gradients; depth comes from `dark` bands and `surface-soft` sections
@@ -258,6 +258,7 @@ Status colors (always with an icon and words, never color alone):
 - Helper text: 15px `muted` below the field
 - Error: 2px error border, `aria-invalid="true"`, 18px error icon plus a specific message in 15px 600 error color below the field, linked with `aria-describedby`; shown when the visitor leaves the field
 - Valid: 2px success border plus a 18px check icon and short confirmation only on fields that were previously in error
+- Saved-state line (admin only; owner choice 2026-10-09, `docs/cwr-ads-analytics-review-plan.md` Part B): under every admin field that holds a saved value, a 15px line with an 18px icon — "Saved" (`success` check, `muted` text), "Not saved yet" (`ink` alert icon, 600 `ink` text) while the box differs from what's stored, or "Nothing saved" (`muted` dashed circle) for a blank stored value; no line on a new item's untouched fields. Not on sign-in, "add" forms that clear themselves, message boxes, or uploads
 - Focus: the standard focus ring (11.5)
 - On submit with errors: an error message at the top lists each problem as a link that jumps to its field, and focus moves to that message
 

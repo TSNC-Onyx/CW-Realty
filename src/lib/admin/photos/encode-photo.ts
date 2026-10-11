@@ -57,9 +57,13 @@ function runWorker(bitmap: ImageBitmap, onProgress: (share: number) => void): Pr
   });
 }
 
-export async function encodePhoto(file: File, onProgress: (share: number) => void): Promise<EncodedPhoto> {
-  checkFile(file);
-  const bitmap = await getBitmap(file);
+/** Encodes an already-decoded picture, such as a frame taken from a video. The bitmap is handed to the worker. */
+export async function encodePhotoBitmap(bitmap: ImageBitmap, onProgress: (share: number) => void): Promise<EncodedPhoto> {
   const { width, height } = bitmap;
   return { width, height, variants: await runWorker(bitmap, onProgress) };
+}
+
+export async function encodePhoto(file: File, onProgress: (share: number) => void): Promise<EncodedPhoto> {
+  checkFile(file);
+  return encodePhotoBitmap(await getBitmap(file), onProgress);
 }

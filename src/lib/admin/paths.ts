@@ -2,6 +2,7 @@
 
 export const ADMIN_HOME_PATH = "/admin";
 export const ADMIN_LOGIN_PATH = "/admin/login";
+// The old authenticator-code pages forward to the dashboard (codes removed 2026-10-09).
 export const ADMIN_MFA_PATH = "/admin/mfa";
 export const ADMIN_MFA_SETUP_PATH = "/admin/mfa/setup";
 export const ADMIN_SET_PASSWORD_PATH = "/admin/set-password";

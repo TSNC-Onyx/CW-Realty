@@ -46,7 +46,7 @@ function WelcomeIntro({ owner }: { owner: TeamMember | null }) {
     <div className="bg-page pt-12 pb-12 lg:pt-16 lg:pb-24">
       <Container className="grid items-center gap-10 lg:grid-cols-12 lg:gap-16">
         <div className="lg:col-span-5">
-          <ResponsivePhoto photo={owner?.photo ?? null} ratio="portrait" sizes={PORTRAIT_SIZES} isPriority />
+          <ResponsivePhoto photo={owner?.photo ?? null} ratio="portrait" shape="arch" sizes={PORTRAIT_SIZES} isPriority />
         </div>
         <div className="lg:col-span-7">
           <Eyebrow>About us</Eyebrow>

@@ -11,9 +11,11 @@ export default defineConfig({
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : "list",
   use: { baseURL: BASE_URL },
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /tracking\// },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: /(tracking|site-switches)\// },
     // Tracking switches on the cookie banner for the whole site, so it runs alone, after the rest.
     { name: "tracking", use: { ...devices["Desktop Chrome"] }, testMatch: /tracking\/.*\.spec\.ts/, dependencies: ["chromium"] },
+    // Owner switches that hide pages site-wide (Connections page) run alone, last.
+    { name: "site-switches", use: { ...devices["Desktop Chrome"] }, testMatch: /site-switches\/.*\.spec\.ts/, dependencies: ["tracking"] },
   ],
   webServer: {
     command: `npm run start -- --port ${PORT}`,

@@ -36,6 +36,19 @@ test("strict CSP uses a fresh nonce on every request", async ({ request }) => {
   expect(firstNonce).not.toBe(secondNonce);
 });
 
+test("only admin pages may open a video the admin picked (blob: media)", async ({ request }) => {
+  // Arrange
+  const getMediaSources = (policy: string) => policy.split(";").map((directive) => directive.trim()).find((directive) => directive.startsWith("media-src")) ?? "";
+
+  // Act
+  const publicPage = await request.get("/resources");
+  const adminPage = await request.get("/admin/login");
+
+  // Assert
+  expect(getMediaSources(publicPage.headers()["content-security-policy"] ?? "")).not.toContain("blob:");
+  expect(getMediaSources(adminPage.headers()["content-security-policy"] ?? "")).toContain("blob:");
+});
+
 test("page scripts carry the CSP nonce", async ({ request }) => {
   // Arrange
   const response = await request.get("/");

@@ -7,10 +7,12 @@ import { usePolicyDraftState } from "@/components/admin/chat-policy/policy-draft
 import { useEditSectionRequest } from "@/components/admin/chat-policy/policy-page-events";
 import { PolicyTestChat } from "@/components/admin/chat-policy/policy-test-chat";
 import { SaveBar } from "@/components/admin/save-bar";
+import { SavedStateLine } from "@/components/admin/saved-state";
 import { useAdminForm } from "@/components/admin/use-admin-form";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { savePolicyDraftAction } from "@/lib/admin/chat-policy/actions";
 import { MAX_POLICY_LENGTH } from "@/lib/admin/chat-policy/policy-schema";
+import { getSavedState } from "@/lib/admin/saved-state";
 import { getHeadingLines, isSameTitle } from "@/lib/chat/policy-sections";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
@@ -47,6 +49,7 @@ export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorPr
   const { setHasUnsavedChanges } = usePolicyDraftState();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const error = state.fieldErrors.body ?? uploadError;
+  const savedState = getSavedState({ current: body, saved: initialBody });
 
   const handleEditSection = useCallback(
     (sectionTitle: string) => {
@@ -111,7 +114,7 @@ export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorPr
             rows={18}
             maxLength={MAX_POLICY_LENGTH}
             aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "policy-body-helper policy-body-error" : "policy-body-helper"}
+            aria-describedby={error ? "policy-body-helper policy-body-error policy-body-saved" : "policy-body-helper policy-body-saved"}
             className="field-input font-body"
           />
           {error && (
@@ -120,6 +123,7 @@ export function PolicyEditor({ draftId, initialBody, updatedAt }: PolicyEditorPr
               {error}
             </p>
           )}
+          <SavedStateLine id="policy-body-saved" state={savedState} />
         </div>
         <div>
           <label className={`${getButtonClassName({ size: "s", variant: "secondary" })} cursor-pointer focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-info`}>

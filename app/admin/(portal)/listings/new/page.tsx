@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { ListingForm } from "@/components/admin/listings/listing-form";
+import { NewListingForm } from "@/components/admin/listings/new-listing-form";
 import { TextLink } from "@/components/ui/text-link";
 import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
@@ -14,8 +14,8 @@ export default async function NewListingPage() {
     <>
       <TextLink href="/admin/listings">Back to listings</TextLink>
       <h1 className="type-h1 mt-4 mb-2">Add listing</h1>
-      <p className="type-lead mb-10 text-muted">It saves as a draft. Next you add photos, preview it, and publish.</p>
-      <ListingForm mode="create" idempotencyKey={crypto.randomUUID()} defaults={EMPTY_LISTING} />
+      <p className="type-lead mb-10 text-muted">Add the details and photos. It saves as a draft, so you can preview it before publishing.</p>
+      <NewListingForm idempotencyKey={crypto.randomUUID()} defaults={EMPTY_LISTING} />
     </>
   );
 }

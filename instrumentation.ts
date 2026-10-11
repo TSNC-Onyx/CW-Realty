@@ -6,9 +6,6 @@ import type { Instrumentation } from "next";
 
 const ADMIN_PATH_PREFIX = "/admin";
 const PROBLEM_REPORT_PATH = "/admin/problems/report";
-// The browser left before the page finished streaming (closed the tab, clicked elsewhere):
-// noted, never treated as a crash that emails the owner.
-const CLIENT_LEFT_PATTERN = /destination stream closed early|aborted|ECONNRESET/i;
 
 function getHeader(headers: NodeJS.Dict<string | string[]>, name: string): string | null {
   const value = headers[name];
@@ -20,14 +17,12 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
   if (!request.path.startsWith(ADMIN_PATH_PREFIX) || request.path.startsWith(PROBLEM_REPORT_PATH)) return;
   const { reportProblem } = await import("@/lib/observability/report-problem");
   const { getOwnStackFrames } = await import("@/lib/observability/scrub");
+  const { getCrashCause } = await import("@/lib/observability/crash-cause");
   const crash = error instanceof Error ? error : new Error(String(error));
-  const hasClientLeft = CLIENT_LEFT_PATTERN.test(crash.message) || crash.name === "AbortError";
+  const cause = getCrashCause({ crash, stackFrames: getOwnStackFrames(crash.stack) });
   await reportProblem({
     action: "portal.page_crash",
-    stage: hasClientLeft ? "network" : "unexpected",
-    severity: hasClientLeft ? "info" : "error",
-    code: hasClientLeft ? "client_left" : crash.name,
-    detail: `${crash.message}\n${getOwnStackFrames(crash.stack)}`,
+    ...cause,
     digest: (error as { digest?: string }).digest ?? null,
     requestId: getHeader(request.headers, "x-request-id"),
     pagePath: request.path,

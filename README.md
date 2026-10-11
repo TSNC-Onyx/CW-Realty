@@ -22,11 +22,11 @@ Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_P
 - `MAILERSEND_API_KEY` — alert and reply emails (with Worker variables `ALERT_FROM_EMAIL`, `ALERT_FROM_NAME`).
 - `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; rebuild after changing it). Never set `NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS` on the live build: it lets Cloudflare's test keys through (only local tests use it).
 - `ANTHROPIC_API_KEY` — the website chat assistant; without it every visitor is offered a person (`docs/runbooks/chatbot-launch.md`).
-- `META_CAPI_ACCESS_TOKEN` — optional; lets the server confirm leads to Meta (with the Pixel ID entered in **Ads & analytics**). Optional Worker variable `TAG_SERVER_URL` points Tag Manager at a server-side tagging container.
+- `META_CAPI_ACCESS_TOKEN` — optional; lets the server confirm leads to Meta (with the Pixel ID entered in **Ads & analytics**). Setup steps for Tag Manager, Google, and Meta: `docs/runbooks/ads-analytics-setup.md`. Optional Worker variable `TAG_SERVER_URL` points Tag Manager at a server-side tagging container.
 
 ## Admin portal
 
-- Sign in at `/admin` with a password plus an authenticator-app code.
+- Sign in at `/admin` with email and password (no authenticator code since 2026-10-09; release steps in `docs/runbooks/password-only-sign-in.md`).
 - Create the first owner: `npm run admin:invite -- person@example.com owner` (with `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set). Owners invite everyone else from **Users & roles**.
 
 ## Local development

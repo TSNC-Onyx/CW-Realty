@@ -26,18 +26,22 @@ select throws_ok(
   '42501', null, 'Visitors cannot add listings'
 );
 
--- ---------------------------------------------------------------- MFA
+-- ------------------------------------------- password-only sessions (owner choice 2026-10-09)
 reset role;
 select cwr_test.sign_in('owner', 'aal1');
 set local role authenticated;
 
-select is(
-  (select count(*)::int from cwr.listings where tenant_id = cwr_test.id('tenant_a')), 1,
-  'An owner without a verified second factor sees only public listings'
+select lives_ok(
+  $$ insert into cwr.team_members (tenant_id, slug, full_name) values (cwr_test.id('tenant_a'), 'password-only', 'Password Only') $$,
+  'An owner signed in with a password alone can edit (no authenticator code needed)'
 );
+
+reset role;
+select cwr_test.sign_in('owner', '');
+set local role authenticated;
 select throws_ok(
-  $$ insert into cwr.team_members (tenant_id, slug, full_name) values (cwr_test.id('tenant_a'), 'no-mfa', 'No MFA') $$,
-  '42501', null, 'An owner without a verified second factor cannot edit'
+  $$ insert into cwr.team_members (tenant_id, slug, full_name) values (cwr_test.id('tenant_a'), 'no-sign-in', 'No Sign In') $$,
+  '42501', null, 'A token without a completed sign-in still cannot edit'
 );
 
 -- ---------------------------------------------------------------- owner

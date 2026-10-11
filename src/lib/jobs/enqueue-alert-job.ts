@@ -13,6 +13,10 @@ import { SITE_URL } from "@/lib/site/navigation";
 
 type AlertQueue = { send: (job: AlertJob) => Promise<unknown> };
 
+// Decided from this deployment's own settings, so one record per running copy is enough;
+// later outcomes share its reference (docs/false-alarm-cleanup-plan.md #8).
+let emailNotSetUpReference: string | null = null;
+
 /**
  * queued: the queue will send it. sent: it ran right away. failed: it did not go out yet (it
  * will be retried). not_set_up: email sending isn't configured, so nothing can go out.
@@ -46,9 +50,14 @@ async function sendToQueue(queue: AlertQueue, job: AlertJob): Promise<boolean> {
 
 // Without email settings nothing can go out, queued or not; the delivery log says "not sent".
 // Noted at info level, so it is written after the response and never slows a visitor's form.
-async function getEmailNotSetUpOutcome(job: AlertJob): Promise<EnqueueOutcome> {
+async function fetchEmailNotSetUpReference(job: AlertJob): Promise<string | null> {
   const result = await reportProblem({ action: "jobs.alert_email", stage: "setup", severity: "info", origin: "job", code: "email_not_configured", detail: `Alert job ${job.kind} can't be emailed: email sending is not set up` });
-  return { status: "not_set_up", reference: result.reference };
+  return result.reference;
+}
+
+async function getEmailNotSetUpOutcome(job: AlertJob): Promise<EnqueueOutcome> {
+  emailNotSetUpReference ??= await fetchEmailNotSetUpReference(job);
+  return { status: "not_set_up", reference: emailNotSetUpReference };
 }
 
 /** Never throws: if the queue can't take the job, it runs right away instead. */

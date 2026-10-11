@@ -1,18 +1,22 @@
--- Owners' sign-in code resets are written to the append-only audit log.
+-- Sign-in code removals in the append-only audit log. The owner's reset button was retired on
+-- 2026-10-09 (password-only sign-in); the one-time removal script logs as the system.
 begin;
-select plan(3);
+select plan(5);
 select cwr_test.create_fixture();
 
 select cwr_test.sign_in('owner');
 set local role authenticated;
-select lives_ok(
+select throws_ok(
   $$ select cwr.record_sign_in_codes_reset(cwr_test.id('staff')) $$,
-  'An owner can record resetting a team member''s sign-in codes'
+  '42501',
+  null,
+  'The retired reset button''s log function can no longer be called (2026-10-09)'
 );
-select results_eq(
-  $$ select action, actor_id, record_id from cwr.audit_log where action = 'mfa_reset' $$,
-  $$ values ('mfa_reset', cwr_test.id('owner'), cwr_test.id('staff')) $$,
-  'The entry says who reset whose codes'
+reset role;
+select is(
+  (select count(*)::int from cwr.audit_log where action = 'mfa_reset'),
+  0,
+  'Nothing was written'
 );
 
 reset role;
@@ -21,8 +25,26 @@ set local role authenticated;
 select throws_ok(
   $$ select cwr.record_sign_in_codes_reset(cwr_test.id('staff')) $$,
   '42501',
-  'Only an owner can record this for a member of their team',
-  'Managers cannot write reset entries'
+  null,
+  'Managers cannot call it either'
+);
+
+-- One-time removal at the switch to password-only sign-in (2026-10-09): the service role logs it.
+reset role;
+select set_config('cwr_test.manager_id', cwr_test.id('manager')::text, true);
+set local role service_role;
+select lives_ok(
+  $$ select cwr.record_sign_in_codes_removed(current_setting('cwr_test.manager_id')::uuid) $$,
+  'The removal script can record removing a member''s old sign-in codes'
+);
+reset role;
+select cwr_test.sign_in('owner');
+set local role authenticated;
+select throws_ok(
+  $$ select cwr.record_sign_in_codes_removed(cwr_test.id('staff')) $$,
+  '42501',
+  null,
+  'Signed-in people cannot write system removal entries'
 );
 
 select * from finish();

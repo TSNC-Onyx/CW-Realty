@@ -16,7 +16,7 @@ function getInviteHtml(): string {
     heading: "You're invited to the CWR admin portal",
     bodyHtml:
       "<p>Charlie Ward Realty has given you access to update the website.</p>" +
-      "<p>This link works once and expires in 24 hours. After you set a password, you'll connect an authenticator app for sign-in codes.</p>" +
+      "<p>This link works once and expires in 24 hours. After you set a password, you'll sign in with your email and that password.</p>" +
       "<p>If you weren't expecting this, you can ignore this email.</p>",
     button: { label: "Accept the invite and set your password", url: `${CONFIRM_LINK}invite` },
     footerLines: FOOTER_LINES,

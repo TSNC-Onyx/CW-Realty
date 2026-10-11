@@ -6,7 +6,7 @@ import { CookieSettingsLink } from "@/components/tracking/cookie-settings-link";
 import { Container } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { getContactLinks } from "@/lib/site/contact-links";
-import { NC_AGENCY_DISCLOSURE_URL, SITE_FOOTER_ID, getFooterColumns } from "@/lib/site/navigation";
+import { NC_AGENCY_DISCLOSURE_URL, SITE_FOOTER_ID, getFooterColumns, type PageListing } from "@/lib/site/navigation";
 import type { SiteSettings } from "@/lib/site/site-settings";
 
 // Style §11.13 footer: dark band, contact details, five link columns, legal row.
@@ -50,10 +50,10 @@ function FooterContact({ settings }: { settings: SiteSettings | null }) {
   );
 }
 
-function FooterColumns() {
+function FooterColumns({ listing }: { listing: PageListing }) {
   return (
     <nav aria-label="Footer" className="grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-5 lg:col-span-8">
-      {getFooterColumns().map((column) => (
+      {getFooterColumns(listing).map((column) => (
         <div key={column.heading}>
           <h2 className="type-eyebrow mb-2 text-gold">{column.heading}</h2>
           <ul>
@@ -102,7 +102,7 @@ function FooterLegal({ licenseNumber, footerText }: { licenseNumber: string | nu
   );
 }
 
-export function SiteFooter({ settings }: { settings: SiteSettings | null }) {
+export function SiteFooter({ settings, listing }: { settings: SiteSettings | null; listing: PageListing }) {
   return (
     <footer id={SITE_FOOTER_ID} className="tone-dark">
       <Container className="pt-12 pb-30 lg:pt-18 lg:pb-10">
@@ -111,7 +111,7 @@ export function SiteFooter({ settings }: { settings: SiteSettings | null }) {
             <Logo placement="footer" />
             <FooterContact settings={settings} />
           </div>
-          <FooterColumns />
+          <FooterColumns listing={listing} />
         </div>
         <FooterLegal licenseNumber={settings?.licenseNumber ?? null} footerText={settings?.footerText ?? ""} />
       </Container>

@@ -7,7 +7,7 @@ import { useId, useRef, type FocusEvent, type KeyboardEvent, type MouseEvent, ty
 
 import { useNavMenus, type NavMenus } from "@/components/layout/use-nav-menus";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
-import { MENU_SECTIONS, isCurrentPath, isCurrentSection, type NavLink } from "@/lib/site/navigation";
+import { isCurrentPath, isCurrentSection, type NavLink, type NavSection } from "@/lib/site/navigation";
 
 // Style §11.9 desktop menu on the dark header. Items with sub-pages use the WAI-ARIA APG disclosure
 // pattern. Style §5 (owner choice 2026-09-26): a mouse opens a list by hovering; touch, Enter,
@@ -105,13 +105,13 @@ function NavDisclosure({ label, links, pathname, isCurrent, menus }: NavDisclosu
   );
 }
 
-export function DesktopNav() {
+export function DesktopNav({ sections }: { sections: NavSection[] }) {
   const pathname = usePathname();
   const menus = useNavMenus();
   return (
     <nav aria-label="Main" className="hidden lg:block">
       <ul className="flex items-center gap-1">
-        {MENU_SECTIONS.map((section) => {
+        {sections.map((section) => {
           const isCurrent = isCurrentSection(pathname, section);
           if (section.kind === "group") {
             return (

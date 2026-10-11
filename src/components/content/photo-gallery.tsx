@@ -9,6 +9,7 @@ import { getClampedIndex, usePhotoTrack } from "@/components/content/use-photo-t
 import { PhotoPlaceholder } from "@/components/ui/photo-placeholder";
 import type { ListingPhoto } from "@/lib/content/listings";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { isBrowserOffline } from "@/lib/observability/browser-offline";
 import { reportVisitorClientProblem } from "@/lib/observability/report-client-problem";
 
 // Listing photo gallery (docs/cwr-reliability-round-plan.md §3.1; owner decision D2), following
@@ -105,6 +106,8 @@ export function PhotoGallery({ photos, label, sizes, overlay }: PhotoGalleryProp
   const handleImageError = (folder: string) => {
     if (failedFolders.has(folder)) return;
     setFailedFolders(new Set([...failedFolders, folder]));
+    // A visitor's own lost connection isn't a missing photo (docs/false-alarm-cleanup-plan.md #9).
+    if (isBrowserOffline()) return;
     void reportVisitorClientProblem({ action: "site.listing_photo", stage: "browser", severity: "warning", code: "image_failed" });
   };
 

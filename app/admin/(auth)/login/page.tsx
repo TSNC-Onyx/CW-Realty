@@ -24,11 +24,11 @@ type LoginPageProps = { searchParams: Promise<{ reason?: string; next?: string }
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const { reason, next } = await searchParams;
   const stage = await fetchSignInStage();
-  if (stage === "verified" && reason === undefined) redirect(ADMIN_HOME_PATH);
+  if (stage === "signed-in" && reason === undefined) redirect(ADMIN_HOME_PATH);
   // An outage found by this page's own check is explained the same way as one found earlier.
   const shownReason = stage === "unavailable" ? AUTH_UNAVAILABLE_REASON : reason;
   const reasonMessage = shownReason ? REASON_MESSAGES[shownReason] : undefined;
-  const isSignedIn = stage === "password-only" || stage === "verified";
+  const isSignedIn = stage === "signed-in";
   return (
     <>
       <h1 className="type-h1 mb-6">Sign in</h1>

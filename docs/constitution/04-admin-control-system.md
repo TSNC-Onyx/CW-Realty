@@ -1,6 +1,6 @@
 # Admin/Control System Constitution
 
-> Section 4 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval.
+> Section 4 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §7 amended with owner approval on 2026-10-09 (password-only sign-in, `docs/cwr-password-only-sign-in-plan.md`).
 
 ## 1. Editing Experience (NN/g, WCAG 2.2)
 
@@ -51,6 +51,6 @@
 ## 7. Access & Safety
 
 - Roles: owner, manager, staff; each sees only what it needs
-- Multi factor login; every change logged with who and when
+- Email and password login (no authenticator code, owner choice 2026-10-09); every change logged with who and when
 - Sessions time out after inactivity
 - Deleted items go to trash for 30 days before permanent removal

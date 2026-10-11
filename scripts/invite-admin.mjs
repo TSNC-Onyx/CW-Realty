@@ -1,7 +1,7 @@
 // Invites a person to the CWR admin portal with a role — used once to create the first
 // owner (after that, owners invite people from "Users & roles").
-// The invite email (supabase/templates/invite.html) lets them set a password; they turn
-// on sign-in codes at first sign-in.
+// The invite email (supabase/templates/invite.html) lets them set a password; then they
+// sign in with email and password (no authenticator code since 2026-10-09).
 //
 // Usage: SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... node scripts/invite-admin.mjs person@example.com owner
 

@@ -1,6 +1,6 @@
 # Features & Navigation Constitution
 
-> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §1 amended with owner approval on 2026-09-26 (Home menu item, `docs/cwr-site-review-round-plan.md`). §2 amended with owner approval on 2026-10-02 (public policy content may be quoted, `docs/cwr-chat-policy-test-batches-plan.md`). Header pointer corrected with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`).
+> Section 3 of 4. Binding for all work in this repo. Supplied by the owner on 2026-09-25; do not edit without owner approval. §1 amended with owner approval on 2026-09-26 (Home menu item, `docs/cwr-site-review-round-plan.md`). §2 amended with owner approval on 2026-10-02 (public policy content may be quoted, `docs/cwr-chat-policy-test-batches-plan.md`). Header pointer corrected with owner approval on 2026-10-04 (`docs/cwr-document-reconciliation-plan.md`). §1 amended with owner approval on 2026-10-09 (Connections page switch, `docs/cwr-connections-page-switch-plan.md`).
 > Menu and navigation pages: see `docs/reference/site/navigation-reconciliation.md` (the working source of truth). `docs/reference/site/CWR-sitemap.xml` and `docs/reference/site/CWR-routes.ts` (the redirects file) are kept unchanged as the historical originals.
 
 ## 1. Mobile Navigation (NN/g, WCAG 2.2)
@@ -9,6 +9,7 @@
 - Six or fewer labeled menu items; sticky compact header under 64px
 - Tap targets 44px+; call, text, and chat buttons always reachable
 - Current page highlighted; skip link and full keyboard access
+- An owner can hide the Connections page (Admin → Connections): it leaves the menus, footer, and sitemap, and its address sends visitors to Resources with a temporary redirect until it is shown again
 
 ## 2. Claude Chatbot (OWASP Top 10 for LLM Apps)
 

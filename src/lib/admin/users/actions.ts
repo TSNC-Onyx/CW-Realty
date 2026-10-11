@@ -11,18 +11,15 @@ import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/qu
 import { OWNER_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
-import { noteProblemCause, type ProblemCause } from "@/lib/observability/action-context";
-import { reportProblem } from "@/lib/observability/report-problem";
+import { noteProblemCause } from "@/lib/observability/action-context";
 import { createServiceClient } from "@/lib/supabase/service-client";
 
 // Users & roles (parent plan: owners only). Invites go by email; the invited person sets
-// a password and turns on sign-in codes before they can open the portal.
+// a password, then opens the portal (no authenticator code since 2026-10-09).
 
 const USERS_PATH = "/admin/users";
 const MAX_USERS = 1000;
 const EMAIL_EXISTS = "email_exists";
-const RESET_ACTION = "users.reset_sign_in_codes";
-const SIGN_IN_SERVICE_MESSAGE = "We couldn't reach the sign-in service. Try again in a moment.";
 
 const roleSchema = z.enum(["owner", "manager", "staff"]);
 const inviteSchema = z.object({ email: emailSchema, role: roleSchema });
@@ -30,10 +27,6 @@ const inviteSchema = z.object({ email: emailSchema, role: roleSchema });
 type InviteResult = { message: string } | { error: string };
 
 type AuthAdminError = { name: string; code?: string; message: string };
-
-type AuthAdmin = ReturnType<typeof createServiceClient>["auth"]["admin"];
-
-type FactorRemoval = { removedCount: number; totalCount: number; error: AuthAdminError | null };
 
 // The sign-in service (Supabase Auth) failed: a system fault, not something the owner typed.
 function noteAuthAdminCause(error: AuthAdminError): void {
@@ -108,71 +101,6 @@ export async function removeAccessAction(userId: string): Promise<QuickResult> {
     if (!removed?.length) return getQuickError("They no longer had access. Refresh the page to see who does.");
     revalidatePath(USERS_PATH);
     return getQuickSuccess("Access removed. They can no longer open the admin portal.");
-  });
-}
-
-// One at a time, so a failure part-way says exactly how many codes were already removed.
-async function removeFactors({ auth, userId, factorIds }: { auth: AuthAdmin; userId: string; factorIds: string[] }): Promise<FactorRemoval> {
-  for (const [index, id] of factorIds.entries()) {
-    const { error } = await auth.mfa.deleteFactor({ userId, id });
-    if (error) return { removedCount: index, totalCount: factorIds.length, error };
-  }
-  return { removedCount: factorIds.length, totalCount: factorIds.length, error: null };
-}
-
-// Some codes gone and some not is a half-finished change only another reset can fix.
-function getRemovalFailure({ removedCount, totalCount, error }: FactorRemoval & { error: AuthAdminError }): { cause: ProblemCause; message: string } {
-  const code = error.code ?? error.name;
-  if (removedCount === 0) return { cause: { stage: "external", severity: "error", code, detail: error.message }, message: "The reset didn't finish. Nothing was changed. Try again." };
-  return {
-    cause: { stage: "external", severity: "critical", code, detail: `Removed ${removedCount} of ${totalCount} authenticator factors, then: ${error.message}` },
-    message: `The reset only partly finished: ${removedCount} of ${totalCount} sign-in codes were removed, then removing the next one failed. Run the reset again to finish it.`,
-  };
-}
-
-async function recordResetAudit({ supabase, targetId }: { supabase: AdminContext["supabase"]; targetId: string }): Promise<void> {
-  const { error } = await supabase.rpc("record_sign_in_codes_reset", { p_user_id: targetId });
-  if (!error) return;
-  await reportProblem({ action: RESET_ACTION, stage: "database", severity: "warning", code: error.code ?? "database", detail: `Reset done but not added to the activity log: ${error.message}` });
-}
-
-// Returns what to tell the owner when the reset can't start, or null when the person is a member.
-async function fetchMembershipProblem({ supabase, tenantId, targetId }: { supabase: AdminContext["supabase"]; tenantId: string; targetId: string }): Promise<string | null> {
-  const { data: membership, error } = await supabase.from("memberships").select("user_id").eq("tenant_id", tenantId).eq("user_id", targetId).maybeSingle();
-  if (error) {
-    noteProblemCause({ stage: "load", severity: "error", code: error.code ?? "database", detail: error.message });
-    return "We couldn't check this person's access. Try again in a moment.";
-  }
-  return membership ? null : "That person doesn't have access here.";
-}
-
-async function fetchFactorIds({ auth, targetId }: { auth: AuthAdmin; targetId: string }): Promise<{ factorIds: string[] } | { error: string }> {
-  const { data, error } = await auth.getUserById(targetId);
-  if (error) {
-    noteAuthAdminCause(error);
-    return { error: SIGN_IN_SERVICE_MESSAGE };
-  }
-  if (!data.user) return { error: "That person's account couldn't be found." };
-  return { factorIds: (data.user.factors ?? []).map((factor) => factor.id) };
-}
-
-export async function resetSignInCodesAction(userId: string): Promise<QuickResult> {
-  return runQuickAction({ action: RESET_ACTION, roles: OWNER_ROLES }, async ({ supabase, tenantId }) => {
-    const targetId = z.uuid().parse(userId);
-    const membershipProblem = await fetchMembershipProblem({ supabase, tenantId, targetId });
-    if (membershipProblem) return getQuickError(membershipProblem);
-    const auth = createServiceClient().auth.admin;
-    const factors = await fetchFactorIds({ auth, targetId });
-    if ("error" in factors) return getQuickError(factors.error);
-    const removal = await removeFactors({ auth, userId: targetId, factorIds: factors.factorIds });
-    if (removal.error) {
-      const failure = getRemovalFailure({ ...removal, error: removal.error });
-      noteProblemCause(failure.cause);
-      return getQuickError(failure.message);
-    }
-    await recordResetAudit({ supabase, targetId });
-    revalidatePath(USERS_PATH);
-    return getQuickSuccess("Sign-in codes reset. They'll set up their authenticator app again at their next sign-in.");
   });
 }
 

@@ -27,7 +27,7 @@ export function getAlreadyReportedCause(error: ReportedProblemError): ProblemCau
 
 export async function getReportedFailureMessage({ action, message, hasFieldErrors }: { action: ProblemAction; message: string; hasFieldErrors: boolean }): Promise<string> {
   const cause = takeProblemCause() ?? (hasFieldErrors ? VALIDATION_CAUSE : RULE_CAUSE);
-  if (cause.reference) return message;
+  if (cause.reference || cause.isExpected) return message;
   const result = await reportProblem({ action, stage: cause.stage, severity: cause.severity, code: cause.code, detail: cause.detail, shownMessage: message });
   if (!isReferenceWorthy(cause.severity)) return message;
   return `${message}${getReferenceSuffix({ reference: result.reference, isStored: result.stored === true })}`;

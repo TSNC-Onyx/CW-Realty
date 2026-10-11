@@ -1,6 +1,5 @@
 import { Mail, MessageSquare, Phone } from "lucide-react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { z } from "zod";
 
 import { ClosedDealBox } from "@/components/admin/closed-deals/closed-deal-box";
@@ -14,6 +13,7 @@ import { addNoteAction, sendReplyAction } from "@/lib/admin/inbox/actions";
 import { SOURCE_LABELS } from "@/lib/admin/inbox/inbox-labels";
 import { fetchInboxThread, fetchTeammates, type InboxMessage } from "@/lib/admin/inbox/queries";
 import { getLoaded } from "@/lib/admin/load-result";
+import { showPageNotFound } from "@/lib/admin/record-page-not-found";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { ALL_ROLES, EDITOR_ROLES, hasRole, requireAdminPage } from "@/lib/admin/require-admin";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -77,11 +77,11 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const admin = await requireAdminPage(ALL_ROLES);
   const parsedId = z.uuid().safeParse(id);
-  if (!parsedId.success) notFound();
+  if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/inbox/${id}` });
   const threadLoad = await fetchInboxThread(admin, parsedId.data);
   if (!threadLoad.isLoaded) return <ThreadLoadProblem notice={await reportPageLoad({ admin, action: "inbox.load", results: [threadLoad] })} />;
   const thread = threadLoad.data;
-  if (!thread) notFound();
+  if (!thread) return showPageNotFound({ admin, path: `/admin/inbox/${id}` });
   const isEditor = hasRole(admin, EDITOR_ROLES);
   const [teammates, closedDeal] = await Promise.all([fetchTeammates(admin), isEditor ? fetchThreadClosedDeal(admin, thread.id) : Promise.resolve(getLoaded(null))]);
   const notice = await reportPageLoad({ admin, action: "inbox.load", results: [teammates, closedDeal] });

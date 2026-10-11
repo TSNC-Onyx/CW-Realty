@@ -133,6 +133,20 @@ test.describe("plan cards", () => {
     expect(oversized).toBe(0);
   });
 
+  for (const id of ["buyer-plans", "seller-plans"] as const) {
+    test(`${id} labels read Self-guided, Value Plus, Best Value (owner choice 2026-10-09)`, async ({ page }) => {
+      // Arrange
+      await page.setViewportSize(VIEWPORTS.desktop);
+      await page.goto(PAGE_PATH);
+
+      // Act
+      const labels = await getSection(page, id).locator("article p.type-eyebrow").allTextContents();
+
+      // Assert
+      expect(labels.map((label) => label.trim())).toEqual(["Self-guided", "Value Plus", "Best Value"]);
+    });
+  }
+
   test("the plan initials C, W, R are bold and gold", async ({ page }) => {
     // Arrange
     await page.goto(PAGE_PATH);
@@ -157,7 +171,7 @@ test.describe("plan carousel on phones", () => {
     await page.waitForTimeout(SETTLE_MS);
   });
 
-  test("opens on the Best Value plan, with no scroll bar", async ({ page }) => {
+  test("opens on the featured plan, with no scroll bar", async ({ page }) => {
     // Arrange
     const track = getSection(page, "buyer-plans").locator(".plan-track");
 
@@ -311,3 +325,47 @@ test("nothing shifts while the page loads on a phone", async ({ page }) => {
   // Assert
   expect(await page.evaluate(() => (window as unknown as { layoutShift: number }).layoutShift)).toBeLessThan(0.01);
 });
+
+// Even section rhythm (docs/cwr-selected-services-spacing-plan.md): Buyer → Seller matches Intro → Buyer,
+// and the "See seller plans" jump still lands with the heading clear of the sticky header.
+const SPACING_CASES = [
+  { name: "phone", viewport: VIEWPORTS.phone, minHeadingClearance: 48 },
+  { name: "desktop", viewport: VIEWPORTS.desktop, minHeadingClearance: 96 },
+] as const;
+const GAP_TOLERANCE_PX = 2;
+
+async function getGapAbove(page: Page, { previous, next }: { previous: string; next: string }): Promise<number> {
+  const previousBox = await page.locator(previous).boundingBox();
+  const nextBox = await page.locator(next).boundingBox();
+  if (!previousBox || !nextBox) throw new Error(`Missing ${previous} or ${next}`);
+  return nextBox.y - (previousBox.y + previousBox.height);
+}
+
+for (const { name, viewport, minHeadingClearance } of SPACING_CASES) {
+  test(`on ${name} the gap between Buyer and Seller plans matches the gap under the intro`, async ({ page }) => {
+    // Arrange
+    await page.setViewportSize(viewport);
+    await page.goto(PAGE_PATH);
+
+    // Act
+    const introGap = await getGapAbove(page, { previous: "main > div:first-child > div", next: "#buyer-plans-heading" });
+    const plansGap = await getGapAbove(page, { previous: "#buyer-plans > div", next: "#seller-plans-heading" });
+
+    // Assert
+    expect(Math.abs(plansGap - introGap)).toBeLessThanOrEqual(GAP_TOLERANCE_PX);
+  });
+
+  test(`on ${name} "See seller plans" lands with the heading clear of the header`, async ({ page }) => {
+    // Arrange
+    await page.setViewportSize(viewport);
+    await page.goto(PAGE_PATH);
+
+    // Act
+    await page.getByRole("link", { name: "See seller plans" }).first().click();
+    await page.waitForTimeout(SETTLE_MS);
+    const clearance = await getGapAbove(page, { previous: "header", next: "#seller-plans-heading" });
+
+    // Assert
+    expect(clearance).toBeGreaterThanOrEqual(minHeadingClearance - GAP_TOLERANCE_PX);
+  });
+}
