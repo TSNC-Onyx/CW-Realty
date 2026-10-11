@@ -13,9 +13,13 @@
   --spacing: 4px;
   --breakpoint-md: 768px;
   --breakpoint-lg: 1024px;
+  /* Admin edit pages switch to two columns here (docs/admin-upload-layout-plan.md). Named
+     "desktop", not xl, so the dormant xl: classes on public pages stay as they are. */
+  --breakpoint-desktop: 1280px;
   --container-content: 1312px;
   --container-prose: 680px;
   --container-form: 520px;
+  --container-admin-side: 384px;
   --container-toast: 400px;
   --container-empty: 420px;
   --container-video: 872px;

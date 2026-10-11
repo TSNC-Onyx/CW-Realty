@@ -35,7 +35,7 @@ const UNEXPECTED_MESSAGE = "The file couldn't be uploaded. Try again.";
 
 type VideoLengthReading = { isRead: true; seconds: number | null } | { isRead: false; detail: string };
 
-type UploadSteps = { itemId: string; purpose: UploadPurpose; file: File; isMakingCover: boolean; onProgress: (progress: HomeworkUploadProgress) => void };
+export type UploadSteps = { itemId: string; purpose: UploadPurpose; file: File; isMakingCover: boolean; onProgress: (progress: HomeworkUploadProgress) => void };
 
 class HomeworkUploadError extends Error {
   constructor(readonly problem: UploadProblem) {
@@ -149,7 +149,8 @@ async function getUploadResult(steps: UploadSteps): Promise<QuickResult> {
   }
 }
 
-async function fetchUploadWithCover(steps: UploadSteps): Promise<HomeworkUploadResult> {
+/** One upload to an item, start to finish (used directly when the item was only just created). */
+export async function uploadHomeworkFile(steps: UploadSteps): Promise<HomeworkUploadResult> {
   const result = await getUploadResult(steps);
   if (result.status === "error" || !steps.isMakingCover) return { ...result, coverNotice: null };
   steps.onProgress({ stage: "cover", share: 1, error: null });
@@ -161,7 +162,7 @@ export function useHomeworkUpload({ itemId, purpose, isMakingCover }: { itemId: 
   const [progress, setProgress] = useState<HomeworkUploadProgress>(IDLE_PROGRESS);
 
   const uploadFile = async (file: File): Promise<HomeworkUploadResult> => {
-    const result = await fetchUploadWithCover({ itemId, purpose, file, isMakingCover, onProgress: setProgress });
+    const result = await uploadHomeworkFile({ itemId, purpose, file, isMakingCover, onProgress: setProgress });
     setProgress(result.status === "error" ? { stage: "idle", share: 0, error: result.message } : IDLE_PROGRESS);
     return result;
   };

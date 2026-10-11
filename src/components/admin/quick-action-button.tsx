@@ -24,10 +24,12 @@ type QuickActionButtonProps<Result extends QuickResult> = {
   onRun: () => Promise<Result>;
   undo?: UndoOption<Result>;
   isDisabled?: boolean;
+  /** Shows only the icon (tight spaces such as photo tiles); accessibleLabel still names it. */
+  isLabelHidden?: boolean;
 };
 
 
-export function QuickActionButton<Result extends QuickResult = QuickResult>({ label, accessibleLabel, icon: Icon, problemAction, onRun, undo, isDisabled = false }: QuickActionButtonProps<Result>) {
+export function QuickActionButton<Result extends QuickResult = QuickResult>({ label, accessibleLabel, icon: Icon, problemAction, onRun, undo, isDisabled = false, isLabelHidden = false }: QuickActionButtonProps<Result>) {
   const [isPending, startTransition] = useTransition();
   const { showToast } = useToast();
 
@@ -59,7 +61,7 @@ export function QuickActionButton<Result extends QuickResult = QuickResult>({ la
       className={`${getButtonClassName({ size: "s", variant: "secondary" })} px-3`}
     >
       {isPending ? <LoaderCircle aria-hidden size={ICON_SIZE.button} className="animate-spin" /> : <Icon aria-hidden size={ICON_SIZE.button} />}
-      {label}
+      {!isLabelHidden && label}
     </button>
   );
 }

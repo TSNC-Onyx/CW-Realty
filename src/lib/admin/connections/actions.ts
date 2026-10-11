@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
+import { getCreatedState, getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
 import { getFieldErrorsFromZod } from "@/lib/admin/auth-schemas";
 import { connectionSchema, getConnectionRow } from "@/lib/admin/connections/connection-schema";
 import { getDatabaseErrorMessage } from "@/lib/admin/database-errors";
@@ -56,7 +55,8 @@ export async function createConnectionAction(_state: ActionState, formData: Form
     });
     if ("error" in created) return getErrorState({ message: getDatabaseErrorMessage(created.error), values });
     refreshConnectionPages();
-    redirect(`${CONNECTIONS_ADMIN_PATH}/${created.id}?created=1`);
+    // The page uploads the chosen photo to the new partner, then opens it.
+    return getCreatedState("Saved.", created.id);
   });
 }
 

@@ -1,10 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
+import { getCreatedState, getErrorState, getFormValues, getSuccessState, type ActionState } from "@/lib/admin/action-state";
 import { getFieldErrorsFromZod } from "@/lib/admin/auth-schemas";
 import { getDatabaseErrorMessage, isUniqueViolation } from "@/lib/admin/database-errors";
 import { runOnce } from "@/lib/admin/idempotency";
@@ -12,7 +11,7 @@ import { getListingRow, listingSchema } from "@/lib/admin/listings/listing-schem
 import { MAX_ALT_TEXT_LENGTH } from "@/lib/admin/photos/photo-files";
 import { fetchPhotoFilesCheck, getPhotoFilesMessage } from "@/lib/admin/photos/photo-storage";
 import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/quick-result";
-import { EDITOR_ROLES } from "@/lib/admin/require-admin";
+import { EDITOR_ROLES, type AdminContext } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
 import { LISTING_STATUSES } from "@/lib/content/listing-statuses";
@@ -23,6 +22,9 @@ const SLUG_TAKEN = "Another listing already uses this web address";
 const NOT_FOUND_MESSAGE = "That listing or photo no longer exists. It may have been moved to the trash.";
 // New listings start at the end; cwr.move_item renumbers on the first move.
 const NEW_ITEM_SORT_ORDER = 9999;
+const FIRST_PHOTO_SORT_ORDER = 1;
+// A drag can't move a photo further than this many places (far more than any listing has).
+const MAX_PHOTO_MOVE_STEPS = 200;
 
 const TRANSITION_MESSAGES: Record<string, string> = {
   live: "Published. The listing is on the website now.",
@@ -47,7 +49,16 @@ const photoSchema = z.object({
   alt: z.string().trim().min(1, "Describe the photo").max(MAX_ALT_TEXT_LENGTH),
 });
 
+const photoMoveSchema = z.object({
+  photoId: z.uuid(),
+  steps: z.number().int().min(-MAX_PHOTO_MOVE_STEPS).max(MAX_PHOTO_MOVE_STEPS).refine((steps) => steps !== 0),
+});
+
 type CreateResult = { id: string } | { error: { code?: string; message: string } };
+
+type DatabaseClient = AdminContext["supabase"];
+
+type NextSortOrder = { sortOrder: number } | { error: { code?: string; message: string } };
 
 function refreshListingPages(): void {
   revalidatePath(LISTINGS_ADMIN_PATH, "layout");
@@ -69,6 +80,14 @@ async function moveItem({ action, table, id, direction }: MoveOptions): Promise<
   });
 }
 
+// Photos added together keep the order they were picked in: each goes after the last one.
+async function fetchNextPhotoSortOrder(supabase: DatabaseClient, listingId: string): Promise<NextSortOrder> {
+  const { data, error } = await supabase.from("listing_photos").select("sort_order").eq("listing_id", listingId).is("deleted_at", null).order("sort_order", { ascending: false }).limit(1);
+  if (error) return { error: { code: error.code, message: error.message } };
+  const lastSortOrder = (data[0]?.sort_order as number | undefined) ?? null;
+  return { sortOrder: lastSortOrder === null ? FIRST_PHOTO_SORT_ORDER : lastSortOrder + 1 };
+}
+
 export async function createListingAction(_state: ActionState, formData: FormData): Promise<ActionState> {
   return runAdminAction({ action: "listings.create", roles: EDITOR_ROLES }, async ({ supabase, tenantId }) => {
     const values = getFormValues(formData);
@@ -85,7 +104,9 @@ export async function createListingAction(_state: ActionState, formData: FormDat
       },
     });
     if ("error" in created) return getSaveError(created.error, values);
-    redirect(`${LISTINGS_ADMIN_PATH}/${created.id}?created=1`);
+    refreshListingPages();
+    // The page uploads the chosen photos to the new listing, then opens it.
+    return getCreatedState("Saved.", created.id);
   });
 }
 
@@ -118,8 +139,30 @@ export async function moveListingAction(listingId: string, direction: "up" | "do
   return moveItem({ action: "listings.move", table: "listings", id: listingId, direction });
 }
 
-export async function moveListingPhotoAction(photoId: string, direction: "up" | "down"): Promise<QuickResult> {
-  return moveItem({ action: "listings.move_photo", table: "listing_photos", id: photoId, direction });
+
+function getPhotoMovedMessage(steps: number): string {
+  if (Math.abs(steps) > 1) return "Photo moved.";
+  return steps < 0 ? "Moved up." : "Moved down.";
+}
+
+/** Moves a photo one place (Earlier / Later) or several (drag and drop); steps < 0 = earlier. One cwr.move_item step at a time. */
+export async function moveListingPhotoAction(input: z.input<typeof photoMoveSchema>): Promise<QuickResult> {
+  return runQuickAction({ action: "listings.move_photo", roles: EDITOR_ROLES }, async ({ supabase }) => {
+    const parsed = photoMoveSchema.safeParse(input);
+    if (!parsed.success) return getQuickError("That photo couldn't be moved. Refresh the page and try again.");
+    const { photoId, steps } = parsed.data;
+    const direction = steps < 0 ? "up" : "down";
+    for (let step = 0; step < Math.abs(steps); step += 1) {
+      const { error } = await supabase.rpc("move_item", { p_table: "listing_photos", p_id: photoId, p_direction: direction });
+      // Steps already taken are saved, so the page shows where the photo ended up.
+      if (error) {
+        refreshListingPages();
+        return getQuickError(getDatabaseErrorMessage(error));
+      }
+    }
+    refreshListingPages();
+    return getQuickSuccess(getPhotoMovedMessage(steps));
+  });
 }
 
 export async function addListingPhotoAction(input: z.input<typeof photoSchema>): Promise<QuickResult> {
@@ -130,7 +173,9 @@ export async function addListingPhotoAction(input: z.input<typeof photoSchema>):
     if (!folder.startsWith(`listings/${listingId}/`)) return getQuickError("That photo belongs to another listing.");
     const filesCheck = await fetchPhotoFilesCheck(folder);
     if (filesCheck !== "complete") return getQuickError(getPhotoFilesMessage(filesCheck));
-    const row = { tenant_id: tenantId, listing_id: listingId, storage_path: folder, alt_text: alt, width, height, sort_order: NEW_ITEM_SORT_ORDER };
+    const next = await fetchNextPhotoSortOrder(supabase, listingId);
+    if ("error" in next) return getQuickError(getDatabaseErrorMessage(next.error));
+    const row = { tenant_id: tenantId, listing_id: listingId, storage_path: folder, alt_text: alt, width, height, sort_order: next.sortOrder };
     const { error } = await supabase.from("listing_photos").insert(row);
     if (error) return getQuickError(getDatabaseErrorMessage(error));
     refreshListingPages();
