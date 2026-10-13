@@ -1,6 +1,6 @@
 # CWR email outbox — plan
 
-Status: rev 3, 2026-10-12 (rev 1: mostly B, two C — 16 changes; rev 2: six A, four B — 6 changes; all applied). Plan only; nothing built. Waits for owner answers and an explicit "build it".
+Status: rev 4, 2026-10-12 (rev 1: mostly B, two C — 16 changes; rev 2: six A, four B — 6 changes; rev 3: two changes; rev 4 ALL A). Plan only; nothing built. Waits for owner answers and an explicit "build it".
 
 ## Goal
 
@@ -50,7 +50,7 @@ The worker is a port of today's consumer: `process-alert-job.ts`, `deliveries.ts
 - **Security definer, on purpose:** the hook, the insert trigger and `wake_email_worker` must write the private schema, read `vault.decrypted_secrets` and call `net.http_post`, which `supabase_auth_admin` can't. Each is `security definer`, owned by `postgres`, `search_path = ''`. Grants: `usage on schema cwr` and `execute on function cwr.handle_auth_email` to `supabase_auth_admin`; execute revoked from `public`, `anon`, `authenticated`.
 
 ### 5. Site producer — saved together with the thing it's about
-- **New requests and replies queue their email in the same database transaction that saves them** (the outbox pattern's core rule): an `AFTER INSERT` trigger on `cwr.inbox_threads` adds a `new_request` job, and one on `cwr.inbox_messages` (kind `reply`) adds a `reply` job. A request can never be saved without its email job, whichever form or path created it, and the `runOnce` double-submit guard still means one thread → one job.
+- **New requests and replies queue their email in the same database transaction that saves them** (the outbox pattern's core rule): an `AFTER INSERT` trigger on `cwr.inbox_threads` adds a `new_request` job, and one on `cwr.inbox_messages` (kind `reply`) adds a `reply` job. A request can never be saved without its email job, whichever form or path created it, and the `runOnce` double-submit guard still means one thread → one job. Both triggers do nothing until the switch `cwr.email_settings.is_outbox_live` (default false) is turned on at rollout step 2, so nothing changes while the old Cloudflare path is still the live one.
 - The site calls `cwr.enqueue_email_job` itself only for **test alerts and Retry**. The call returns `queued` when the database accepts it and `failed` with a problem reference when it doesn't. "Email isn't set up" is no longer decided from the site's own settings (the MailerSend key moves to Supabase); the Notifications page shows it from the worker's `not_sent: not set up` rows and its `health_checks` entry. The admin wording tests are updated to match.
 - The site's producer code moves to `src/lib/email-outbox/enqueue.ts` and is kept at contract.
 - One job per event, so a 10-recipient alert makes one wake-up, not ten.
@@ -91,7 +91,7 @@ Invite and reset buttons go to our unchanged page `{site}/admin/auth/confirm?tok
 ## Task breakdown
 
 1. **Migration A0:** add the new `cwr.delivery_kind` values only (they can't be used in the same transaction they're added in; repo precedent `20260928000100`).
-2. **Migration A:** `cwr.email_jobs`; `cwr_private` schema + `email_job_secrets`; `cwr.email_settings`; `cwr.enqueue_email_job`, `cwr.handle_auth_email`, `cwr.claim_email_job`, `cwr.finish_email_job`, `cwr.wake_email_worker`; statement-level insert trigger (inactive until the Vault secrets exist); `AFTER INSERT` job triggers on `inbox_threads` and `inbox_messages` (replies); delivery checks rewritten for sign-in kinds (`thread_id` required unless test/problem/sign-in; `job_run_id` = the job id for sign-in kinds) as `NOT VALID`, then `VALIDATE`; a partial unique index on `(job_run_id, lower(recipient_email))` for the sign-in kinds (dedupe guard, like test/problem); cron jobs (sweep, run-detail purge, digest per Q1); grants and RLS. pgTAP: each function, grants, the hook's `{}`/error replies, superseding, expiry, a request saved together with its job (and neither when one fails), the sign-in dedupe index, and a queued request in `net.http_request_queue` after an insert.
+2. **Migration A:** `cwr.email_jobs`; `cwr_private` schema + `email_job_secrets`; `cwr.email_settings`; `cwr.enqueue_email_job`, `cwr.handle_auth_email`, `cwr.claim_email_job`, `cwr.finish_email_job`, `cwr.wake_email_worker`; statement-level insert trigger (inactive until the Vault secrets exist); `AFTER INSERT` job triggers on `inbox_threads` and `inbox_messages` (replies); delivery checks rewritten for sign-in kinds (`thread_id` required unless test/problem/sign-in; `job_run_id` = the job id for sign-in kinds) as `NOT VALID`, then `VALIDATE`; a partial unique index on `(job_run_id, lower(recipient_email))` for the sign-in kinds (dedupe guard, like test/problem); cron jobs (sweep, run-detail purge, digest per Q1); grants and RLS. pgTAP: each function, grants, the hook's `{}`/error replies, superseding, expiry, a request saved together with its job (and neither when one fails), no job made while `is_outbox_live` is false, the sign-in dedupe index, and a queued request in `net.http_request_queue` after an insert.
 3. **email-worker:** `index.ts` (secret check, 202 + `waitUntil`, claim loop, finish), the ported job/delivery/digest modules, `templates.ts`, `layout.ts`, `brand-colors.ts`, `site-constants.ts`, `mailersend.ts`, `transports.ts`.
 4. **Tests and CI:** Vitest include widened to `supabase/functions/**/*.test.ts`; CI quality job adds `denoland/setup-deno` with `deno check`, `deno lint`, `deno test` for the worker; `design:check` and ESLint cover the new path; the brand-color exception moves with `brand-colors.ts`.
 5. **Site code:** `src/lib/forms/intake.ts` and the inbox reply action stop queueing (the triggers do it); test alert and Retry call `src/lib/email-outbox/enqueue.ts` → `cwr.enqueue_email_job`, returning `queued` or `failed` with a reference; "not set up" comes from the worker's rows and health check; Notifications log shows sign-in kinds (kind, recipient, status, time only) and blocks Retry for them ("Ask the person to request a new link"), as it already does for problem digests.
@@ -105,8 +105,8 @@ Invite and reset buttons go to our unchanged page `{site}/admin/auth/confirm?tok
 | Step | What | Undo |
 |---|---|---|
 | 0 | Push branded Supabase templates (Q3) | Script `--restore` |
-| 1 | Migrations A0 + A; deploy email-worker + secrets; trigger and cron off | Nothing live changed |
-| 2 | Turn on trigger + cron; site emails switch to the outbox (site deploy) | Redeploy previous site version (Cloudflare Queue path still present) |
+| 1 | Migrations A0 + A; deploy email-worker + secrets; `is_outbox_live` false, wake-up and cron off | Nothing live changed |
+| 2 | Set `is_outbox_live` true, turn on wake-up + cron; site emails switch to the outbox (site deploy). During the few minutes both paths could run, the delivery dedupe keys stop any email going out twice | Set `is_outbox_live` false and redeploy the previous site version (Cloudflare Queue path still present) |
 | 3 | Owner script turns on the Send Email hook; test invite, reset, a notice | Script turns the hook off → Supabase mailer with branded templates |
 | 4 | One clean week, then contract (task 9) | Revert the PR |
 
@@ -118,7 +118,7 @@ Invite and reset buttons go to our unchanged page `{site}/admin/auth/confirm?tok
 
 ## DO NOT TOUCH
 
-Legacy Edge Functions in the live project (`builtfor-screenshots`, `builtfor-test-img`, `generate-invoice-pdf`, `ai-chat`); the `public` schema and its existing cron job; `app/admin/auth/confirm/route.ts`; sign-in, password and session code; chatbot code; inbox data tables (read only by the worker).
+Legacy Edge Functions in the live project (`builtfor-screenshots`, `builtfor-test-img`, `generate-invoice-pdf`, `ai-chat`); the `public` schema and its existing cron job; `app/admin/auth/confirm/route.ts`; sign-in, password and session code; chatbot code; inbox data tables — no column or data changes; only the two job triggers are added.
 
 ## Downstream impact analysis
 
