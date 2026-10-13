@@ -1,10 +1,12 @@
-// One-time copy of the branded Supabase Auth emails (all 13 types) to the hosted project
-// (docs/cwr-branded-email-templates-plan.md, Phase 2; steps in docs/runbooks/auth-email-templates.md).
-// It changes only the 33 email settings — subjects, templates, and notice switches — read from
-// supabase/config.toml and supabase/templates/. The access token is typed into a hidden prompt.
+// Owner script for the hosted project's Supabase Auth email settings (docs/runbooks/email-outbox.md).
+// Two jobs, each changing only its own settings:
+// - templates: the 33 email settings — subjects, the 13 fallback templates, and notice switches —
+//   read from supabase/config.toml and supabase/templates/ (Supabase's fallback if the hook is off);
+// - the Send Email hook (--hook on|off): hands every email to the outbox (docs/cwr-email-outbox-plan.md).
+// The access token is typed into a hidden prompt. Every run shows the changes and asks first.
 //
-// See what would change:  node scripts/push-auth-email-templates.mjs --dry-run
-// Apply (asks first):     node scripts/push-auth-email-templates.mjs
+// See what would change:  node scripts/push-auth-email-templates.mjs --dry-run   (add --hook on|off)
+// Apply (asks first):     node scripts/push-auth-email-templates.mjs            (or --hook on / --hook off)
 // Undo from a backup:     node scripts/push-auth-email-templates.mjs --restore .auth-email-backup-<time>.json
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -18,6 +20,11 @@ const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const CONFIG_FILE = `${REPO_ROOT}supabase/config.toml`;
 const DRY_RUN_FLAG = "--dry-run";
 const RESTORE_FLAG = "--restore";
+const HOOK_FLAG = "--hook";
+const HOOK_URI = "pg-functions://postgres/cwr/handle_auth_email";
+export const HOOK_KEYS = ["hook_send_email_enabled", "hook_send_email_uri"];
+// cwr.email_settings.link_lifetime_seconds assumes Supabase's default link lifetime.
+const EXPECTED_LINK_LIFETIME_SECONDS = 3600;
 const BACKUP_FILE_MODE = 0o600;
 const CONFIRM_WORD = "yes";
 
@@ -51,9 +58,19 @@ function getNotificationKeys(type) {
   };
 }
 
-/** The 33 Management API email keys this script may read or change — nothing else. */
+/** The 33 Management API email keys the template job may read or change. */
 export function getEmailSettingKeys() {
   return [...TEMPLATE_TYPES.map(getTemplateKeys), ...NOTIFICATION_TYPES.map(getNotificationKeys)].flatMap(Object.values);
+}
+
+/** Every key this script may touch: the 33 email settings and the 2 hook settings — nothing else. */
+export function getAllowedKeys() {
+  return [...getEmailSettingKeys(), ...HOOK_KEYS];
+}
+
+/** The hook settings for "on" (the outbox sends every email) or "off" (Supabase's mailer). */
+export function getHookSettings(isOn) {
+  return isOn ? { hook_send_email_enabled: true, hook_send_email_uri: HOOK_URI } : { hook_send_email_enabled: false };
 }
 
 function getSectionValues(toml, section) {
@@ -84,7 +101,7 @@ export function getDesiredEmailSettings({ toml, readTemplate }) {
 }
 
 function getEmailSettings(settings) {
-  return Object.fromEntries(getEmailSettingKeys().map((key) => [key, settings[key] ?? null]));
+  return Object.fromEntries(getAllowedKeys().map((key) => [key, settings[key] ?? null]));
 }
 
 // A backup may hold null for a setting the hosted project never had; restoring leaves those alone.
@@ -97,9 +114,9 @@ function isSameValue(current, desired) {
   return current === desired;
 }
 
-/** Each wanted email setting whose hosted value differs; keys outside the 33 are never returned. */
+/** Each wanted setting whose hosted value differs; keys outside the allowed 35 are never returned. */
 export function getChangedKeys(current, desired) {
-  return getEmailSettingKeys().filter((key) => key in desired && !isSameValue(current[key], desired[key]));
+  return getAllowedKeys().filter((key) => key in desired && !isSameValue(current[key], desired[key]));
 }
 
 function getChangeLine(key, current, desired) {
@@ -112,7 +129,10 @@ function getArguments() {
   const restoreIndex = args.indexOf(RESTORE_FLAG);
   const restoreFile = restoreIndex === -1 ? null : args[restoreIndex + 1];
   if (restoreIndex !== -1 && !restoreFile) throw new EmailSettingsError(`Give the backup file after ${RESTORE_FLAG}`);
-  return { isDryRun: args.includes(DRY_RUN_FLAG), restoreFile };
+  const hookIndex = args.indexOf(HOOK_FLAG);
+  const hookValue = hookIndex === -1 ? null : args[hookIndex + 1];
+  if (hookIndex !== -1 && hookValue !== "on" && hookValue !== "off") throw new EmailSettingsError(`Use ${HOOK_FLAG} on or ${HOOK_FLAG} off`);
+  return { isDryRun: args.includes(DRY_RUN_FLAG), restoreFile, hookValue };
 }
 
 function askQuestion(question, { isHidden }) {
@@ -147,6 +167,8 @@ function reportSafetySettings(current) {
   console.log(`Sign-ups off: ${current.disable_signup === true ? "yes" : "NO"}`);
   console.log(`Email changes confirmed on both addresses: ${current.mailer_secure_email_change_enabled === true ? "yes" : "no"}`);
   console.log(`Security notices on now: ${enabledNotices.length > 0 ? enabledNotices.join(", ") : "none"}`);
+  console.log(`Send Email hook (the outbox sends every email): ${current.hook_send_email_enabled === true ? `on (${current.hook_send_email_uri})` : "off"}`);
+  if (current.mailer_otp_exp !== EXPECTED_LINK_LIFETIME_SECONDS) console.log(`Note: sign-in links last ${current.mailer_otp_exp} seconds here, not ${EXPECTED_LINK_LIFETIME_SECONDS}. Ask Claude to set cwr.email_settings.link_lifetime_seconds to match.`);
   if (current.disable_signup !== true) throw new EmailSettingsError("Sign-ups are on in hosted Supabase. Stopping — turn sign-ups off first (Authentication → Sign In / Providers).");
 }
 
@@ -156,8 +178,9 @@ function writeBackup(current) {
   return fileName;
 }
 
-function getWantedSettings(restoreFile) {
+function getWantedSettings({ restoreFile, hookValue }) {
   if (restoreFile) return getRestorableSettings(JSON.parse(readFileSync(restoreFile, "utf8")));
+  if (hookValue) return getHookSettings(hookValue === "on");
   return getDesiredEmailSettings({ toml: readFileSync(CONFIG_FILE, "utf8"), readTemplate: (filePath) => readFileSync(`${REPO_ROOT}${filePath}`, "utf8") });
 }
 
@@ -169,18 +192,18 @@ async function confirmAndApply({ token, current, wanted, changedKeys }) {
   await saveEmailSettings(token, Object.fromEntries(changedKeys.map((key) => [key, wanted[key]])));
   const stillDifferent = getChangedKeys(await fetchAuthSettings(token), wanted);
   if (stillDifferent.length > 0) throw new EmailSettingsError(`Saved, but these don't match when read back: ${stillDifferent.join(", ")}. Undo with ${RESTORE_FLAG} ${backupFile}`);
-  console.log(`Done — the ${Object.keys(wanted).length} email settings match. To undo: node scripts/push-auth-email-templates.mjs ${RESTORE_FLAG} ${backupFile}`);
+  console.log(`Done — the ${Object.keys(wanted).length} settings match. To undo: node scripts/push-auth-email-templates.mjs ${RESTORE_FLAG} ${backupFile}`);
 }
 
 async function main() {
-  const { isDryRun, restoreFile } = getArguments();
-  const wanted = getWantedSettings(restoreFile);
+  const { isDryRun, restoreFile, hookValue } = getArguments();
+  const wanted = getWantedSettings({ restoreFile, hookValue });
   const token = await askQuestion("Supabase access token (hidden): ", { isHidden: true });
   if (!token) throw new EmailSettingsError("No token entered");
   const current = await fetchAuthSettings(token);
   reportSafetySettings(current);
   const changedKeys = getChangedKeys(current, wanted);
-  if (changedKeys.length === 0) return console.log("All 33 email settings already match. Nothing to do.");
+  if (changedKeys.length === 0) return console.log("Everything already matches. Nothing to do.");
   console.log(`${changedKeys.length} email settings would change:\n${changedKeys.map((key) => getChangeLine(key, current[key], wanted[key])).join("\n")}`);
   if (isDryRun) return console.log("Dry run — nothing changed.");
   await confirmAndApply({ token, current, wanted, changedKeys });

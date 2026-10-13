@@ -1,12 +1,12 @@
-import { getProblemDigest, type ProblemDigestGroup } from "@/lib/email/messages";
-import type { JobDependencies } from "@/lib/jobs/alert-jobs";
-import { deliverEmail } from "@/lib/jobs/deliveries";
-import { recordProblem } from "@/lib/observability/record-problem";
+import { getProblemDigest, type ProblemDigestGroup } from "./templates.ts";
+import type { JobDependencies } from "./jobs.ts";
+import { deliverEmail } from "./deliveries.ts";
 
 // The Worker's scheduled run, every 5 minutes (docs/cwr-error-tracking-plan.md): proves the
 // sender is alive, checks that the database's own watchdog is running, then emails one digest
 // of new system problems to the people an owner chose (owner decision D4). Each step runs on
-// its own, so one failing never skips the others. Free of Next.js imports (runs in worker.ts).
+// its own, so one failing never skips the others. Runs in the email-worker (every 5 minutes, from a
+// database job) and, until the Cloudflare path is removed, in worker.ts.
 
 type ClaimedRun = { run_id: string; tenant_id: string; groups: ProblemDigestGroup[] };
 
@@ -34,14 +34,15 @@ async function fetchTenantIds({ db }: JobDependencies): Promise<string[]> {
   return (rows ?? []).map((row: { id: string }) => row.id);
 }
 
-async function checkWatchdog({ db }: JobDependencies, tenantId: string): Promise<void> {
+async function checkWatchdog(deps: JobDependencies, tenantId: string): Promise<void> {
+  const { db } = deps;
   const row = getCheckedData(
     await db.from("health_checks").select("last_run_at").eq("tenant_id", tenantId).eq("name", "scheduled_jobs").maybeSingle<{ last_run_at: string | null }>(),
     "checkWatchdog",
   );
   const lastRunMs = row?.last_run_at ? Date.parse(row.last_run_at) : 0;
   if (Date.now() - lastRunMs < WATCHDOG_STALE_MS) return;
-  await recordProblem(db, {
+  await deps.recordProblem({
     action: "jobs.watchdog",
     stage: "setup",
     severity: "critical",
@@ -74,7 +75,7 @@ export function getProblemAlertOutcome({ statuses, retryableCount }: { statuses:
 async function sendDigest(deps: JobDependencies, { run, recipients }: { run: ClaimedRun; recipients: string[] }): Promise<ProblemAlertOutcome> {
   let retryableCount = 0;
   for (const recipient of recipients) {
-    const email = getProblemDigest({ groups: run.groups, recipient, adminUrl: `${deps.siteUrl}/admin` });
+    const email = getProblemDigest({ groups: run.groups, recipient, adminUrl: `${deps.siteUrl}/admin`, siteUrl: deps.siteUrl });
     const request = { tenantId: run.tenant_id, kind: "problem" as const, threadId: null, messageId: null, jobRunId: run.run_id, email };
     if (await deliverEmail(deps, request)) retryableCount += 1;
   }
@@ -100,7 +101,7 @@ async function runStep(deps: JobDependencies, { tenantId, step, work }: { tenant
     await work();
   } catch (error) {
     const code = error instanceof ProblemAlertStepError ? error.context.code : error instanceof Error ? error.name : "NonError";
-    await recordProblem(deps.db, { action: "jobs.problem_alerts", stage: "job", severity: "error", origin: "job", code, tenantId, detail: `Step: ${step}` });
+    await deps.recordProblem({ action: "jobs.problem_alerts", stage: "job", severity: "error", origin: "job", code, tenantId, detail: `Step: ${step}` });
   }
 }
 

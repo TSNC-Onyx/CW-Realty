@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getEscapedHtml, getNewRequestAlert, getProblemDigest, getVisitorCopy } from "@/lib/email/messages";
+import { getEscapedHtml, getNewRequestAlert, getProblemDigest, getVisitorCopy } from "./templates.ts";
 
 const OFFICE = { phoneDisplay: "(336) 708-0560", email: "charlie@charliewardrealty.com" };
 

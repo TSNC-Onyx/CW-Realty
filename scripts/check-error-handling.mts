@@ -16,7 +16,7 @@ import ts from "typescript";
 
 import { PROBLEM_ACTIONS } from "../src/lib/observability/problem-catalog.ts";
 
-const CHECKED_DIRECTORIES = ["src/lib/admin", "app/admin", "src/lib/jobs", "src/lib/observability"];
+const CHECKED_DIRECTORIES = ["src/lib/admin", "app/admin", "src/lib/jobs", "src/lib/observability", "src/lib/email-outbox", "supabase/functions/email-worker"];
 const CHECKED_FILES = ["worker.ts", "middleware.ts"];
 const SERVER_ACTION_DIRECTORY = "src/lib/admin";
 const SUPABASE_ERROR_TYPES = /PostgrestError|AuthError|StorageError|FunctionsError/;

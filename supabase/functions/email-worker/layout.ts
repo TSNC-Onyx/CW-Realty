@@ -2,19 +2,19 @@
 // Email-safe on purpose: tables, inline styles, no HTML comments or Outlook-only code (Supabase
 // strips them), and the <style> block is only an extra for Apple Mail dark mode and phones.
 
-import { EMAIL_COLORS } from "@/lib/email/brand-colors";
-import { SITE_URL } from "@/lib/site/navigation";
+import { EMAIL_COLORS } from "./brand-colors.ts";
+import { SITE_URL } from "./site-values.ts";
 
 export const FIRM_NAME = "Charlie Ward Realty";
-const LOGO_URL = `${SITE_URL}/brand/cwr-logo-email.png`;
 const LOGO_ALT = "CWR Real Estate";
 const LOGO_SIZE_PX = 56;
 const MAX_WIDTH_PX = 600;
-const SITE_LABEL = new URL(SITE_URL).hostname.replace(/^www\./, "");
 const HEADING_FONT = "Georgia, 'Times New Roman', serif";
 const BODY_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
-// Button links may only go to the live site or, in Supabase sign-in templates, its link variable.
-const ALLOWED_URL_PREFIXES = ["https://", "{{ .SiteURL }}/"];
+// Button links may only use https, the local test site, or, in Supabase sign-in templates, its
+// link variable.
+const ALLOWED_URL_PREFIXES = ["https://", "http://127.0.0.1:", "http://localhost:", "{{ .SiteURL }}/"];
+const LOGO_PATH = "/brand/cwr-logo-email.png";
 const HTML_ESCAPES: Record<string, string> = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 
 export type EmailButton = { label: string; url: string };
@@ -29,6 +29,8 @@ export type BrandedEmail = {
   button?: EmailButton;
   /** Plain text; escaped here. */
   footerLines: string[];
+  /** The address that serves the new site (logo and footer link); the live site when left out. */
+  siteUrl?: string;
 };
 
 export class EmailLayoutError extends Error {
@@ -56,8 +58,12 @@ function getPreheader(preheader: string): string {
   return `<div style="display:none;max-height:0;max-width:0;overflow:hidden;mso-hide:all;opacity:0;font-size:1px;line-height:1px;color:${EMAIL_COLORS.page};">${getEscapedHtml(preheader)}</div>`;
 }
 
-function getHeaderRow(): string {
-  const logo = `<img src="${LOGO_URL}" width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" alt="${LOGO_ALT}" style="display:block;border:0;width:${LOGO_SIZE_PX}px;height:${LOGO_SIZE_PX}px;font-family:${BODY_FONT};font-size:14px;line-height:1.2;color:${EMAIL_COLORS["on-dark"]};">`;
+function getSiteLabel(siteUrl: string): string {
+  return siteUrl.startsWith("{{") ? siteUrl : new URL(siteUrl).hostname.replace(/^www\./, "");
+}
+
+function getHeaderRow(siteUrl: string): string {
+  const logo = `<img src="${siteUrl}${LOGO_PATH}" width="${LOGO_SIZE_PX}" height="${LOGO_SIZE_PX}" alt="${LOGO_ALT}" style="display:block;border:0;width:${LOGO_SIZE_PX}px;height:${LOGO_SIZE_PX}px;font-family:${BODY_FONT};font-size:14px;line-height:1.2;color:${EMAIL_COLORS["on-dark"]};">`;
   const name = `<td style="padding:4px 0;vertical-align:middle;font-family:${HEADING_FONT};font-size:22px;line-height:1.3;color:${EMAIL_COLORS["on-dark"]};">${FIRM_NAME}</td>`;
   return `<tr><td align="center" bgcolor="${EMAIL_COLORS.dark}" style="background-color:${EMAIL_COLORS.dark};padding:20px 24px;"><table role="presentation" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:4px 14px 4px 0;vertical-align:middle;">${logo}</td>${name}</tr></table></td></tr>`;
 }
@@ -72,15 +78,16 @@ function getCardRow({ heading, bodyHtml, button }: BrandedEmail): string {
   return `<tr><td class="cwr-card" bgcolor="${EMAIL_COLORS.surface}" style="background-color:${EMAIL_COLORS.surface};border-top:4px solid ${EMAIL_COLORS.gold};padding:32px;font-family:${BODY_FONT};font-size:16px;line-height:1.5;color:${EMAIL_COLORS.ink};">${title}${bodyHtml}${button ? getButton(button) : ""}</td></tr>`;
 }
 
-function getFooterRow(footerLines: string[]): string {
+function getFooterRow({ footerLines, siteUrl }: { footerLines: string[]; siteUrl: string }): string {
   const lines = footerLines.map((line) => `${getEscapedHtml(line)}<br>`).join("");
-  const siteLink = `<a href="${SITE_URL}" style="color:${EMAIL_COLORS.muted};text-decoration:underline;">${SITE_LABEL}</a>`;
+  const siteLink = `<a href="${siteUrl}" style="color:${EMAIL_COLORS.muted};text-decoration:underline;">${getSiteLabel(siteUrl)}</a>`;
   return `<tr><td class="cwr-footer" align="center" style="padding:20px 24px;font-family:${BODY_FONT};font-size:14px;line-height:1.5;color:${EMAIL_COLORS.muted};">${lines}${siteLink}</td></tr>`;
 }
 
 /** Wraps an email body in the branded layout and returns the complete HTML document. */
 export function getBrandedEmailHtml(email: BrandedEmail): string {
-  const content = `${getHeaderRow()}${getCardRow(email)}${getFooterRow(email.footerLines)}`;
+  const siteUrl = email.siteUrl ?? SITE_URL;
+  const content = `${getHeaderRow(siteUrl)}${getCardRow(email)}${getFooterRow({ footerLines: email.footerLines, siteUrl })}`;
   const container = `<table role="presentation" width="${MAX_WIDTH_PX}" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:${MAX_WIDTH_PX}px;">${content}</table>`;
   const page = `<table role="presentation" class="cwr-page" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${EMAIL_COLORS.page}" style="background-color:${EMAIL_COLORS.page};"><tr><td align="center" style="padding:24px 12px;">${container}</td></tr></table>`;
   return `<!doctype html><html lang="en">${getHead(email.heading)}<body class="cwr-page" style="margin:0;padding:0;background-color:${EMAIL_COLORS.page};">${getPreheader(email.preheader)}${page}</body></html>`;

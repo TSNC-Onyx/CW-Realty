@@ -61,6 +61,7 @@ async function fetchRetryBlockedMessage({ supabase, tenantId }: Pick<AdminContex
   }
   if (!delivery) return "That email isn't in the log any more.";
   if (delivery.kind === "problem") return "Problem emails are re-sent automatically.";
+  if (delivery.kind === "account") return "Sign-in emails can't be re-sent. Ask the person to request a new link.";
   if (delivery.status !== "failed") return "Only failed emails can be retried.";
   return null;
 }

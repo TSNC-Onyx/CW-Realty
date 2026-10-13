@@ -1,9 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
 
-import type { EmailSender } from "@/lib/email/send-email";
+import type { EmailSender } from "./sender.ts";
 
-// Background email jobs (Infra §3). Kept free of Next.js-only imports so the queue
-// consumer Worker (worker.ts) can run them too.
+// Background email jobs (Infra §3). Shared by the email-worker (Supabase, Deno) and, until the
+// Cloudflare Queue path is removed, the site's queue consumer (worker.ts), so it imports only
+// relative .ts files and @supabase/supabase-js (mapped for Deno in deno.json).
 
 export const ALERT_QUEUE_BINDING = "CWR_ALERTS";
 export const ALERT_DEAD_LETTER_QUEUE = "cwr-alerts-dlq";
@@ -22,7 +23,18 @@ export function createJobDatabase({ url, serviceRoleKey }: { url: string; servic
 
 export type JobDatabase = ReturnType<typeof createJobDatabase>;
 
-export type JobDependencies = { db: JobDatabase; sendEmail: EmailSender; siteUrl: string };
+/** A problem worth recording; each runner passes its own recorder (the site's or the email-worker's). */
+export type JobProblem = {
+  action: string;
+  stage: string;
+  severity: "info" | "warning" | "error" | "critical";
+  origin: "job";
+  code: string | null;
+  tenantId?: string | null;
+  detail: string;
+};
+
+export type JobDependencies = { db: JobDatabase; sendEmail: EmailSender; siteUrl: string; recordProblem: (problem: JobProblem) => Promise<void> };
 
 export class RetryableJobError extends Error {
   constructor(readonly context: { job: AlertJob; failedCount: number }) {

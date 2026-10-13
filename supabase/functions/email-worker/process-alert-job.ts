@@ -1,11 +1,12 @@
-import { getNewRequestAlert, getReplyEmail, getTestAlert, getVisitorCopy, type OfficeContact, type RequestSummary } from "@/lib/email/messages";
-import type { OutgoingEmail } from "@/lib/email/mailersend";
-import { JobDataError, RetryableJobError, TransientJobError, type AlertJob, type JobDependencies } from "@/lib/jobs/alert-jobs";
-import { deliverEmail, redeliverEmail, type DeliveryRequest } from "@/lib/jobs/deliveries";
-import { getDisplayPhone, type E164Phone } from "@/lib/site/phone";
+import { getNewRequestAlert, getReplyEmail, getTestAlert, getVisitorCopy, type OfficeContact, type RequestSummary } from "./templates.ts";
+import type { OutgoingEmail } from "./mailersend.ts";
+import { JobDataError, RetryableJobError, TransientJobError, type AlertJob, type JobDependencies } from "./jobs.ts";
+import { deliverEmail, redeliverEmail, type DeliveryRequest } from "./deliveries.ts";
+import { getDisplayPhone, type E164Phone } from "./site-values.ts";
 
 // Turns a job into emails and sends them (Admin §5: alerts to chosen recipients; Features §2:
-// the visitor is told when to expect a reply). Throws RetryableJobError so the queue retries.
+// the visitor is told when to expect a reply). Throws RetryableJobError so the outbox (or,
+// until it's removed, the Cloudflare Queue) retries.
 
 type ThreadRow = {
   id: string;
@@ -61,6 +62,7 @@ function getFirstVisitorMessage(thread: ThreadRow): string {
 
 function getSummary(thread: ThreadRow, siteUrl: string): RequestSummary {
   return {
+    siteUrl,
     threadUrl: `${siteUrl}/admin/inbox/${thread.id}`,
     source: thread.source,
     contactName: thread.contact_name,
@@ -75,7 +77,7 @@ async function getVisitorCopyRequest(deps: JobDependencies, { thread, office }: 
   if (!thread.contact_email || !office.email) return null;
   const existing = getCheckedData(await deps.db.from("alert_deliveries").select("id").eq("kind", "visitor_copy").eq("thread_id", thread.id).maybeSingle(), "fetchVisitorCopy");
   if (!existing && (await hasRecentVisitorCopies(deps, thread.contact_email))) return null;
-  const email = getVisitorCopy({ name: thread.contact_name, email: thread.contact_email, office });
+  const email = getVisitorCopy({ name: thread.contact_name, email: thread.contact_email, office, siteUrl: deps.siteUrl });
   return { tenantId: thread.tenant_id, kind: "visitor_copy", threadId: thread.id, messageId: null, jobRunId: null, email };
 }
 
@@ -94,20 +96,20 @@ async function getReplyDelivery(deps: JobDependencies, job: AlertJob, messageId:
   const thread = await fetchThread(deps, job, message.thread_id);
   if (!thread.contact_email) return [];
   const office = await fetchOffice(deps, thread.tenant_id);
-  const email = getReplyEmail({ name: thread.contact_name, email: thread.contact_email, reply: message.body, office });
+  const email = getReplyEmail({ name: thread.contact_name, email: thread.contact_email, reply: message.body, office, siteUrl: deps.siteUrl });
   return [{ tenantId: thread.tenant_id, kind: "reply", threadId: thread.id, messageId: message.id, jobRunId: null, email }];
 }
 
 async function getTestDeliveries(deps: JobDependencies, { tenantId, runId }: { tenantId: string; runId: string }): Promise<DeliveryRequest[]> {
   const recipients = await fetchRecipients(deps, { tenantId, source: null });
-  return recipients.map((recipient) => ({ tenantId, kind: "test", threadId: null, messageId: null, jobRunId: runId, email: getTestAlert(recipient) }));
+  return recipients.map((recipient) => ({ tenantId, kind: "test", threadId: null, messageId: null, jobRunId: runId, email: getTestAlert(recipient, deps.siteUrl) }));
 }
 
-async function getJobDeliveries(deps: JobDependencies, job: AlertJob): Promise<DeliveryRequest[]> {
+function getJobDeliveries(deps: JobDependencies, job: AlertJob): Promise<DeliveryRequest[]> {
   if (job.kind === "new_request") return getNewRequestDeliveries(deps, job);
   if (job.kind === "reply") return getReplyDelivery(deps, job, job.messageId);
   if (job.kind === "test") return getTestDeliveries(deps, job);
-  return [];
+  return Promise.resolve([]);
 }
 
 async function getRetryEmail(deps: JobDependencies, job: AlertJob & { kind: "retry" }): Promise<OutgoingEmail | null> {
@@ -123,7 +125,7 @@ async function getRetryEmail(deps: JobDependencies, job: AlertJob & { kind: "ret
     delivery.kind === "reply" && delivery.message_id
       ? await getReplyDelivery(deps, job, delivery.message_id)
       : delivery.kind === "test"
-        ? [{ email: getTestAlert(delivery.recipient_email) }]
+        ? [{ email: getTestAlert(delivery.recipient_email, deps.siteUrl) }]
         : await getNewRequestDeliveries(deps, { kind: "new_request", threadId: delivery.thread_id ?? "" });
   return candidates.find((candidate) => candidate.email.to.email.toLowerCase() === delivery.recipient_email.toLowerCase())?.email ?? null;
 }

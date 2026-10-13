@@ -12,8 +12,7 @@ import type { LoadResult } from "@/lib/admin/load-result";
 import { fetchRecentDeliveries, fetchRecipients, type Delivery, type Recipient } from "@/lib/admin/notifications/queries";
 import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { EDITOR_ROLES, OWNER_ROLES, hasRole, requireAdminPage } from "@/lib/admin/require-admin";
-import { isEmailConfigured } from "@/lib/email/send-email";
-import { ARE_PROBLEM_EMAILS_PAUSED } from "@/lib/jobs/problem-alert-schedule";
+import { fetchEmailStatus } from "@/lib/email-outbox/status";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -23,13 +22,14 @@ const KIND_LABELS: Record<Delivery["kind"], string> = {
   reply: "Reply to the visitor",
   test: "Test alert",
   problem: "Problem alert",
+  account: "Sign-in or account email",
 };
 const OWNER_NO_PROBLEM_RECIPIENT = "No one gets problem emails yet — switch someone on below. Problems are still recorded.";
 const MANAGER_NO_PROBLEM_RECIPIENT = "No one gets problem emails yet — only an owner can switch someone on. Problems are still recorded.";
 const PROBLEM_EMAILS_PAUSED = "Problem emails are paused for now, so no one is emailed about them yet. Problems are still recorded, and the people switched on below will get them once emails resume.";
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
-function RecipientNotices({ recipients, isOwner }: { recipients: Recipient[]; isOwner: boolean }) {
+function RecipientNotices({ recipients, isOwner, areProblemEmailsPaused }: { recipients: Recipient[]; isOwner: boolean; areProblemEmailsPaused: boolean }) {
   const activeRecipients = recipients.filter((recipient) => recipient.is_active);
   const hasProblemRecipient = activeRecipients.some((recipient) => recipient.gets_problem_alerts);
   return (
@@ -39,12 +39,12 @@ function RecipientNotices({ recipients, isOwner }: { recipients: Recipient[]; is
           <p>Add at least one person so new requests aren&apos;t missed.</p>
         </Message>
       )}
-      {ARE_PROBLEM_EMAILS_PAUSED && (
+      {areProblemEmailsPaused && (
         <Message tone="info" title="Problem emails are paused">
           <p>{PROBLEM_EMAILS_PAUSED}</p>
         </Message>
       )}
-      {!ARE_PROBLEM_EMAILS_PAUSED && !hasProblemRecipient && (
+      {!areProblemEmailsPaused && !hasProblemRecipient && (
         <Message tone="warning" title="Problem emails are off">
           <p>{isOwner ? OWNER_NO_PROBLEM_RECIPIENT : MANAGER_NO_PROBLEM_RECIPIENT}</p>
         </Message>
@@ -74,7 +74,7 @@ function DeliverySection({ deliveries, notice }: { deliveries: LoadResult<Delive
   const items = deliveries.data.map((delivery) => ({
     id: delivery.id,
     kindLabel: KIND_LABELS[delivery.kind],
-    isProblemAlert: delivery.kind === "problem",
+    canRetry: delivery.kind !== "problem" && delivery.kind !== "account",
     recipient: delivery.recipient_email,
     status: delivery.status,
     when: DATE_TIME.format(new Date(delivery.created_at)),
@@ -85,7 +85,7 @@ function DeliverySection({ deliveries, notice }: { deliveries: LoadResult<Delive
 
 export default async function NotificationsPage() {
   const admin = await requireAdminPage(EDITOR_ROLES);
-  const [recipients, deliveries] = await Promise.all([fetchRecipients(admin), fetchRecentDeliveries(admin)]);
+  const [recipients, deliveries, emailStatus] = await Promise.all([fetchRecipients(admin), fetchRecentDeliveries(admin), fetchEmailStatus(admin)]);
   const notice = await reportPageLoad({ admin, action: "notifications.load", results: [recipients, deliveries] });
   const isOwner = hasRole(admin, OWNER_ROLES);
   const hasActiveRecipient = recipients.isLoaded && recipients.data.some((recipient) => recipient.is_active);
@@ -94,13 +94,13 @@ export default async function NotificationsPage() {
       <h1 className="type-h1 mb-2">Notifications</h1>
       <p className="type-lead mb-8 max-w-prose text-muted">Choose who gets an email when a new request comes in, and check that alerts arrive.</p>
       <div className="mb-8 grid max-w-prose gap-4">
-        {!isEmailConfigured() && (
+        {!emailStatus.isSendingSetUp && (
           <Message tone="warning" title="Email sending isn't set up yet">
             <p>Requests still reach the inbox. Alerts are logged below but not sent until the site owner connects MailerSend.</p>
             <p className="mt-1">Email isn&apos;t set up — problem emails can&apos;t be sent.</p>
           </Message>
         )}
-        {recipients.isLoaded && <RecipientNotices recipients={recipients.data} isOwner={isOwner} />}
+        {recipients.isLoaded && <RecipientNotices recipients={recipients.data} isOwner={isOwner} areProblemEmailsPaused={!emailStatus.isOutboxLive} />}
       </div>
       <section aria-labelledby="recipients-heading" className="mb-12 border-t-2 border-ink pt-6">
         <h2 id="recipients-heading" className="type-h3 mb-4">Who gets alerts</h2>

@@ -2,7 +2,7 @@
 
 Governs: every email Supabase Auth sends (13 types). Design: `docs/cwr-branded-email-templates-plan.md` (Phase 1 and Phase 2).
 
-The repo files in `supabase/templates/` are generated from `src/lib/email/auth-templates.ts` (`npm run email:templates`; a unit test fails if they drift). Local Supabase reads them through `supabase/config.toml`, which also holds each subject and which security notices are on. The hosted project does **not** read the repo: after any change, copy the settings over with the script below.
+Once the email outbox is live (`docs/runbooks/email-outbox.md`), these templates are only Supabase's fallback if the Send Email hook is ever switched off; the outbox sends every email itself. The repo files in `supabase/templates/` are generated from `supabase/functions/email-worker/templates.ts` (`npm run email:templates`; a unit test fails if they drift). Local Supabase reads them through `supabase/config.toml`, which also holds each subject and which security notices are on. The hosted project does **not** read the repo: after any change, copy the settings over with the script below.
 
 | Email | Sent when | Has a working link? |
 |---|---|---|
@@ -42,7 +42,7 @@ After a merge to `build1` that changes `supabase/templates/` or the email sectio
 
 ## Keeping it complete
 
-Supabase occasionally adds new email types. After a Supabase announcement about Auth emails, open Supabase → Authentication → Emails and compare the list with the 13 in the table above. A new type would use Supabase's default look until it's added to `src/lib/email/auth-templates.ts`, `supabase/config.toml`, and the script.
+Supabase occasionally adds new email types. After a Supabase announcement about Auth emails, open Supabase → Authentication → Emails and compare the list with the 13 in the table above. A new type would use Supabase's default look until it's added to `supabase/functions/email-worker/templates.ts`, `supabase/config.toml`, the hook (`cwr.handle_auth_email`), and the script.
 
 ## Rolling back the app emails
 

@@ -1,5 +1,4 @@
-import type { AlertJob, JobDependencies } from "@/lib/jobs/alert-jobs";
-import { recordProblem } from "@/lib/observability/record-problem";
+import type { AlertJob, JobDependencies } from "./jobs.ts";
 
 // After the queue's last retry a job lands in the dead-letter queue. Whatever it had not
 // sent is marked failed, so the Notifications page shows it with a Retry button (Infra §3),
@@ -18,7 +17,7 @@ function getUnfinishedDeliveries({ db }: JobDependencies, job: AlertJob) {
 
 export async function recordDeadLetter(job: AlertJob, deps: JobDependencies): Promise<void> {
   const { error } = await getUnfinishedDeliveries(deps, job);
-  await recordProblem(deps.db, {
+  await deps.recordProblem({
     action: "jobs.alert_dead_letter",
     stage: "job",
     severity: "error",
