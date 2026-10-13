@@ -7,11 +7,13 @@ const HOUR_MS = 60 * MINUTE_MS;
 const PROBLEM_ALERTS_STALE_MS = 20 * MINUTE_MS;
 const SCHEDULED_JOBS_STALE_MS = 45 * MINUTE_MS;
 const PHOTO_CLEANUP_STALE_MS = 36 * HOUR_MS;
-const FAILING_CHECK_NAMES = new Set<HealthCheckName>(["problem_alerts", "problem_log_writes"]);
+// The email outbox's backup job runs every minute (docs/cwr-email-outbox-plan.md).
+const EMAIL_OUTBOX_STALE_MS = 10 * MINUTE_MS;
+const FAILING_CHECK_NAMES = new Set<HealthCheckName>(["problem_alerts", "problem_log_writes", "email_outbox", "email_sending"]);
 
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
-export type HealthCheckName = "problem_alerts" | "scheduled_jobs" | "photo_cleanup" | "problem_log_writes";
+export type HealthCheckName = "problem_alerts" | "scheduled_jobs" | "photo_cleanup" | "problem_log_writes" | "email_outbox" | "email_sending";
 
 export type HealthCheck = {
   name: HealthCheckName;
@@ -48,6 +50,13 @@ const STALE_RULES: StaleRule[] = [
     title: "The nightly photo clean-up hasn't finished",
     getBody: (since) => `It last finished ${since}. Deleted photos may still be taking up storage. Ask your developer to check the nightly clean-up on GitHub.`,
   },
+  {
+    name: "email_outbox",
+    maxAgeMs: EMAIL_OUTBOX_STALE_MS,
+    getStamp: (check) => check.last_run_at ?? check.created_at,
+    title: "The email backup check isn't running",
+    getBody: (since) => `The once-a-minute check that sends any email the first try missed last ran ${since}. Most emails still go out right away, but a missed one may wait. Ask your developer to check the database's scheduled jobs.`,
+  },
 ];
 
 const FAILING_TITLES: Record<HealthCheckName, string> = {
@@ -55,6 +64,8 @@ const FAILING_TITLES: Record<HealthCheckName, string> = {
   problem_log_writes: "The problem log couldn't save a problem",
   scheduled_jobs: "Database clean-up checks are failing",
   photo_cleanup: "The nightly photo clean-up is failing",
+  email_outbox: "An email is waiting to go out",
+  email_sending: "Emails can't be sent",
 };
 
 function getWhenText(stamp: string): string {

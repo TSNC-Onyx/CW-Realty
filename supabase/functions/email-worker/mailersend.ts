@@ -1,5 +1,5 @@
 // MailerSend REST API (owner-approved email provider). Plain fetch keeps this usable from
-// both the Next.js server and the queue consumer Worker.
+// the email-worker (Deno) and the site's queue consumer Worker.
 
 const MAILERSEND_URL = "https://api.mailersend.com/v1/email";
 const ACCEPTED = 202;
@@ -34,6 +34,8 @@ function getRequestBody(email: OutgoingEmail, from: EmailAddress) {
     text: email.text,
     html: email.html,
     ...(email.replyTo ? { reply_to: email.replyTo } : {}),
+    // Tracking would rewrite links, which breaks one-time sign-in links (plan edge case 14).
+    settings: { track_clicks: false, track_opens: false, track_content: false },
   };
 }
 

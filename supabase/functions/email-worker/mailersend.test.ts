@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { EmailSendError, sendWithMailerSend } from "@/lib/email/mailersend";
+import { EmailSendError, sendWithMailerSend } from "./mailersend.ts";
 
 const EMAIL = { to: { email: "desk@example.com" }, subject: "Hi", text: "Hi", html: "<p>Hi</p>" };
 const SETTINGS = { apiKey: "test-key", from: { email: "alerts@notify.example.com", name: "CWR website" } };

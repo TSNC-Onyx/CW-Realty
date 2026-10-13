@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import { EMAIL_COLORS } from "@/lib/email/brand-colors";
+import { EMAIL_COLORS } from "./brand-colors.ts";
 
 const TOKEN_FILE = "app/globals.css";
 

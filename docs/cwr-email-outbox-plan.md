@@ -1,6 +1,6 @@
 # CWR email outbox — plan
 
-Status: rev 4, 2026-10-12 (rev 1: mostly B, two C — 16 changes; rev 2: six A, four B — 6 changes; rev 3: two changes; rev 4 ALL A). Plan only; nothing built. Waits for owner answers and an explicit "build it".
+Status: rev 4, 2026-10-12 (rev 1: mostly B, two C — 16 changes; rev 2: six A, four B — 6 changes; rev 3: two changes; rev 4 ALL A). **Owner approved Q1–Q3 (all recommendations) and the build 2026-10-12.** **Built 2026-10-12** — see "Build notes" at the end for where the build differs from this text.
 
 ## Goal
 
@@ -205,3 +205,22 @@ Risk: low with staged cutover and an undo per step.
 - MailerSend API limits: https://developers.mailersend.com/general
 - Transactional outbox pattern: https://microservices.io/patterns/data/transactional-outbox.html
 - OWASP Forgot Password Cheat Sheet: https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html
+
+## Build notes (2026-10-12)
+
+Where the build differs from the plan text above, and why:
+
+- **Wake-up secret lives only in Vault.** The migration makes it; the worker reads it through `cwr.get_email_worker_secret()` (service role only) instead of a copy in the function's secrets. Rotation is one SQL statement, with no second place to update.
+- **One switch also steers the site.** `src/lib/jobs/enqueue-alert-job.ts` stays where it is and checks `is_outbox_live` on every send: off = the old Cloudflare path, on = the outbox. Merging this change therefore changes nothing until step 2, and undoing step 2 needs no redeploy.
+- **Shared code instead of copies.** All email and job code moved from `src/lib/email` and `src/lib/jobs` into `supabase/functions/email-worker/` (relative `.ts` imports). The site's old path and `worker.ts` import it from there, so the templates and today's rules exist once. Three small site values the worker can't import (site address, reply promise, phone format) and the problem reference code are repeated, each with a test that fails if it drifts.
+- **Each runner passes in its own problem recorder.** The site passes its full recorder; the worker passes a slim one (`problems.ts`) writing to the same `cwr.record_problem`.
+- **Sender settings keep today's names:** `MAILERSEND_API_KEY`, `ALERT_FROM_EMAIL`, `ALERT_FROM_NAME` (not `EMAIL_FROM`).
+- **Retries:** 1, 5, 15 and 60 minutes, then "failed" after the 5th try. MailerSend's 429 limit resets within a minute, so the 1-minute minimum respects its Retry-After.
+- **Email change stores no link values.** Its email has no working link, so Supabase's reversed token names don't matter; both addresses just get a notice.
+- **Delivery-log kind `account`** covers every sign-in and account email; the template is chosen from the job's `action_type`.
+- **Local settings** live in `supabase/config.toml` (`[edge_runtime.secrets]`, local test values only) instead of a `.env` file, so CI needs nothing extra. `supabase/seed.sql` turns the outbox on locally.
+- **Deno checks in CI** run through `npm run worker:check` (`npx deno@2.7.14`), avoiding a new third-party CI action.
+- **Link lifetime is a manual step:** the owner script prints a note when the hosted `mailer_otp_exp` isn't the default 3600 seconds; Claude then sets `cwr.email_settings.link_lifetime_seconds` (the script only has Auth Config access, not the database).
+- **A request saved while the switch flips** is caught: when the outbox is live but the trigger made no job (the switch turned on mid-request), the site sends it through the old path; the delivery log's duplicate guard covers the other direction.
+- **Fallback templates** (`supabase/templates/*.html`) are generated from the same `templates.ts` functions, filled with Supabase's placeholders.
+

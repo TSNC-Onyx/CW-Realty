@@ -73,7 +73,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         </h1>
       </div>
       {isSetupIncomplete && <SetupNotice />}
-      {health && <HealthNotices checks={health.checks} problemRecipientCount={health.problemRecipientCount} now={now} notice={loadNotice} />}
+      {health && <HealthNotices checks={health.checks} problemRecipientCount={health.problemRecipientCount} areProblemEmailsPaused={!health.isOutboxLive} now={now} notice={loadNotice} />}
       {notice === "role" && (
         <div className="max-w-prose">
           <Message tone="warning" title="That area isn't part of your role">

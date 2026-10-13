@@ -265,9 +265,10 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Every email Supabase Auth can send uses our branded templates (all 13 types, generated from
-# src/lib/email/auth-templates.ts; docs/cwr-branded-email-templates-plan.md, Phase 2). Invite and
-# reset link to /admin/auth/confirm with a one-time token hash; the others have no working link
+# Supabase Auth hands every email to the outbox (Send Email hook below), so these templates are
+# only the fallback if the hook is ever switched off. All 13 are generated from
+# supabase/functions/email-worker/templates.ts (docs/cwr-email-outbox-plan.md). Invite and reset
+# link to /admin/auth/confirm with a one-time token hash; the others have no working link
 # because the site doesn't offer those flows. Security notices on: password, email, and
 # sign-in-code changes. The hosted project gets the same settings from
 # scripts/push-auth-email-templates.mjs, which reads this file.
@@ -352,6 +353,12 @@ max_frequency = "5s"
 # inactivity_timeout = "8h"
 # (The admin portal enforces 30 minutes idle / 12 hours total itself; see
 # src/lib/admin/session-timing.ts. These server settings need a paid plan.)
+
+# Supabase Auth hands every email to the outbox instead of sending it (docs/cwr-email-outbox-plan.md).
+# The hosted project is switched on by scripts/push-auth-email-templates.mjs --hook on (rollout step 3).
+[auth.hook.send_email]
+enabled = true
+uri = "pg-functions://postgres/cwr/handle_auth_email"
 
 # This hook runs before a new user is created and allows developers to reject the request based on the incoming user object.
 # [auth.hook.before_user_created]
@@ -463,8 +470,18 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
-# [edge_runtime.secrets]
-# secret_key = "env(SECRET_VALUE)"
+# Local-only email-worker settings: emails go to Mailpit (the local test inbox), links to the
+# local site. The live project's secrets are set in Supabase → Edge Functions → Secrets.
+[edge_runtime.secrets]
+EMAIL_TRANSPORT = "mailpit"
+EMAIL_SITE_URL = "http://127.0.0.1:3100"
+MAILPIT_URL = "http://supabase_inbucket_cw-realty:8025"
+ALERT_FROM_EMAIL = "alerts@cwr.test"
+ALERT_FROM_NAME = "CWR website"
+
+# The email-worker checks its own shared secret (from Vault) instead of a Supabase sign-in token.
+[functions.email-worker]
+verify_jwt = false
 
 [analytics]
 enabled = true

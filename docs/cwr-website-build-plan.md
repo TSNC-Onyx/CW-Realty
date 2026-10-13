@@ -171,6 +171,7 @@ Each phase is one or more small PRs to `build1`, each with a preview URL. `main`
 | 15 | Branded emails real-inbox check: send yourself the emails and look at them in Gmail (web + iPhone), Outlook.com, classic and new Outlook for Windows, and Apple Mail (iPhone), in light and dark mode. Classic Outlook may draw the card wider than 600px | Owner's inboxes |
 | 16 | Follow-up idea, needs owner approval (security change): a "Continue" button on the sign-in link page so email security scanners can't use up one-time invite and reset links | Owner decision, then developer |
 | 17 | **Built 2026-10-10 (PR #34):** all 13 Supabase emails branded; security notices on for password, email, and sign-in-code changes (goes live with item 14) | — |
+| 18 | Email outbox (`docs/cwr-email-outbox-plan.md`), after merge, in order: step 0 push branded fallback templates (item 14); step 1 apply migrations, deploy `email-worker`, add its secrets; step 2 switch site emails to the outbox; step 3, a few days later, turn on the Send Email hook; step 4 after a clean week, remove the old Cloudflare path. Each step has an undo: `docs/runbooks/email-outbox.md` | Owner with Claude; Supabase |
 
 ## DO NOT TOUCH
 

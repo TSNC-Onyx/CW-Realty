@@ -1,11 +1,11 @@
-import { EmailSendError, type OutgoingEmail } from "@/lib/email/mailersend";
-import { TransientJobError, type JobDependencies } from "@/lib/jobs/alert-jobs";
+import { EmailSendError, type OutgoingEmail } from "./mailersend.ts";
+import { TransientJobError, type JobDependencies } from "./jobs.ts";
 
 // One row per email in cwr.alert_deliveries. Each email is found or created, then claimed
 // ('sending') with a conditional update before it goes out, so a retried job, a duplicate
 // queue delivery, or a Retry click can never send it twice.
 
-export type DeliveryKind = "new_request" | "visitor_copy" | "reply" | "test" | "problem";
+export type DeliveryKind = "new_request" | "visitor_copy" | "reply" | "test" | "problem" | "account";
 
 export type DeliveryRequest = {
   tenantId: string;
@@ -27,8 +27,8 @@ const ROW_COLUMNS = "id, status, attempts";
 function getScopedLookup({ db }: JobDependencies, request: DeliveryRequest) {
   const query = db.from("alert_deliveries").select(ROW_COLUMNS).eq("kind", request.kind).eq("recipient_email", request.email.to.email.toLowerCase());
   if (request.kind === "reply") return query.eq("message_id", request.messageId ?? "");
-  // Test alerts and problem digests are grouped by run.
-  if (request.kind === "test" || request.kind === "problem") return query.eq("job_run_id", request.jobRunId ?? "");
+  // Test alerts, problem digests and account emails are grouped by run (an account email's run is its outbox job).
+  if (request.kind === "test" || request.kind === "problem" || request.kind === "account") return query.eq("job_run_id", request.jobRunId ?? "");
   return query.eq("thread_id", request.threadId ?? "");
 }
 

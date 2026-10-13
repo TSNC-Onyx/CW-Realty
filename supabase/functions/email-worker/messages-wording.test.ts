@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { OutgoingEmail } from "@/lib/email/mailersend";
-import { getNewRequestAlert, getProblemDigest, getReplyEmail, getTestAlert, getVisitorCopy } from "@/lib/email/messages";
+import type { OutgoingEmail } from "./mailersend.ts";
+import { getNewRequestAlert, getProblemDigest, getReplyEmail, getTestAlert, getVisitorCopy } from "./templates.ts";
 
 // Locks everything except the HTML so the branded layout (docs/cwr-branded-email-templates-plan.md)
 // cannot change what any email says, who gets it, or where replies go.
