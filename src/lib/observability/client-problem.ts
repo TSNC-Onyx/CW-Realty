@@ -43,7 +43,8 @@ export type ClientProblem = {
   digest?: string;
 };
 
-export type ClientProblemReport = ClientProblem & { id: string; pagePath: string };
+/** release: the commit the browser's own copy of the page was built from (an old open tab may differ). */
+export type ClientProblemReport = ClientProblem & { id: string; pagePath: string; release?: string };
 
 export function getHttpProblemCode(status: number): BrowserProblemCode {
   return status >= 500 ? "http_5xx" : "http_4xx";

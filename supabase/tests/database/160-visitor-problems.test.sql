@@ -94,7 +94,7 @@ select results_eq(
 );
 
 select is(
-  (select count(*)::integer from cwr.problem_catalog where area = 'site' or action = 'chat_policy.set_assistant'),
+  (select count(*)::integer from cwr.problem_catalog where (area = 'site' and action not in ('site.page_crash', 'site.browser_error')) or action = 'chat_policy.set_assistant'),
   10,
   'The catalog lists the nine visitor actions and the assistant switch'
 );

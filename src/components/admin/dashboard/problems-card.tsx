@@ -1,3 +1,4 @@
+import { TextLink } from "@/components/ui/text-link";
 import { MISSING_FIGURE } from "@/lib/admin/dashboard-figures";
 import type { ProblemCounts } from "@/lib/admin/health/queries";
 import type { LoadResult } from "@/lib/admin/load-result";
@@ -10,6 +11,10 @@ function getSeriousText({ total, serious }: ProblemCounts): string {
   if (total === 0) return "Nothing went wrong.";
   if (serious === 0) return "None were errors.";
   return serious === 1 ? "1 was an error or worse." : `${serious} were errors or worse.`;
+}
+
+function getGroupsText(groups: number): string {
+  return groups === 1 ? "1 distinct problem in all." : `${groups} distinct problems in all.`;
 }
 
 function getVisitorText(visitors: number): string {
@@ -26,6 +31,8 @@ export function ProblemsCard({ counts }: { counts: LoadResult<ProblemCounts> }) 
       <p className="type-h2 leading-none tabular-nums">{counts.isLoaded ? counts.data.total : MISSING_FIGURE}</p>
       <p className="text-tag leading-normal text-muted">{counts.isLoaded ? getSeriousText(counts.data) : "Didn't load — refresh to try again"}</p>
       {counts.isLoaded && <p className="text-tag leading-normal text-muted">{getVisitorText(counts.data.visitors)}</p>}
+      {counts.isLoaded && counts.data.groups > 0 && <p className="text-tag leading-normal text-muted">{getGroupsText(counts.data.groups)}</p>}
+      <TextLink href="/admin/problems">See problems</TextLink>
     </section>
   );
 }

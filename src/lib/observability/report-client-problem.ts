@@ -1,4 +1,5 @@
 import { PROBLEM_REPORT_PATH, type ClientProblem, type ClientProblemReport } from "@/lib/observability/client-problem";
+import { RELEASE } from "@/lib/observability/release";
 
 // Browser side of problem reporting (docs/cwr-error-tracking-plan.md). Sends the report to
 // the server; if the connection is down, keeps up to 20 reports in this browser and sends
@@ -58,7 +59,7 @@ export function setProblemReporterUser(userId: string | null): void {
 
 /** Returns the reference code when the server stored the report. */
 export async function reportClientProblem(problem: ClientProblem): Promise<string | null> {
-  const report: ClientProblemReport = { ...problem, id: crypto.randomUUID(), pagePath: window.location.pathname };
+  const report: ClientProblemReport = { ...problem, id: crypto.randomUUID(), pagePath: window.location.pathname, release: RELEASE ?? undefined };
   try {
     return await postReport(report);
   } catch {
@@ -72,7 +73,7 @@ export async function reportClientProblem(problem: ClientProblem): Promise<strin
  * are anonymous, so nothing is kept for later and no reference code comes back to show.
  */
 export async function reportVisitorClientProblem(problem: ClientProblem): Promise<void> {
-  const report: ClientProblemReport = { ...problem, id: crypto.randomUUID(), pagePath: window.location.pathname };
+  const report: ClientProblemReport = { ...problem, id: crypto.randomUUID(), pagePath: window.location.pathname, release: RELEASE ?? undefined };
   try {
     await postReport(report);
   } catch {

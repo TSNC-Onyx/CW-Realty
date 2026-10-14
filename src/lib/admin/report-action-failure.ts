@@ -6,7 +6,7 @@ import { isReferenceWorthy } from "@/lib/observability/problem-types";
 import { getReferenceSuffix } from "@/lib/observability/reference";
 import { reportProblem } from "@/lib/observability/report-problem";
 import type { ReportedProblemError } from "@/lib/observability/reported-problem-error";
-import { getOwnStackFrames } from "@/lib/observability/scrub";
+import { getStackFrames } from "@/lib/observability/scrub";
 
 // Records the failure an admin action is about to show, and adds a reference code to the
 // message when it is worth quoting (docs/cwr-error-tracking-plan.md, owner rule 2026-09-27).
@@ -16,7 +16,7 @@ const RULE_CAUSE: ProblemCause = { stage: "rule", severity: "info", code: null, 
 
 export function getUnexpectedCause(error: unknown): ProblemCause {
   if (!(error instanceof Error)) return { stage: "unexpected", severity: "error", code: "NonError", detail: String(error) };
-  const stack = getOwnStackFrames(error.stack);
+  const stack = getStackFrames(error.stack);
   return { stage: "unexpected", severity: "error", code: error.name, detail: stack ? `${error.message}\n${stack}` : error.message };
 }
 

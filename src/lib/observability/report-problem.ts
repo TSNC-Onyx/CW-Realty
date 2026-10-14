@@ -3,9 +3,12 @@ import "server-only";
 import { after } from "next/server";
 import { headers } from "next/headers";
 
+import { ALERT_QUEUE_BINDING } from "@/lib/jobs/alert-jobs";
+import type { ProblemRetryQueue } from "@/lib/observability/problem-retry";
 import { getCloudflareBinding } from "@/lib/platform/cloudflare-bindings";
 import { getActionContext } from "@/lib/observability/action-context";
 import { recordProblem, type ProblemDatabase } from "@/lib/observability/record-problem";
+import { RELEASE } from "@/lib/observability/release";
 import { REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 import { getReference } from "@/lib/observability/reference";
 import { isReferenceWorthy, type ProblemEvent, type ProblemOrigin, type ProblemRecordResult } from "@/lib/observability/problem-types";
@@ -23,7 +26,7 @@ export type ServerProblem = Omit<ProblemEvent, "origin"> & { origin?: ProblemOri
 type RequestFacts = { requestId: string | null; pagePath: string | null; release: string | null };
 
 async function getRequestFacts(): Promise<RequestFacts> {
-  const release = getCloudflareBinding<{ id?: string }>(VERSION_METADATA_BINDING)?.id ?? null;
+  const release = RELEASE ?? getCloudflareBinding<{ id?: string }>(VERSION_METADATA_BINDING)?.id ?? null;
   try {
     const headerStore = await headers();
     return { requestId: headerStore.get(REQUEST_ID_HEADER), pagePath: headerStore.get("referer"), release };
@@ -67,5 +70,5 @@ export async function reportProblem(problem: ServerProblem): Promise<ProblemReco
   const db = getProblemDatabase(event.requestId ?? null);
   const id = problem.problemId ?? crypto.randomUUID();
   if (!isReferenceWorthy(event.severity)) return recordAfterResponse({ db, event, id });
-  return recordProblem(db, event, { id });
+  return recordProblem(db, event, { id, retryQueue: getCloudflareBinding<ProblemRetryQueue>(ALERT_QUEUE_BINDING) });
 }
