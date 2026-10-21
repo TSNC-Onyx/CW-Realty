@@ -7,6 +7,8 @@ import { parseJsonOrNull } from "@/lib/tracking/parse-json";
 export const ATTRIBUTION_FIELD_NAME = "attribution";
 // The click IDs kept for other tabs once Advertising is allowed (docs/cwr-ads-analytics-fixes-plan.md, D10).
 export const ATTRIBUTION_COOKIE = "cwr_attribution";
+/** Deletes the click cookie; host-only with Path=/, like the copy the server sets. */
+export const EXPIRED_ATTRIBUTION_COOKIE = `${ATTRIBUTION_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
 // Google accepts offline conversions for clicks up to 90 days old, so the cookie ends then.
 const MS_PER_SECOND = 1000;
 const ATTRIBUTION_COOKIE_LIFE_MS = 90 * 24 * 60 * 60 * MS_PER_SECOND;

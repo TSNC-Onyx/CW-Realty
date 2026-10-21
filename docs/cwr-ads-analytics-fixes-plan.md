@@ -712,3 +712,17 @@ Deviations and choices made while building, each the smallest option faithful to
 - **Step 1 — pgTAP 160.** `160-visitor-problems.test.sql` counts the catalog rows in area `site` (10). The plan's
   own `site.consent` row makes it 11, so that one count and its sentence were updated ("ten visitor actions"),
   although DO NOT TOUCH lists pgTAP files 000–230. Nothing else in the file changed.
+- **Step 2 — one helper for check plus record.** `container-check.ts` also exports
+  `checkSavedContainer({ containerId, action })` (null for a blank ID; otherwise asks Google, then calls
+  `reportContainerStatus`), so the save action and the page do the same two steps the same way. The
+  "couldn't check" status line uses the muted alert icon, because the container is not confirmed.
+- **Step 6 — `getConsentReissue` takes `isSecure`.** R7 lists `{ cookieValue, isGpcOn, now }`; the re-issued
+  cookie must keep `Secure` on https like the browser's copy (protected behavior 6), so the endpoint passes
+  `isSecure` (from the request address) as `getAttributionCookieString` already does.
+- **Step 6 — expired click cookie as one constant.** `attribution.ts` exports `EXPIRED_ATTRIBUTION_COOKIE`
+  (`cwr_attribution=; Path=/; Max-Age=0; SameSite=Lax`), used by the endpoint and by `forgetAttribution`, so
+  both delete the same host-only, `Path=/` cookie.
+- **Step 5 — `getEarlierLanding` keeps the whole earlier landing.** When the click IDs match, the earlier
+  landing is kept as it was (landing page and campaign tags too, not only `landedAt`): an address restored by
+  D4 carries the click IDs but no campaign tags, so taking anything from the later landing would lose them.
+  `isSameAttribution` compares every parameter, the landing page and the landing time.
