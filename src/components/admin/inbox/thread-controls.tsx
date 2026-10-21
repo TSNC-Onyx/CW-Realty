@@ -28,8 +28,9 @@ function AssignControl({ threadId, assigneeId, teammates }: { threadId: string; 
       <label htmlFor={selectId} className="mb-1 block text-base font-bold">
         Assigned to
       </label>
-      {/* The status line sits below the row, so the button lines up with the list and stretches to its height. */}
-      <div className="grid gap-2 md:flex md:gap-3">
+      {/* The status line sits below the row, so the button lines up with the list and matches its
+          height: equal grid rows when stacked on phones, a stretched flex item on desktop. */}
+      <div className="grid auto-rows-fr gap-2 md:flex md:gap-3">
         <select
           key={shownAssignee}
           id={selectId}
