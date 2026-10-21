@@ -426,12 +426,12 @@ begin
   if not found then
     return (select status::text from cwr.email_jobs where id = p_job_id);
   end if;
-  v_status := case
+  v_status := (case
     when p_outcome = 'done' then 'done'
     when p_outcome = 'not_sent' then 'not_sent'
     when v_attempts >= 5 then 'failed'
     else 'pending'
-  end;
+  end)::cwr.email_job_status;
   update cwr.email_jobs
   set status = v_status,
       claimed_at = null,
