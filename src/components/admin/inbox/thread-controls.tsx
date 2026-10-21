@@ -24,11 +24,13 @@ function AssignControl({ threadId, assigneeId, teammates }: { threadId: string; 
   const [typedAssignee, setTypedAssignee] = useTypedValue(shownAssignee);
   const savedState = getSavedState({ current: typedAssignee, saved: shownAssignee, isSavedBlank: assigneeId === null });
   return (
-    <div className="grid gap-2 md:flex md:items-end md:gap-3">
-      <div>
-        <label htmlFor={selectId} className="mb-1 block text-base font-bold">
-          Assigned to
-        </label>
+    <div>
+      <label htmlFor={selectId} className="mb-1 block text-base font-bold">
+        Assigned to
+      </label>
+      {/* The status line sits below the row, so the button lines up with the list and matches its
+          height: equal grid rows when stacked on phones, a stretched flex item on desktop. */}
+      <div className="grid auto-rows-fr gap-2 md:flex md:gap-3">
         <select
           key={shownAssignee}
           id={selectId}
@@ -36,7 +38,7 @@ function AssignControl({ threadId, assigneeId, teammates }: { threadId: string; 
           defaultValue={shownAssignee}
           onChange={(event) => setTypedAssignee(event.target.value)}
           aria-describedby={`${selectId}-saved`}
-          className="field-input"
+          className="field-input md:w-auto"
         >
           {teammates.map((teammate) => (
             <option key={teammate.userId} value={teammate.userId}>
@@ -44,9 +46,9 @@ function AssignControl({ threadId, assigneeId, teammates }: { threadId: string; 
             </option>
           ))}
         </select>
-        <SavedStateLine id={`${selectId}-saved`} state={savedState} getText={(state) => (state === "empty" ? "Not assigned yet" : null)} />
+        <QuickActionButton label="Assign" accessibleLabel="Assign this message" icon={UserCheck} problemAction="inbox.assign" onRun={() => assignThreadAction(threadId, selectRef.current?.value ?? "")} />
       </div>
-      <QuickActionButton label="Assign" accessibleLabel="Assign this message" icon={UserCheck} problemAction="inbox.assign" onRun={() => assignThreadAction(threadId, selectRef.current?.value ?? "")} />
+      <SavedStateLine id={`${selectId}-saved`} state={savedState} getText={(state) => (state === "empty" ? "Not assigned yet" : null)} />
     </div>
   );
 }
