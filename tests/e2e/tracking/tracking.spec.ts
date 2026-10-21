@@ -113,6 +113,41 @@ test("Accept all starts Tag Manager with the page nonce, after consent defaults 
   });
 });
 
+/** Lands on the home page from an ad, then moves to another page without a full page load. */
+async function moveAwayFromAdLanding(page: Page): Promise<void> {
+  await page.goto(`/?gclid=${GCLID}`);
+  await page.evaluate(() => Object.assign(window, { hasNotReloaded: true }));
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link").first().click();
+  await expect(page).not.toHaveURL(/gclid=/);
+  expect(await page.evaluate(() => (window as unknown as { hasNotReloaded?: boolean }).hasNotReloaded)).toBe(true);
+}
+
+test("click IDs are back in the address before Tag Manager starts after moving to another page", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await moveAwayFromAdLanding(page);
+
+  // Act
+  await getBanner(page).getByRole("button", { name: "Accept all" }).click();
+
+  // Assert
+  await expect(page).toHaveURL(new RegExp(`gclid=${GCLID}`));
+  await expect.poll(async () => (await getDataLayer(page)).some((entry) => (entry as { event?: string }).event === "gtm.js")).toBe(true);
+});
+
+test("rejecting keeps click IDs out of the address", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await moveAwayFromAdLanding(page);
+
+  // Act
+  await getBanner(page).getByRole("button", { name: "Reject all" }).click();
+
+  // Assert
+  await expect(getBanner(page)).toHaveCount(0);
+  expect(page.url()).not.toContain("gclid=");
+});
+
 test("a tap on the phone number is reported as a call once the visitor agrees", async ({ page, context }) => {
   // Arrange
   await watchTrackerRequests(context);

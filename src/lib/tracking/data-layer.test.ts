@@ -159,4 +159,22 @@ describe("Tag Manager", () => {
     // Assert
     expect(getEvents()).not.toContain("cwr_consent_update");
   });
+
+  it("runs the address restore before the Tag Manager script is added", async () => {
+    // Arrange
+    const { startTagManager } = await loadDataLayer();
+    const restoreAddress = vi.fn();
+    const append = vi.fn();
+    vi.stubGlobal("document", { createElement: () => ({ async: false, src: "", nonce: "" }), head: { append } });
+    let dataLayerSizeAtRestore = -1;
+    restoreAddress.mockImplementation(() => {
+      dataLayerSizeAtRestore = getDataLayer().length;
+    });
+
+    // Act
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: true }, beforeStart: restoreAddress });
+
+    // Assert
+    expect({ isBeforeScript: (restoreAddress.mock.invocationCallOrder[0] ?? Infinity) < (append.mock.invocationCallOrder[0] ?? -Infinity), dataLayerSizeAtRestore }).toEqual({ isBeforeScript: true, dataLayerSizeAtRestore: 0 });
+  });
 });

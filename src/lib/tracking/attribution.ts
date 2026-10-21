@@ -83,6 +83,21 @@ export function getAttributionFromField(value: FormDataEntryValue | null): Attri
   return { ...params, landingPath: record.landingPath as string, landedAt: record.landedAt as number };
 }
 
+/**
+ * The current address with the landing page's click IDs added back where missing, or null when
+ * none is missing (docs/cwr-ads-analytics-fixes-plan.md, D4). Campaign tags are not brought back;
+ * every other parameter and the #anchor stay exactly as they were.
+ */
+export function getAddressWithClickIds({ href, attribution }: { href: string; attribution: Attribution }): string | null {
+  const url = new URL(href);
+  const missing = CLICK_ID_KEYS.flatMap((key) => (attribution[key] !== undefined && !url.searchParams.has(key) ? [[key, attribution[key]]] : []));
+  if (missing.length === 0) return null;
+  // Appended as text, so the existing parameters keep their own encoding.
+  const added = new URLSearchParams(missing).toString();
+  url.search = url.search ? `${url.search}&${added}` : `?${added}`;
+  return url.href;
+}
+
 /** True when both hold the same parameters, landing page, and landing time. */
 export function isSameAttribution(first: Attribution | null, second: Attribution | null): boolean {
   if (!first || !second) return first === second;

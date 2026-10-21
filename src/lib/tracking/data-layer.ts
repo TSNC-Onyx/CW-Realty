@@ -72,9 +72,13 @@ function appendTagScript({ src, nonce }: { src: string; nonce: string }): void {
   document.head.append(script);
 }
 
-/** Starts Tag Manager once, with consent defaults set to "denied" before anything runs. */
-export function startTagManager({ containerId, scriptOrigin, nonce, choice }: { containerId: string; scriptOrigin: string; nonce: string; choice: ConsentChoice }): void {
+/**
+ * Starts Tag Manager once, with consent defaults set to "denied" before anything runs.
+ * beforeStart runs before the first data-layer entry and before the script is added.
+ */
+export function startTagManager({ containerId, scriptOrigin, nonce, choice, beforeStart }: { containerId: string; scriptOrigin: string; nonce: string; choice: ConsentChoice; beforeStart?: () => void }): void {
   if (runningConsent) return;
+  beforeStart?.();
   runningConsent = choice;
   gtag("consent", "default", { ...getConsentModeState({ analytics: false, ads: false }), wait_for_update: CONSENT_UPDATE_WAIT_MS });
   gtag("consent", "update", getConsentModeState(choice));

@@ -1,4 +1,12 @@
-import { EXPIRED_ATTRIBUTION_COOKIE, getAttributionFromField, getAttributionFromUrl, getEarlierLanding, isSameAttribution, type Attribution } from "@/lib/tracking/attribution";
+import {
+  EXPIRED_ATTRIBUTION_COOKIE,
+  getAddressWithClickIds,
+  getAttributionFromField,
+  getAttributionFromUrl,
+  getEarlierLanding,
+  isSameAttribution,
+  type Attribution,
+} from "@/lib/tracking/attribution";
 
 // Where the landing link's click IDs wait in the browser (plan decision 12): in memory until
 // the visitor allows Advertising, then in this tab's sessionStorage so later pages' forms can
@@ -44,6 +52,17 @@ export function forgetAttribution(): void {
   landingAttribution = null;
   writeStorage(null);
   document.cookie = EXPIRED_ATTRIBUTION_COOKIE;
+}
+
+/**
+ * Puts this tab's landing click IDs back in the address before Tag Manager first starts, so
+ * Google's and Meta's tags see them even after a move to another page (plan D4). They are left
+ * there: removing them would send GA4 a second page view.
+ */
+export function restoreClickIdsInAddress(): void {
+  if (!landingAttribution) return;
+  const address = getAddressWithClickIds({ href: window.location.href, attribution: landingAttribution });
+  if (address) window.history.replaceState(null, "", address);
 }
 
 export function getStoredAttribution(): string {

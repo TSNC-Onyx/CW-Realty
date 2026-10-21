@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-import { forgetAttribution, keepAttribution, rememberLandingAttribution } from "@/lib/tracking/attribution-store";
+import { forgetAttribution, keepAttribution, rememberLandingAttribution, restoreClickIdsInAddress } from "@/lib/tracking/attribution-store";
 import { getAllowedConsent, getConsentCookieString, hasAnyConsent, type ConsentChoice } from "@/lib/tracking/consent";
 import { sendConsentToServer } from "@/lib/tracking/consent-sync";
 import { withdrawConsent } from "@/lib/tracking/consent-withdrawal";
@@ -40,7 +40,8 @@ function applyAllowedConsent({ allowed, tagManager }: { allowed: ConsentChoice; 
   if (!allowed.ads) forgetAttribution();
   if (!hasAnyConsent(allowed)) return hasNewClick;
   if (isTagManagerRunning()) updateTagConsent(allowed);
-  else startTagManager({ ...tagManager, choice: allowed });
+  // Click IDs go back in the address only for Advertising, and only before the first start (plan D4).
+  else startTagManager({ ...tagManager, choice: allowed, beforeStart: allowed.ads ? restoreClickIdsInAddress : undefined });
   return hasNewClick;
 }
 

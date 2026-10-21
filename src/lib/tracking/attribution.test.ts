@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getAddressWithClickIds,
   getAttributionCookieString,
   getAttributionFromCookie,
   getAttributionFromField,
@@ -209,5 +210,41 @@ describe("isSameAttribution", () => {
 
     // Assert
     expect(isSame).toBe(true);
+  });
+});
+
+describe("getAddressWithClickIds", () => {
+  const LANDING: Attribution = { gclid: GCLID, fbclid: FBCLID, utm_source: "google", utm_campaign: "Spring", landingPath: "/", landedAt: LANDED_AT };
+
+  it("adds the landing click IDs back to an address that lost them", () => {
+    // Act
+    const address = getAddressWithClickIds({ href: "https://www.charliewardrealty.com/about", attribution: LANDING });
+
+    // Assert
+    expect(address).toBe(`https://www.charliewardrealty.com/about?gclid=${GCLID}&fbclid=${FBCLID}`);
+  });
+
+  it("leaves an address that already has its click IDs unchanged", () => {
+    // Act
+    const address = getAddressWithClickIds({ href: `https://www.charliewardrealty.com/?gclid=${GCLID}&fbclid=${FBCLID}`, attribution: LANDING });
+
+    // Assert
+    expect(address).toBeNull();
+  });
+
+  it("brings back no campaign tags", () => {
+    // Act
+    const address = getAddressWithClickIds({ href: "https://www.charliewardrealty.com/about", attribution: LANDING }) ?? "";
+
+    // Assert
+    expect(new URL(address).searchParams.has("utm_source") || new URL(address).searchParams.has("utm_campaign")).toBe(false);
+  });
+
+  it("keeps every other parameter and the page anchor", () => {
+    // Act
+    const address = getAddressWithClickIds({ href: "https://www.charliewardrealty.com/listings?city=High%20Point&beds=3+&gclid=other_click_1234#map", attribution: LANDING });
+
+    // Assert
+    expect(address).toBe(`https://www.charliewardrealty.com/listings?city=High%20Point&beds=3+&gclid=other_click_1234&fbclid=${FBCLID}#map`);
   });
 });
