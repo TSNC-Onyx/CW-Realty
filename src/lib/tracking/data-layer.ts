@@ -6,6 +6,8 @@ import type { ConsentChoice } from "@/lib/tracking/consent";
 
 export const DEFAULT_TAG_SCRIPT_ORIGIN = "https://www.googletagmanager.com";
 const CONSENT_UPDATE_WAIT_MS = 500;
+/** Tells running tags that a category was newly allowed, so a tag waiting for it can fire on this page (plan D13). */
+export const CONSENT_UPDATE_EVENT = "cwr_consent_update";
 
 export type KeyEventName = "cwr_call" | "cwr_text" | "cwr_contact_form" | "cwr_booking_request" | "cwr_chat_question" | "cwr_chat_topic" | "cwr_chat_handoff";
 
@@ -84,11 +86,17 @@ export function isTagManagerRunning(): boolean {
   return runningConsent !== null;
 }
 
+function isNewlyAllowed({ previous, next }: { previous: ConsentChoice; next: ConsentChoice }): boolean {
+  return (next.analytics && !previous.analytics) || (next.ads && !previous.ads);
+}
+
 /** Tells running tags about a wider choice (a narrower one reloads the page instead). */
 export function updateTagConsent(choice: ConsentChoice): void {
   if (!runningConsent) return;
+  const isWider = isNewlyAllowed({ previous: runningConsent, next: choice });
   runningConsent = choice;
   gtag("consent", "update", getConsentModeState(choice));
+  if (isWider) getDataLayer().push({ event: CONSENT_UPDATE_EVENT });
 }
 
 /** Sends a key event to Tag Manager; does nothing until the visitor has allowed tracking. */

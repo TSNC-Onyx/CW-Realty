@@ -124,6 +124,25 @@ test("withdrawing consent deletes tracker cookies and reloads without Tag Manage
   expect({ hasGaCookie: cookieNames.includes("_ga"), consent: await fetchConsentCookie(page) }).toMatchObject({ hasGaCookie: false, consent: { analytics: false, ads: false } });
 });
 
+test("allowing Advertising after Analytics sends cwr_consent_update", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await page.goto("/");
+  await getBanner(page).getByRole("button", { name: "Cookie settings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cookie settings" });
+  await dialog.getByRole("checkbox", { name: "Analytics" }).check();
+  await dialog.getByRole("button", { name: "Save choices" }).click();
+  await expect.poll(async () => (await getDataLayer(page)).some((entry) => (entry as { event?: string }).event === "gtm.js")).toBe(true);
+
+  // Act
+  await page.getByRole("contentinfo").getByRole("link", { name: "Cookie settings" }).click();
+  await dialog.getByRole("checkbox", { name: "Advertising" }).check();
+  await dialog.getByRole("button", { name: "Save choices" }).click();
+
+  // Assert
+  await expect.poll(async () => (await getDataLayer(page)).filter((entry) => (entry as { event?: string }).event === "cwr_consent_update").length).toBe(1);
+});
+
 test("Global Privacy Control keeps advertising off and says why", async ({ browser }) => {
   // Arrange
   const context = await browser.newContext({ extraHTTPHeaders: { "Sec-GPC": "1" } });
