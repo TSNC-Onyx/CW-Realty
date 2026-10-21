@@ -13,10 +13,15 @@ export type TrackingSettingsDefaults = { gtmContainerId: string; metaPixelId: st
 
 // Saved-state wording names the ID the website is using (owner request 2026-10-09,
 // docs/cwr-ads-analytics-review-plan.md Part B).
-type IdStatusWording = { savedPrefix: string; offWhenCleared: string };
+type IdStatusWording = { savedPrefix: string; savedSuffix?: string; offWhenCleared: string };
 
 const CONTAINER_WORDING: IdStatusWording = { savedPrefix: "Live on the website", offWhenCleared: "saving will turn tracking off" };
-const PIXEL_WORDING: IdStatusWording = { savedPrefix: "Saved", offWhenCleared: "saving will turn off the Meta server connection" };
+// The browser Pixel lives in Tag Manager, so its ID there must be this one (plan finding 3).
+const PIXEL_WORDING: IdStatusWording = {
+  savedPrefix: "Saved",
+  savedSuffix: " — must match the Pixel ID in your Tag Manager Meta Pixel tag",
+  offWhenCleared: "saving will turn off the Meta server connection",
+};
 
 function getUnsavedText({ saved, current, wording }: { saved: string; current: string; wording: IdStatusWording }): string {
   if (!saved) return "Not saved yet";
@@ -26,7 +31,7 @@ function getUnsavedText({ saved, current, wording }: { saved: string; current: s
 
 function getIdStatusText({ saved, wording }: { saved: string; wording: IdStatusWording }): SavedStateText {
   return (state, current) => {
-    if (state === "saved") return `${wording.savedPrefix}: ${saved}`;
+    if (state === "saved") return `${wording.savedPrefix}: ${saved}${wording.savedSuffix ?? ""}`;
     if (state === "empty") return "Off — nothing saved";
     return getUnsavedText({ saved, current, wording });
   };
@@ -62,7 +67,7 @@ export function TrackingSettingsForm({ defaults }: { defaults: TrackingSettingsD
               maxLength={20}
               defaultValue={defaults.metaPixelId}
               error={errors.metaPixelId}
-              helperText="From Meta Events Manager → Data sources."
+              helperText="This turns on the Meta server connection only. The Meta Pixel in visitors' browsers is added inside Tag Manager (setup guide, step 2)."
               savedStateText={getIdStatusText({ saved: defaults.metaPixelId, wording: PIXEL_WORDING })}
             />
           </AdminFieldset>

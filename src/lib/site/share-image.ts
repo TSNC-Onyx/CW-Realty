@@ -16,12 +16,12 @@ const SHARE_IMAGE = {
 
 const SITE_HOST = new URL(SITE_URL).hostname;
 const APEX_HOST = SITE_HOST.replace(/^www\./, "");
-const WORKER_HOST = "cw-realty.onyxventuresnc.workers.dev";
+const WORKER_HOST = "cw-realty.builtfor.workers.dev";
 const LOCAL_HOSTNAMES = ["localhost", "127.0.0.1"];
 
 function isKnownHostname(hostname: string): boolean {
   if (hostname === SITE_HOST || hostname === APEX_HOST || hostname === WORKER_HOST) return true;
-  // Pull request previews are served at <alias>-cw-realty.onyxventuresnc.workers.dev.
+  // Pull request previews are served at <alias>-cw-realty.builtfor.workers.dev.
   return hostname.endsWith(`-${WORKER_HOST}`);
 }
 

@@ -5,7 +5,7 @@ import { SITE_URL } from "./site-values.ts";
 // on the live project; supabase/functions/.env locally). Links and the logo use EMAIL_SITE_URL,
 // which must be one of the addresses that serve the new site.
 
-export const ALLOWED_SITE_URLS = [SITE_URL, "https://charliewardrealty.com", "https://cw-realty.onyxventuresnc.workers.dev", "http://127.0.0.1:3100", "http://localhost:3100"];
+export const ALLOWED_SITE_URLS = [SITE_URL, "https://charliewardrealty.com", "https://cw-realty.builtfor.workers.dev", "http://127.0.0.1:3100", "http://localhost:3100"];
 
 const TRANSPORTS: EmailTransport[] = ["mailersend", "mailpit", "log"];
 

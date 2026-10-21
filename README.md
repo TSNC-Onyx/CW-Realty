@@ -23,6 +23,7 @@ Server-only secret (Cloudflare Worker secret and GitHub secret — never `NEXT_P
 - `TURNSTILE_SECRET_KEY` — bot check on public forms (with build variable `NEXT_PUBLIC_TURNSTILE_SITE_KEY`; rebuild after changing it). Never set `NEXT_PUBLIC_ALLOW_TURNSTILE_TEST_KEYS` on the live build: it lets Cloudflare's test keys through (only local tests use it).
 - `ANTHROPIC_API_KEY` — the website chat assistant; without it every visitor is offered a person (`docs/runbooks/chatbot-launch.md`).
 - `META_CAPI_ACCESS_TOKEN` — optional; lets the server confirm leads to Meta (with the Pixel ID entered in **Ads & analytics**). Setup steps for Tag Manager, Google, and Meta: `docs/runbooks/ads-analytics-setup.md`. Optional Worker variable `TAG_SERVER_URL` points Tag Manager at a server-side tagging container.
+- `TAG_MANAGER_CHECK_ORIGIN` — test-only: Playwright points the Ads & analytics container check at a closed local port so tests never contact Google; anything other than `127.0.0.1` or `localhost` is ignored, so never set it on the live Worker.
 
 ## Admin portal
 

@@ -62,4 +62,16 @@ describe("sendMetaServerEvent", () => {
     // Assert
     await expect(sending).rejects.toBeInstanceOf(MetaConversionsError);
   });
+
+  it("keeps Meta's numeric error code with a refused event", async () => {
+    // Arrange
+    const refusal = JSON.stringify({ error: { message: "Invalid OAuth access token", type: "OAuthException", code: 190 } });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(refusal, { status: 400 })));
+
+    // Act
+    const sending = sendMetaServerEvent({ pixelId: "1234567890123", accessToken: "secret-token", event: getMetaServerEvent(INPUT) });
+
+    // Assert
+    await expect(sending).rejects.toMatchObject({ context: { status: 400, metaErrorCode: 190 } });
+  });
 });

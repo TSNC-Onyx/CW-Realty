@@ -9,6 +9,8 @@ import { getQuickError, getQuickSuccess, type QuickResult } from "@/lib/admin/qu
 import { OWNER_ROLES } from "@/lib/admin/require-admin";
 import { runAdminAction } from "@/lib/admin/run-admin-action";
 import { runQuickAction } from "@/lib/admin/run-quick-action";
+import { checkSavedContainer } from "@/lib/admin/tracking/container-check";
+import { getSavedMessage } from "@/lib/admin/tracking/status-lines";
 import { trackingSettingsSchema } from "@/lib/admin/tracking/tracking-schema";
 
 // Owner-only: a Tag Manager container can run any script on the website (plan decision 6).
@@ -24,7 +26,9 @@ export async function saveTrackingSettingsAction(_state: ActionState, formData: 
     const { error } = await supabase.from("tracking_settings").upsert(row, { onConflict: "tenant_id" });
     if (error) return getErrorState({ message: getDatabaseErrorMessage(error), values });
     revalidatePath(TRACKING_PATH);
-    return getSuccessState(parsed.data.gtmContainerId ? "Saved. Visitors now see the cookie choices." : "Saved. Tracking is off, and visitors see no cookie banner.");
+    // Saved first, then checked: what Google says never blocks a save (plan D1).
+    const container = await checkSavedContainer({ containerId: parsed.data.gtmContainerId, action: "tracking.save" });
+    return getSuccessState(getSavedMessage(container));
   });
 }
 

@@ -6,6 +6,8 @@ import type { ConsentChoice } from "@/lib/tracking/consent";
 
 export const DEFAULT_TAG_SCRIPT_ORIGIN = "https://www.googletagmanager.com";
 const CONSENT_UPDATE_WAIT_MS = 500;
+/** Tells running tags that a category was newly allowed, so a tag waiting for it can fire on this page (plan D13). */
+export const CONSENT_UPDATE_EVENT = "cwr_consent_update";
 
 export type KeyEventName = "cwr_call" | "cwr_text" | "cwr_contact_form" | "cwr_booking_request" | "cwr_chat_question" | "cwr_chat_topic" | "cwr_chat_handoff";
 
@@ -70,9 +72,13 @@ function appendTagScript({ src, nonce }: { src: string; nonce: string }): void {
   document.head.append(script);
 }
 
-/** Starts Tag Manager once, with consent defaults set to "denied" before anything runs. */
-export function startTagManager({ containerId, scriptOrigin, nonce, choice }: { containerId: string; scriptOrigin: string; nonce: string; choice: ConsentChoice }): void {
+/**
+ * Starts Tag Manager once, with consent defaults set to "denied" before anything runs.
+ * beforeStart runs before the first data-layer entry and before the script is added.
+ */
+export function startTagManager({ containerId, scriptOrigin, nonce, choice, beforeStart }: { containerId: string; scriptOrigin: string; nonce: string; choice: ConsentChoice; beforeStart?: () => void }): void {
   if (runningConsent) return;
+  beforeStart?.();
   runningConsent = choice;
   gtag("consent", "default", { ...getConsentModeState({ analytics: false, ads: false }), wait_for_update: CONSENT_UPDATE_WAIT_MS });
   gtag("consent", "update", getConsentModeState(choice));
@@ -84,11 +90,17 @@ export function isTagManagerRunning(): boolean {
   return runningConsent !== null;
 }
 
-/** Tells running tags about a wider choice (a narrower one reloads the page instead). */
+function isNewlyAllowed({ previous, next }: { previous: ConsentChoice; next: ConsentChoice }): boolean {
+  return (next.analytics && !previous.analytics) || (next.ads && !previous.ads);
+}
+
+/** Tells running tags about a wider choice, or, before a withdrawal reloads the page, what both choices allow. */
 export function updateTagConsent(choice: ConsentChoice): void {
   if (!runningConsent) return;
+  const isWider = isNewlyAllowed({ previous: runningConsent, next: choice });
   runningConsent = choice;
   gtag("consent", "update", getConsentModeState(choice));
+  if (isWider) getDataLayer().push({ event: CONSENT_UPDATE_EVENT });
 }
 
 /** Sends a key event to Tag Manager; does nothing until the visitor has allowed tracking. */
