@@ -5,7 +5,7 @@ import { after } from "next/server";
 
 import type { InboxSource } from "@/lib/forms/intake";
 import type { Visitor } from "@/lib/security/visitor";
-import { ATTRIBUTION_FIELD_NAME, getAttributionFromField, getLeadAttributionRow, type LeadAttributionRow } from "@/lib/tracking/attribution";
+import { ATTRIBUTION_COOKIE, ATTRIBUTION_FIELD_NAME, getAttributionFromCookie, getAttributionFromField, getLeadAttributionRow, type LeadAttributionRow } from "@/lib/tracking/attribution";
 import type { GoogleUserData } from "@/lib/tracking/data-layer";
 import { getGoogleHashedContact, getMetaHashedContact } from "@/lib/tracking/hashing";
 import { getMetaServerEvent, sendMetaServerEvent, type MetaEventName } from "@/lib/tracking/meta-conversions";
@@ -59,7 +59,8 @@ export async function fetchLeadTracking(formData: FormData): Promise<LeadTrackin
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
   const fbc = getCheckedCookie(cookieStore.get(FBC_COOKIE)?.value, FBC_PATTERN);
   const fbp = getCheckedCookie(cookieStore.get(FBP_COOKIE)?.value, FBP_PATTERN);
-  const attribution = getAttributionFromField(formData.get(ATTRIBUTION_FIELD_NAME));
+  // The click cookie covers a form sent from another tab than the ad landed in (plan D10).
+  const attribution = getAttributionFromField(formData.get(ATTRIBUTION_FIELD_NAME)) ?? getAttributionFromCookie(cookieStore.get(ATTRIBUTION_COOKIE)?.value);
   return {
     isAdsAllowed: true,
     attributionRow: getLeadAttributionRow({ attribution, fbc, fbp }),

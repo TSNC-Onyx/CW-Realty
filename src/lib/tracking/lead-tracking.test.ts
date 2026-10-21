@@ -135,6 +135,49 @@ describe("sending a lead to Meta", () => {
   });
 });
 
+const COOKIE_CLICK = { gclid: "Cj0KCQjwcookie123", landingPath: "/", landedAt: 1727265600000 };
+const FIELD_CLICK = { gclid: "Cj0KCQjwfield4567", landingPath: "/contact", landedAt: 1727265700000 };
+
+/** A visitor whose browser sends these cookies and headers; the form carries `field` as its hidden value. */
+async function fetchTrackingFor({ choice, field }: { choice: { analytics: boolean; ads: boolean }; field: string }): Promise<LeadTracking> {
+  const cookieValues: Record<string, string> = {
+    cwr_consent: encodeURIComponent(JSON.stringify({ v: 1, ...choice, at: "2026-09-25T12:00:00.000Z" })),
+    cwr_attribution: encodeURIComponent(JSON.stringify(COOKIE_CLICK)),
+  };
+  const { cookies, headers } = await import("next/headers");
+  vi.mocked(cookies).mockResolvedValue({ get: (name: string) => (cookieValues[name] ? { name, value: cookieValues[name] } : undefined) } as never);
+  vi.mocked(headers).mockResolvedValue(new Headers({ "user-agent": "Mozilla/5.0" }) as never);
+  const formData = new FormData();
+  formData.set("attribution", field);
+  return fetchLeadTracking(formData);
+}
+
+describe("fetchLeadTracking with the click cookie", () => {
+  it("uses the click cookie when the form's hidden field is empty", async () => {
+    // Act
+    const tracking = await fetchTrackingFor({ choice: { analytics: true, ads: true }, field: "" });
+
+    // Assert
+    expect(tracking.attributionRow?.gclid).toBe(COOKIE_CLICK.gclid);
+  });
+
+  it("prefers the form's hidden field over the click cookie", async () => {
+    // Act
+    const tracking = await fetchTrackingFor({ choice: { analytics: true, ads: true }, field: JSON.stringify(FIELD_CLICK) });
+
+    // Assert
+    expect(tracking.attributionRow?.gclid).toBe(FIELD_CLICK.gclid);
+  });
+
+  it("ignores the click cookie when Advertising is not allowed", async () => {
+    // Act
+    const tracking = await fetchTrackingFor({ choice: { analytics: true, ads: false }, field: "" });
+
+    // Assert
+    expect(tracking.attributionRow).toBeNull();
+  });
+});
+
 describe("fetchLeadTracking", () => {
   it("refuses advertising when the browser sends Global Privacy Control, whatever the cookie says", async () => {
     // Arrange
