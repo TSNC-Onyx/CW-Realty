@@ -9,7 +9,7 @@ The Quick Check (Cloudflare Turnstile) must use real keys from one widget:
 
 | Where | Setting | Value |
 |---|---|---|
-| Cloudflare → Turnstile | Widget hostnames | `cw-realty.onyxventuresnc.workers.dev`, plus the final domain at launch |
+| Cloudflare → Turnstile | Widget hostnames | `cw-realty.builtfor.workers.dev` and `builtfor.workers.dev` (covers pull request previews, which are `<alias>-cw-realty.builtfor.workers.dev`), plus the final domain at launch |
 | Cloudflare → Workers & Pages → `cw-realty` → Settings → Build → Variables and secrets | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | the widget's **site key** (starts `0x4`) |
 | Cloudflare → Workers & Pages → `cw-realty` → Settings → Variables and Secrets | `TURNSTILE_SECRET_KEY` (secret) | the widget's **secret key** |
 | Supabase → Authentication → Attack Protection | CAPTCHA protection → Turnstile | the same secret key |

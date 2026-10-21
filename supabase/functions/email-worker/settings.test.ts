@@ -17,10 +17,10 @@ describe("email-worker settings", () => {
 
   it("uses the pre-launch address for links and the logo", () => {
     // Act
-    const settings = getWorkerSettings(getReader({ EMAIL_SITE_URL: "https://cw-realty.onyxventuresnc.workers.dev/" }));
+    const settings = getWorkerSettings(getReader({ EMAIL_SITE_URL: "https://cw-realty.builtfor.workers.dev/" }));
 
     // Assert
-    expect(settings.siteUrl).toBe("https://cw-realty.onyxventuresnc.workers.dev");
+    expect(settings.siteUrl).toBe("https://cw-realty.builtfor.workers.dev");
   });
 
   it("refuses an address that doesn't serve the site", () => {
