@@ -735,3 +735,9 @@ Deviations and choices made while building, each the smallest option faithful to
 - **Step 7 — privacy policy date.** The Advertising line gains the `cwr_attribution` cookie as R8 says; the
   "Last updated" date (September 25, 2026) was left as is, since the plan does not mention it. The owner may want
   it changed when this ships.
+- **Step 11 — results (2026-10-21, on a freshly reset local database).** `lint`, `typecheck`, `errors:check`,
+  `design:check`, `db:check`, `db:lint` exit 0; `npm test` exit 0 — 120 files, 1181 passed, 2 skipped (baseline 115
+  files, 1114 passed); `db:catalog` exit 0 — 125 actions; `db:test` exit 0 — 25 files, 318 tests, including
+  `240-meta-send-health` (6); `npm run build` exit 0; privacy e2e exit 0 — 3 passed; tracking e2e exit 0 — 24
+  passed (baseline 15). The local database was then reset and `npm run content:import:local` run. The
+  independent review is left to the session that asked for this build.
