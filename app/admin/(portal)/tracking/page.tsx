@@ -8,34 +8,16 @@ import { TextLink } from "@/components/ui/text-link";
 import { getQueryLoad } from "@/lib/admin/load-result";
 import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
+import { checkSavedContainer, type ContainerCheck } from "@/lib/admin/tracking/container-check";
+import { getStatusLines, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
-import { getTagServerOrigin } from "@/lib/tracking/tag-server";
 
 // Owner-only "Ads & analytics" (Features §3–4, plan decisions 6 and 16).
 
 export const metadata: Metadata = { title: "Ads & analytics" };
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
-
-type TrackingSettingsRow = { gtm_container_id: string | null; meta_pixel_id: string | null; tags_reviewed_at: string | null };
-
-type StatusLine = { label: string; isReady: boolean };
-
-function getMetaStatus(row: TrackingSettingsRow | null): StatusLine {
-  if (!row?.meta_pixel_id) return { label: "Meta server connection: off (no Pixel ID)", isReady: false };
-  if (!process.env.META_CAPI_ACCESS_TOKEN) return { label: "Meta server connection: waiting for the access token (your developer adds it to the website's settings)", isReady: false };
-  return { label: "Meta server connection: on", isReady: true };
-}
-
-function getStatusLines(row: TrackingSettingsRow | null): StatusLine[] {
-  const hasTagServer = getTagServerOrigin(process.env.TAG_SERVER_URL) !== null;
-  return [
-    { label: row?.gtm_container_id ? "Tracking: on after each visitor agrees" : "Tracking: off — visitors see no cookie banner", isReady: Boolean(row?.gtm_container_id) },
-    getMetaStatus(row),
-    { label: hasTagServer ? "Server-side tagging: on" : "Server-side tagging: off (optional)", isReady: hasTagServer },
-  ];
-}
 
 function getReviewText(reviewedAt: string | null): string {
   const lastReview = reviewedAt ? `Last reviewed ${DATE_FORMAT.format(new Date(reviewedAt))}.` : "Not reviewed yet.";
@@ -47,11 +29,11 @@ async function fetchTrackingSettings({ supabase, tenantId }: AdminContext) {
   return getQueryLoad({ part: "tracking settings", result, empty: null });
 }
 
-function TrackingSettings({ row }: { row: TrackingSettingsRow | null }) {
+function TrackingSettings({ row, container }: { row: TrackingSettingsRow | null; container: ContainerCheck }) {
   return (
     <>
       <ul className="mb-10 grid max-w-prose gap-2">
-        {getStatusLines(row).map((line) => (
+        {getStatusLines({ row, container }).map((line) => (
           <li key={line.label} className="flex items-start gap-2">
             {line.isReady ? <CircleCheck aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-success" /> : <CircleAlert aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-muted" />}
             {line.label}
@@ -71,6 +53,7 @@ function TrackingSettings({ row }: { row: TrackingSettingsRow | null }) {
 export default async function TrackingPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
   const settings = await fetchTrackingSettings(admin);
+  const container = settings.isLoaded ? await checkSavedContainer({ containerId: settings.data?.gtm_container_id ?? null, action: "tracking.load" }) : null;
   const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings] });
   return (
     <>
@@ -80,7 +63,7 @@ export default async function TrackingPage() {
         <TextLink href="/privacy-policy#cookies" hasArrow>See what the privacy policy tells visitors</TextLink>
       </div>
       {/* No form without the saved settings: saving blanks would switch tracking off. */}
-      {settings.isLoaded ? <TrackingSettings row={settings.data} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
+      {settings.isLoaded ? <TrackingSettings row={settings.data} container={container} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
     </>
   );
 }

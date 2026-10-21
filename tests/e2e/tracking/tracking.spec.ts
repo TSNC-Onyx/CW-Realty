@@ -279,3 +279,18 @@ test("each ID field says whether it is live, not saved yet, or off", async ({ pa
   await expect(container).toHaveValue(TEST_CONTAINER_ID);
   await expect(container).toHaveAccessibleDescription(live);
 });
+
+test("saving a container Google can't be reached for still saves and says so", async ({ page }) => {
+  // Arrange: Playwright's web server points the container check at a closed local port (plan D2).
+  const owner = await createTestAdmin("owner");
+  await signInFully(page, owner);
+  await page.goto("/admin/tracking");
+
+  // Act
+  await page.getByLabel("Container ID (optional)").fill(TEST_CONTAINER_ID);
+  await page.getByRole("button", { name: "Save changes" }).click();
+
+  // Assert
+  await expect(page.getByRole("status").filter({ hasText: "We couldn't reach Google" })).toBeVisible();
+  await expect(page.getByText("we couldn't reach Google just now")).toBeVisible();
+});
