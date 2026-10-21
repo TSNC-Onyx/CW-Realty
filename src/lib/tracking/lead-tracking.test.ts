@@ -1,16 +1,51 @@
 import { createHash } from "node:crypto";
 
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { getLeadAttributionRow } from "@/lib/tracking/attribution";
 import { fetchLeadTracking, getFormConversion, scheduleMetaLead, type LeadTracking } from "@/lib/tracking/lead-tracking";
+
+const reportProblem = vi.hoisted(() => vi.fn());
+const rpc = vi.hoisted(() => vi.fn(async () => ({ error: null })));
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn(), headers: vi.fn() }));
+vi.mock("@/lib/observability/report-problem", () => ({ reportProblem }));
+vi.mock("@/lib/supabase/service-client", () => ({ isServiceAccessConfigured: () => true, createServiceClient: () => ({ rpc }) }));
+vi.mock("@/lib/tracking/tracking-settings", () => ({ fetchTrackingSettings: async () => ({ gtmContainerId: "GTM-AB12CD3", metaPixelId: "1234567890123" }) }));
 
 const CONTACT = { email: "Jordan@Example.com", phone: "+13365550123" };
 const NO_ADS: LeadTracking = { isAdsAllowed: false, attributionRow: null, fbc: null, fbp: null, sourceUrl: null, userAgent: null };
 const VISITOR = { ip: "203.0.113.1", hostname: "www.charliewardrealty.com" };
+const FBCLID = "IwAR0abcdefghij";
+const LANDED_AT = 1790337600000;
+const ADS_ALLOWED: LeadTracking = {
+  isAdsAllowed: true,
+  attributionRow: getLeadAttributionRow({ attribution: { fbclid: FBCLID, landingPath: "/", landedAt: LANDED_AT }, fbc: null, fbp: null }),
+  fbc: null,
+  fbp: null,
+  sourceUrl: "https://www.charliewardrealty.com/contact",
+  userAgent: "Mozilla/5.0",
+};
+
+/** Schedules the lead, then runs the work Next.js would run after the reply. */
+async function runMetaLead(tracking: LeadTracking): Promise<void> {
+  const { after } = await import("next/server");
+  scheduleMetaLead({ source: "contact", eventId: "key", contact: CONTACT, tracking, visitor: VISITOR });
+  const work = vi.mocked(after).mock.calls.at(-1)?.[0] as (() => Promise<void>) | undefined;
+  await work?.();
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.stubEnv("META_CAPI_ACCESS_TOKEN", "secret-token");
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+});
 
 describe("getFormConversion", () => {
   it("gives the browser only the event ID when Advertising is not allowed", async () => {
@@ -43,6 +78,60 @@ describe("scheduleMetaLead", () => {
 
     // Assert
     expect(after).not.toHaveBeenCalled();
+  });
+});
+
+describe("sending a lead to Meta", () => {
+  it("sends Meta the click value built from the ad link when the Pixel set no click cookie", async () => {
+    // Arrange
+    const fetchMock = vi.fn<typeof fetch>(async () => new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    // Act
+    await runMetaLead(ADS_ALLOWED);
+
+    // Assert
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as { data: { user_data: { fbc?: string } }[] };
+    expect(body.data[0]?.user_data.fbc).toBe(`fb.1.${LANDED_AT}.${FBCLID}`);
+  });
+
+  it("records a problem and marks the Meta check failing when Meta refuses the event", async () => {
+    // Arrange
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: { code: 190 } }), { status: 400 })));
+
+    // Act
+    await runMetaLead(ADS_ALLOWED);
+
+    // Assert
+    expect({ problem: reportProblem.mock.calls[0]?.[0], check: rpc.mock.calls[0] }).toEqual({
+      problem: { action: "tracking.meta_send", origin: "job", stage: "external", severity: "error", code: "http_400", detail: "Meta answered 400 (Meta error code 190)" },
+      check: ["touch_health_check", { p_name: "meta_conversions", p_is_ok: false, p_error: "Meta answered 400 (Meta error code 190)" }],
+    });
+  });
+
+  it("marks the Meta check healthy after Meta accepts the event", async () => {
+    // Arrange
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 200 })));
+
+    // Act
+    await runMetaLead(ADS_ALLOWED);
+
+    // Assert
+    expect({ checks: rpc.mock.calls, problems: reportProblem.mock.calls }).toEqual({
+      checks: [["touch_health_check", { p_name: "meta_conversions", p_is_ok: true, p_error: null }]],
+      problems: [],
+    });
+  });
+
+  it("logs a Meta timeout without marking the check failing", async () => {
+    // Arrange
+    vi.stubGlobal("fetch", vi.fn(async () => Promise.reject(new DOMException("The operation timed out.", "TimeoutError"))));
+
+    // Act
+    await runMetaLead(ADS_ALLOWED);
+
+    // Assert
+    expect({ code: reportProblem.mock.calls[0]?.[0]?.code, checks: rpc.mock.calls }).toEqual({ code: "timeout", checks: [] });
   });
 });
 

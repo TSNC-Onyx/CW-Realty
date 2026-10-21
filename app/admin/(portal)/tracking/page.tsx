@@ -6,10 +6,10 @@ import { TagReviewButton } from "@/components/admin/tracking/tag-review-button";
 import { TrackingSettingsForm } from "@/components/admin/tracking/tracking-settings-form";
 import { TextLink } from "@/components/ui/text-link";
 import { getQueryLoad } from "@/lib/admin/load-result";
-import { reportPageLoad } from "@/lib/admin/report-page-load";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
 import { checkSavedContainer, type ContainerCheck } from "@/lib/admin/tracking/container-check";
-import { getStatusLines, type StatusLine, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
+import { getMetaHealth, getStatusLines, type MetaCheckRow, type MetaHealth, type MetaProblemRow, type StatusLine, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
@@ -18,6 +18,10 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 export const metadata: Metadata = { title: "Ads & analytics" };
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+
+type LoadedPage = { isLoaded: true; row: TrackingSettingsRow | null; container: ContainerCheck; metaHealth: MetaHealth };
+
+type TrackingPageState = LoadedPage | { isLoaded: false; notice: LoadProblemNotice | null };
 
 const STATUS_ICONS: Record<StatusLine["kind"], { Icon: LucideIcon; className: string }> = {
   ready: { Icon: CircleCheck, className: "text-success" },
@@ -40,11 +44,42 @@ async function fetchTrackingSettings({ supabase, tenantId }: AdminContext) {
   return getQueryLoad({ part: "tracking settings", result, empty: null });
 }
 
-function TrackingSettings({ row, container }: { row: TrackingSettingsRow | null; container: ContainerCheck }) {
+async function fetchMetaCheck({ supabase, tenantId }: AdminContext) {
+  const result = await supabase.from("health_checks").select("name, last_ok_at, last_error, last_error_at").eq("tenant_id", tenantId).eq("name", "meta_conversions").maybeSingle<MetaCheckRow>();
+  return getQueryLoad({ part: "Meta connection check", result, empty: null });
+}
+
+async function fetchLastMetaProblem({ supabase, tenantId }: AdminContext) {
+  const result = await supabase
+    .from("problem_events")
+    .select("occurred_at")
+    .eq("tenant_id", tenantId)
+    .eq("action", "tracking.meta_send")
+    .order("occurred_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MetaProblemRow>();
+  return getQueryLoad({ part: "last Meta send problem", result, empty: null });
+}
+
+// The settings come first: without them nothing else is shown. Then Google and the two Meta
+// reads run together, so the page waits at most one 3-second check longer (plan R1, R6).
+async function fetchPageState(admin: AdminContext): Promise<TrackingPageState> {
+  const settings = await fetchTrackingSettings(admin);
+  if (!settings.isLoaded) return { isLoaded: false, notice: await reportPageLoad({ admin, action: "tracking.load", results: [settings] }) };
+  const [container, check, lastProblem] = await Promise.all([
+    checkSavedContainer({ containerId: settings.data?.gtm_container_id ?? null, action: "tracking.load" }),
+    fetchMetaCheck(admin),
+    fetchLastMetaProblem(admin),
+  ]);
+  const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings, check, lastProblem] });
+  return { isLoaded: true, row: settings.data, container, metaHealth: getMetaHealth({ check, lastProblem, notice }) };
+}
+
+function TrackingSettings({ row, container, metaHealth }: Omit<LoadedPage, "isLoaded">) {
   return (
     <>
       <ul className="mb-10 grid max-w-prose gap-2">
-        {getStatusLines({ row, container }).map((line) => (
+        {getStatusLines({ row, container, metaHealth }).map((line) => (
           <li key={line.label} className="flex items-start gap-2">
             <StatusIcon kind={line.kind} />
             {line.label}
@@ -63,9 +98,7 @@ function TrackingSettings({ row, container }: { row: TrackingSettingsRow | null;
 
 export default async function TrackingPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
-  const settings = await fetchTrackingSettings(admin);
-  const container = settings.isLoaded ? await checkSavedContainer({ containerId: settings.data?.gtm_container_id ?? null, action: "tracking.load" }) : null;
-  const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings] });
+  const page = await fetchPageState(admin);
   return (
     <>
       <h1 className="type-h1 mb-2">Ads &amp; analytics</h1>
@@ -74,7 +107,7 @@ export default async function TrackingPage() {
         <TextLink href="/privacy-policy#cookies" hasArrow>See what the privacy policy tells visitors</TextLink>
       </div>
       {/* No form without the saved settings: saving blanks would switch tracking off. */}
-      {settings.isLoaded ? <TrackingSettings row={settings.data} container={container} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
+      {page.isLoaded ? <TrackingSettings row={page.row} container={page.container} metaHealth={page.metaHealth} /> : <LoadProblem notice={page.notice} title="The saved settings didn't load" />}
     </>
   );
 }

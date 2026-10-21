@@ -9,6 +9,7 @@ import { ATTRIBUTION_FIELD_NAME, getAttributionFromField, getLeadAttributionRow,
 import type { GoogleUserData } from "@/lib/tracking/data-layer";
 import { getGoogleHashedContact, getMetaHashedContact } from "@/lib/tracking/hashing";
 import { getMetaServerEvent, sendMetaServerEvent, type MetaEventName } from "@/lib/tracking/meta-conversions";
+import { recordMetaSendFailure, recordMetaSendSuccess } from "@/lib/tracking/meta-health";
 import { fetchVisitorConsent } from "@/lib/tracking/server-consent";
 import { fetchTrackingSettings } from "@/lib/tracking/tracking-settings";
 
@@ -81,10 +82,13 @@ export async function getFormConversion({ eventId, contact, tracking }: { eventI
 
 type MetaLead = { source: InboxSource; eventId: string; contact: LeadContact; tracking: LeadTracking; visitor: Visitor; occurredAt: Date };
 
-async function sendMetaLead({ source, eventId, contact, tracking, visitor, occurredAt }: MetaLead): Promise<void> {
+/** skipped: the Meta connection is not set up, or the page address is unknown; nothing is recorded. */
+type MetaLeadOutcome = "sent" | "skipped";
+
+async function sendMetaLead({ source, eventId, contact, tracking, visitor, occurredAt }: MetaLead): Promise<MetaLeadOutcome> {
   const accessToken = process.env.META_CAPI_ACCESS_TOKEN;
   const { metaPixelId } = await fetchTrackingSettings();
-  if (!accessToken || !metaPixelId || !tracking.sourceUrl || !tracking.userAgent) return;
+  if (!accessToken || !metaPixelId || !tracking.sourceUrl || !tracking.userAgent) return "skipped";
   const { emailHash, phoneHash } = await getMetaHashedContact(contact);
   const event = getMetaServerEvent({
     eventName: META_EVENT_NAMES[source],
@@ -93,23 +97,26 @@ async function sendMetaLead({ source, eventId, contact, tracking, visitor, occur
     sourceUrl: tracking.sourceUrl,
     emailHash,
     phoneHash,
-    fbc: tracking.fbc,
+    // The row's value falls back to one built from the ad link's fbclid when the Pixel set no _fbc (plan D6).
+    fbc: tracking.attributionRow?.fbc ?? tracking.fbc,
     fbp: tracking.fbp,
     clientIp: visitor.ip,
     userAgent: tracking.userAgent,
   });
   await sendMetaServerEvent({ pixelId: metaPixelId, accessToken, event });
+  return "sent";
 }
 
-/** Sends the lead to Meta after the visitor has their reply; a failure is logged, never shown. */
+/** Sends the lead to Meta after the visitor has their reply; a failure is recorded, never shown. */
 export function scheduleMetaLead(lead: Omit<MetaLead, "occurredAt">): void {
   if (!lead.tracking.isAdsAllowed) return;
   const occurredAt = new Date();
   after(async () => {
     try {
-      await sendMetaLead({ ...lead, occurredAt });
+      const outcome = await sendMetaLead({ ...lead, occurredAt });
+      if (outcome === "sent") await recordMetaSendSuccess();
     } catch (error) {
-      console.error(JSON.stringify({ message: "Meta lead event not sent", source: lead.source, error: error instanceof Error ? error.name : "unknown" }));
+      await recordMetaSendFailure(error);
     }
   });
 }

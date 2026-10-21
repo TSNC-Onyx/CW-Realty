@@ -9,11 +9,12 @@ const SCHEDULED_JOBS_STALE_MS = 45 * MINUTE_MS;
 const PHOTO_CLEANUP_STALE_MS = 36 * HOUR_MS;
 // The email outbox's backup job runs every minute (docs/cwr-email-outbox-plan.md).
 const EMAIL_OUTBOX_STALE_MS = 10 * MINUTE_MS;
-const FAILING_CHECK_NAMES = new Set<HealthCheckName>(["problem_alerts", "problem_log_writes", "email_outbox", "email_sending"]);
+// Leads are rare, so meta_conversions has no stale rule: only a refusal from Meta marks it failing.
+const FAILING_CHECK_NAMES = new Set<HealthCheckName>(["problem_alerts", "problem_log_writes", "email_outbox", "email_sending", "meta_conversions"]);
 
 const DATE_TIME = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: "America/New_York" });
 
-export type HealthCheckName = "problem_alerts" | "scheduled_jobs" | "photo_cleanup" | "problem_log_writes" | "email_outbox" | "email_sending";
+export type HealthCheckName = "problem_alerts" | "scheduled_jobs" | "photo_cleanup" | "problem_log_writes" | "email_outbox" | "email_sending" | "meta_conversions";
 
 export type HealthCheck = {
   name: HealthCheckName;
@@ -66,6 +67,7 @@ const FAILING_TITLES: Record<HealthCheckName, string> = {
   photo_cleanup: "The nightly photo clean-up is failing",
   email_outbox: "An email is waiting to go out",
   email_sending: "Emails can't be sent",
+  meta_conversions: "Leads can't be sent to Meta",
 };
 
 function getWhenText(stamp: string): string {
