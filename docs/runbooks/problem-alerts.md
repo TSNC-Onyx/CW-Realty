@@ -59,7 +59,7 @@ Every error or critical problem is also sent to BuiltFor's Ops inbox (BuiltFor `
 ```sql
 select vault.create_secret('<BuiltFor BUILTFOR_WEBHOOK_SECRET>', 'builtfor_webhook_secret');
 insert into cwr.builtfor_forward_settings (local_tenant_id, builtfor_tenant_id, builtfor_tenant_name, receiver_url, is_enabled)
-values (cwr.get_default_tenant_id(), '<CW Realty clients.tenant_id in BuiltFor>', 'CW Realty',
+values (cwr.get_default_tenant_id(), 'f25f2615-2262-4d95-8926-36277920572f', 'Charlie Ward Realty',
         'https://tsdcxvmywimqfpdkevdx.supabase.co/functions/v1/tenant-alert-receiver', true);
 ```
 

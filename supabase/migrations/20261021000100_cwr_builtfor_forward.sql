@@ -15,7 +15,8 @@ create extension if not exists pg_net with schema extensions;
 
 create table cwr.builtfor_forward_settings (
   local_tenant_id uuid primary key references cwr.tenants (id) on delete cascade,
-  -- This client's clients.tenant_id in BuiltFor, so Ops links the alert to CW Realty.
+  -- This client's clients.id in BuiltFor (clients.tenant_id is the shared platform tenant),
+  -- so Ops Health groups CW Realty's alerts on their own.
   builtfor_tenant_id uuid not null,
   builtfor_tenant_name text not null check (length(builtfor_tenant_name) <= 200),
   receiver_url text not null check (receiver_url ~ '^https?://[^\s]+$'),
