@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { EmailLayoutError, getBrandedEmailHtml, type BrandedEmail } from "@/lib/email/layout";
-import { getNewRequestAlert, getReplyEmail } from "@/lib/email/messages";
-import { SITE_URL } from "@/lib/site/navigation";
+import { EmailLayoutError, getBrandedEmailHtml, type BrandedEmail } from "./layout.ts";
+import { getNewRequestAlert, getReplyEmail } from "./templates.ts";
+import { SITE_URL } from "./site-values.ts";
 
 const GMAIL_CLIP_BYTES = 102 * 1024;
 const MAX_REPLY_LENGTH = 20_000;

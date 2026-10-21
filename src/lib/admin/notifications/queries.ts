@@ -13,7 +13,7 @@ export type Recipient = { id: string; full_name: string; email: string; alert_so
 
 export type Delivery = {
   id: string;
-  kind: "new_request" | "visitor_copy" | "reply" | "test" | "problem";
+  kind: "new_request" | "visitor_copy" | "reply" | "test" | "problem" | "account";
   recipient_email: string;
   status: "pending" | "sending" | "sent" | "failed" | "not_sent";
   attempts: number;

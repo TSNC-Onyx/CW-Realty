@@ -292,8 +292,9 @@ select isnt((select last_ok_at from cwr.health_checks where tenant_id = cwr_test
 
 select is(cwr.get_scrubbed_text('Your code 123456 did not work', 300), 'Your code [number] did not work', 'Six-digit codes are scrubbed');
 
+-- Problem emails are paused while the email outbox is off (docs/cwr-email-outbox-plan.md).
 select is_empty(
-  $$ select 1 from cwr.health_checks h join cwr.tenants t on t.id = h.tenant_id where t.slug = 'cwr' and h.name = 'problem_alerts' $$,
+  $$ select 1 from cwr.health_checks h join cwr.tenants t on t.id = h.tenant_id where t.slug = 'cwr' and h.name = 'problem_alerts' and not cwr.is_email_outbox_live(t.id) $$,
   'While problem emails are paused, the paused sender is not watched (20260930000100)'
 );
 

@@ -6,8 +6,8 @@ import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { retryDeliveryAction } from "@/lib/admin/notifications/actions";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
-/** isProblemAlert: problem emails are re-sent by the scheduled run, so they never get Retry. */
-export type DeliveryItem = { id: string; kindLabel: string; isProblemAlert: boolean; recipient: string; status: "pending" | "sending" | "sent" | "failed" | "not_sent"; when: string; error: string | null };
+/** canRetry: false for problem emails (re-sent by the scheduled run) and sign-in emails (their link can't be re-sent). */
+export type DeliveryItem = { id: string; kindLabel: string; canRetry: boolean; recipient: string; status: "pending" | "sending" | "sent" | "failed" | "not_sent"; when: string; error: string | null };
 
 const STATUS_DISPLAY: Record<DeliveryItem["status"], { label: string; icon: LucideIcon; className: string }> = {
   sent: { label: "Sent", icon: CircleCheck, className: "text-success" },
@@ -17,8 +17,8 @@ const STATUS_DISPLAY: Record<DeliveryItem["status"], { label: string; icon: Luci
   not_sent: { label: "Not sent — email isn't set up", icon: MailX, className: "text-warning" },
 };
 
-// Every alert email and its outcome; failed ones can be retried, except problem emails, which
-// re-send on their own (Infra §3 dead-letter visibility).
+// Every email and its outcome; failed ones can be retried, except problem emails, which re-send
+// on their own, and sign-in emails, which need a new link (Infra §3 dead-letter visibility).
 export function DeliveryLog({ deliveries }: { deliveries: DeliveryItem[] }) {
   return (
     <ul className="border-b border-line">
@@ -39,7 +39,7 @@ export function DeliveryLog({ deliveries }: { deliveries: DeliveryItem[] }) {
               </span>
             </p>
             <div className="md:col-span-2 md:text-right">
-              {delivery.status === "failed" && !delivery.isProblemAlert && (
+              {delivery.status === "failed" && delivery.canRetry && (
                 <QuickActionButton label="Retry" accessibleLabel={`Retry the email to ${delivery.recipient}`} icon={RotateCw} problemAction="notifications.retry_delivery" onRun={() => retryDeliveryAction(delivery.id)} />
               )}
             </div>

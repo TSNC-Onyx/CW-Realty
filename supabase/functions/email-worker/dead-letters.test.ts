@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getRetryDelaySeconds } from "@/lib/jobs/dead-letters";
+import { getRetryDelaySeconds } from "./dead-letters.ts";
 
 describe("retry timing", () => {
   it("waits longer after each failure, up to an hour", () => {

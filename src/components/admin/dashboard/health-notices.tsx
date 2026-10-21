@@ -2,16 +2,16 @@ import { LoadProblem } from "@/components/admin/load-problem";
 import { Message } from "@/components/ui/message";
 import { getHealthNotices, type HealthCheck } from "@/lib/admin/health/health-notices";
 import type { LoadResult } from "@/lib/admin/load-result";
-import { ARE_PROBLEM_EMAILS_PAUSED } from "@/lib/jobs/problem-alert-schedule";
 import type { LoadProblemNotice } from "@/lib/admin/report-page-load";
 
 // Owners only: a notice for each background check that has gone quiet or keeps failing.
 
-type HealthNoticesProps = { checks: LoadResult<HealthCheck[]>; problemRecipientCount: LoadResult<number>; now: Date; notice: LoadProblemNotice | null };
+/** areProblemEmailsPaused: problem emails go out only once the email outbox is live. */
+type HealthNoticesProps = { checks: LoadResult<HealthCheck[]>; problemRecipientCount: LoadResult<number>; areProblemEmailsPaused: boolean; now: Date; notice: LoadProblemNotice | null };
 
 // Owner decision D4: until an owner chooses someone, problems are recorded but no one is emailed.
-function NoProblemRecipientsNotice({ problemRecipientCount }: { problemRecipientCount: LoadResult<number> }) {
-  if (ARE_PROBLEM_EMAILS_PAUSED) {
+function NoProblemRecipientsNotice({ problemRecipientCount, areProblemEmailsPaused }: { problemRecipientCount: LoadResult<number>; areProblemEmailsPaused: boolean }) {
+  if (areProblemEmailsPaused) {
     return (
       <Message tone="info" title="Problem emails are paused">
         <p>Problems are still recorded. No one is emailed about them until emails resume.</p>
@@ -26,11 +26,11 @@ function NoProblemRecipientsNotice({ problemRecipientCount }: { problemRecipient
   );
 }
 
-export function HealthNotices({ checks, problemRecipientCount, now, notice }: HealthNoticesProps) {
+export function HealthNotices({ checks, problemRecipientCount, areProblemEmailsPaused, now, notice }: HealthNoticesProps) {
   if (!checks.isLoaded) return <LoadProblem notice={notice} title="Background checks didn't load" />;
   return (
     <>
-      <NoProblemRecipientsNotice problemRecipientCount={problemRecipientCount} />
+      <NoProblemRecipientsNotice problemRecipientCount={problemRecipientCount} areProblemEmailsPaused={areProblemEmailsPaused} />
       {getHealthNotices({ checks: checks.data, now }).map((healthNotice) => (
         <Message key={healthNotice.key} tone="warning" title={healthNotice.title}>
           <p>{healthNotice.body}</p>

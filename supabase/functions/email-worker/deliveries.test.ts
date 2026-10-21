@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { EmailSendError } from "@/lib/email/mailersend";
-import type { JobDependencies } from "@/lib/jobs/alert-jobs";
-import { deliverEmail, type DeliveryRequest } from "@/lib/jobs/deliveries";
+import { EmailSendError } from "./mailersend.ts";
+import type { JobDependencies } from "./jobs.ts";
+import { deliverEmail, type DeliveryRequest } from "./deliveries.ts";
 
 type Row = { id: string; status: string; attempts: number } | null;
 

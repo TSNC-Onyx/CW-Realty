@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getProblemAlertOutcome } from "@/lib/jobs/problem-alerts";
+import { getProblemAlertOutcome } from "./problem-alerts.ts";
 
 describe("problem-alert digest outcome", () => {
   it("is sent once every email went out or can never go out", () => {

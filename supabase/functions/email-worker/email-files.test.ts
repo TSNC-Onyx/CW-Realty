@@ -3,14 +3,13 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { getAuthEmailTemplates } from "@/lib/email/auth-templates";
 
 // The owner's live-site script, tested here so its 33 settings can't drift from the repo.
-import { getChangedKeys, getDesiredEmailSettings, getEmailSettingKeys, NOTIFICATION_TYPES, TEMPLATE_TYPES } from "../../../scripts/push-auth-email-templates.mjs";
-import { getNewRequestAlert, getProblemDigest, getReplyEmail, getTestAlert, getVisitorCopy } from "@/lib/email/messages";
-import { SITE_URL } from "@/lib/site/navigation";
+import { getChangedKeys, getDesiredEmailSettings, getEmailSettingKeys, getHookSettings, NOTIFICATION_TYPES, TEMPLATE_TYPES } from "../../../scripts/push-auth-email-templates.mjs";
+import { getAuthEmailTemplates, getNewRequestAlert, getProblemDigest, getReplyEmail, getTestAlert, getVisitorCopy } from "./templates.ts";
+import { SITE_URL } from "./site-values.ts";
 
-// Keeps supabase/templates/*.html equal to src/lib/email/auth-templates.ts, and (on request,
+// Keeps supabase/templates/*.html (Supabase's fallback) equal to templates.ts, and (on request,
 // never in CI) rewrites those files or writes a local preview of every email.
 //   npm run email:templates   → EMAIL_WRITE=1
 //   npm run email:preview     → EMAIL_PREVIEW=1, files land in email-preview/
@@ -205,5 +204,29 @@ describe("Supabase email settings", () => {
 
     // Assert
     expect(changedKeys).toEqual(["mailer_subjects_invite"]);
+  });
+
+  it("turning the hook on hands every email to the outbox's database function", () => {
+    // Act
+    const settings = getHookSettings(true);
+
+    // Assert
+    expect(settings).toEqual({ hook_send_email_enabled: true, hook_send_email_uri: "pg-functions://postgres/cwr/handle_auth_email" });
+  });
+
+  it("the hook switch changes only the hook settings", () => {
+    // Arrange
+    const current = { hook_send_email_enabled: true, hook_send_email_uri: "pg-functions://postgres/cwr/handle_auth_email", site_url: "https://www.charliewardrealty.com" };
+
+    // Act
+    const changedKeys = getChangedKeys(current, getHookSettings(false));
+
+    // Assert
+    expect(changedKeys).toEqual(["hook_send_email_enabled"]);
+  });
+
+  it("the hook uses the same database function as local Supabase", () => {
+    // Assert
+    expect(getConfigToml()).toContain(`[auth.hook.send_email]\nenabled = true\nuri = "${getHookSettings(true).hook_send_email_uri}"`);
   });
 });

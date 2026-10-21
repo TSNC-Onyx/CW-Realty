@@ -15,8 +15,11 @@ const VISITOR_ORIGINS = ["server_visitor", "browser_visitor"];
 /** total and serious: the team's own problems; serious = errors or worse. visitors: website visitors' problems. */
 export type ProblemCounts = { total: number; serious: number; visitors: number };
 
-/** problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4). */
-export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemCounts: LoadResult<ProblemCounts>; problemRecipientCount: LoadResult<number> };
+/**
+ * problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4).
+ * isOutboxLive: problem emails go out only through the email outbox (docs/cwr-email-outbox-plan.md).
+ */
+export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemCounts: LoadResult<ProblemCounts>; problemRecipientCount: LoadResult<number>; isOutboxLive: boolean };
 
 async function fetchHealthChecks({ supabase, tenantId }: AdminContext): Promise<LoadResult<HealthCheck[]>> {
   const result = await supabase.from("health_checks").select("name, last_run_at, last_ok_at, last_error, last_error_at, created_at").eq("tenant_id", tenantId).returns<HealthCheck[]>();
@@ -42,6 +45,12 @@ async function fetchProblemRecipientCount({ supabase, tenantId }: AdminContext):
 /** null for managers and staff: only owners see how the site itself is doing. */
 export async function fetchOwnerHealth(admin: AdminContext, now: Date): Promise<OwnerHealth | null> {
   if (admin.role !== "owner") return null;
-  const [checks, problemCounts, problemRecipientCount] = await Promise.all([fetchHealthChecks(admin), fetchProblemCounts(admin, now), fetchProblemRecipientCount(admin)]);
-  return { checks, problemCounts, problemRecipientCount };
+  const [checks, problemCounts, problemRecipientCount, live] = await Promise.all([
+    fetchHealthChecks(admin),
+    fetchProblemCounts(admin, now),
+    fetchProblemRecipientCount(admin),
+    admin.supabase.rpc("is_email_outbox_live", { p_tenant_id: admin.tenantId }),
+  ]);
+  // If the switch can't be read, the dashboard keeps the safe "paused" wording.
+  return { checks, problemCounts, problemRecipientCount, isOutboxLive: !live.error && live.data === true };
 }
