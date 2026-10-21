@@ -30,7 +30,7 @@ Governs: every Charlie Ward Realty email. Design: `docs/cwr-email-outbox-plan.md
 3. In Supabase → Edge Functions → Secrets, add:
    - `MAILERSEND_API_KEY` — the same key the Cloudflare Worker uses;
    - `ALERT_FROM_EMAIL` and `ALERT_FROM_NAME` — the same sender as today;
-   - `EMAIL_SITE_URL` — `https://cw-realty.onyxventuresnc.workers.dev` before launch, `https://www.charliewardrealty.com` after launch (links and the logo use it).
+   - `EMAIL_SITE_URL` — `https://cw-realty.builtfor.workers.dev` before launch, `https://www.charliewardrealty.com` after launch (links and the logo use it).
    Leave `EMAIL_TRANSPORT` unset (MailerSend).
 
 **Step 2 — site emails switch to the outbox.** Claude runs, with your OK:
