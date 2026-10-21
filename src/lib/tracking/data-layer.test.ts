@@ -22,6 +22,10 @@ function getCommands(): unknown[][] {
   return getDataLayer().filter((entry) => !Array.isArray(entry) && typeof entry === "object" && entry !== null && "length" in entry).map((entry) => Array.from(entry as ArrayLike<unknown>));
 }
 
+function getEvents(): unknown[] {
+  return getDataLayer().flatMap((entry) => (typeof entry === "object" && entry !== null && "event" in entry ? [(entry as { event: unknown }).event] : []));
+}
+
 describe("Tag Manager", () => {
   beforeEach(() => {
     appendedScripts = [];
@@ -95,5 +99,82 @@ describe("Tag Manager", () => {
 
     // Assert
     expect(getDataLayer().at(-1)).toEqual({ event: "cwr_chat_handoff", event_id: "event-3", user_data: { sha256_email_address: "abc" } });
+  });
+
+  it("sends no cwr_consent_update when Tag Manager first starts", async () => {
+    // Arrange
+    const { startTagManager } = await loadDataLayer();
+
+    // Act
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: true } });
+
+    // Assert
+    expect(getEvents()).not.toContain("cwr_consent_update");
+  });
+
+  it("tells running tags when Advertising is newly allowed with a cwr_consent_update event", async () => {
+    // Arrange
+    const { startTagManager, updateTagConsent } = await loadDataLayer();
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: false } });
+
+    // Act
+    updateTagConsent({ analytics: true, ads: true });
+
+    // Assert
+    expect(getDataLayer().at(-1)).toEqual({ event: "cwr_consent_update" });
+  });
+
+  it("tells running tags when Analytics is newly allowed with a cwr_consent_update event", async () => {
+    // Arrange
+    const { startTagManager, updateTagConsent } = await loadDataLayer();
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: false, ads: true } });
+
+    // Act
+    updateTagConsent({ analytics: true, ads: true });
+
+    // Assert
+    expect(getDataLayer().at(-1)).toEqual({ event: "cwr_consent_update" });
+  });
+
+  it("sends no cwr_consent_update when the same choice is saved again", async () => {
+    // Arrange
+    const { startTagManager, updateTagConsent } = await loadDataLayer();
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: false } });
+
+    // Act
+    updateTagConsent({ analytics: true, ads: false });
+
+    // Assert
+    expect(getEvents()).not.toContain("cwr_consent_update");
+  });
+
+  it("sends no cwr_consent_update for a narrower choice", async () => {
+    // Arrange
+    const { startTagManager, updateTagConsent } = await loadDataLayer();
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: true } });
+
+    // Act
+    updateTagConsent({ analytics: true, ads: false });
+
+    // Assert
+    expect(getEvents()).not.toContain("cwr_consent_update");
+  });
+
+  it("runs the address restore before the Tag Manager script is added", async () => {
+    // Arrange
+    const { startTagManager } = await loadDataLayer();
+    const restoreAddress = vi.fn();
+    const append = vi.fn();
+    vi.stubGlobal("document", { createElement: () => ({ async: false, src: "", nonce: "" }), head: { append } });
+    let dataLayerSizeAtRestore = -1;
+    restoreAddress.mockImplementation(() => {
+      dataLayerSizeAtRestore = getDataLayer().length;
+    });
+
+    // Act
+    startTagManager({ ...TAG_MANAGER, choice: { analytics: true, ads: true }, beforeStart: restoreAddress });
+
+    // Assert
+    expect({ isBeforeScript: (restoreAddress.mock.invocationCallOrder[0] ?? Infinity) < (append.mock.invocationCallOrder[0] ?? -Infinity), dataLayerSizeAtRestore }).toEqual({ isBeforeScript: true, dataLayerSizeAtRestore: 0 });
   });
 });

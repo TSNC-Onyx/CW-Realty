@@ -116,6 +116,7 @@ single source for Tag Manager, Google, and Meta setup.
 - The "Cookie settings" dialog is a new component; Style §11.15 asks for it to be added to §11.13 with owner approval before it ships.
 - Meta server events are sent once (5-second limit) without the queue's retry and dead-letter handling that Infra §3 asks for; losing one ad event never affects the lead.
 - GBRAID/WBRAID click IDs are saved but not exported (Google's CSV header for them is unconfirmed).
+- Decision 12 changed on 2026-10-21 (`docs/cwr-ads-analytics-fixes-plan.md`, D4 and D10): once Advertising is allowed, click IDs are also kept in a first-party `cwr_attribution` cookie for up to 90 days after the ad click, and put back in the page address before Tag Manager starts.
 
 ## Verification (2026-09-25)
 

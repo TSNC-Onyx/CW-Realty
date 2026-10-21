@@ -22,5 +22,8 @@ export default defineConfig({
     url: BASE_URL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Node's fetch refuses this "bad port" at once, so the Tag Manager check always answers
+    // "couldn't check" and no test contacts Google (docs/cwr-ads-analytics-fixes-plan.md, D2).
+    env: { TAG_MANAGER_CHECK_ORIGIN: "http://127.0.0.1:9" },
   },
 });
