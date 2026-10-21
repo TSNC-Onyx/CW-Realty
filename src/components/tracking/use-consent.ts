@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { forgetAttribution, keepAttribution, rememberLandingAttribution } from "@/lib/tracking/attribution-store";
 import { getAllowedConsent, getConsentCookieString, hasAnyConsent, type ConsentChoice } from "@/lib/tracking/consent";
+import { sendConsentToServer } from "@/lib/tracking/consent-sync";
+import { withdrawConsent } from "@/lib/tracking/consent-withdrawal";
 import { isTagManagerRunning, startTagManager, updateTagConsent } from "@/lib/tracking/data-layer";
-import { deleteTrackerCookies } from "@/lib/tracking/tracker-cookies";
 
 // The visitor's choice in the browser (plan decisions 1–4, 12, 14): nothing starts before a
-// choice, a wider choice starts or updates Tag Manager, a narrower one clears and reloads.
+// choice, a wider choice starts or updates Tag Manager, a narrower one clears and reloads. The
+// server then sets the same cookies again (docs/cwr-ads-analytics-fixes-plan.md, R7).
 
 export type TagManagerConfig = { containerId: string; scriptOrigin: string; nonce: string };
 
@@ -32,24 +34,21 @@ function isNarrower({ previous, next }: { previous: ConsentChoice; next: Consent
   return (previous.analytics && !next.analytics) || (previous.ads && !next.ads);
 }
 
-function applyAllowedConsent({ allowed, tagManager }: { allowed: ConsentChoice; tagManager: TagManagerConfig }): void {
-  if (allowed.ads) keepAttribution();
-  else forgetAttribution();
-  if (!hasAnyConsent(allowed)) return;
+/** Starts or updates Tag Manager; true when new ad click IDs were stored (the server should keep them). */
+function applyAllowedConsent({ allowed, tagManager }: { allowed: ConsentChoice; tagManager: TagManagerConfig }): boolean {
+  const hasNewClick = allowed.ads && keepAttribution();
+  if (!allowed.ads) forgetAttribution();
+  if (!hasAnyConsent(allowed)) return hasNewClick;
   if (isTagManagerRunning()) updateTagConsent(allowed);
   else startTagManager({ ...tagManager, choice: allowed });
+  return hasNewClick;
 }
 
-function writeConsentCookie(choice: ConsentChoice): void {
-  document.cookie = getConsentCookieString({ choice, now: new Date(), isSecure: window.location.protocol === "https:" });
-}
-
-// Tags already running cannot be told to forget what they set, so their cookies are deleted
-// and the page reloads without them.
-function withdrawConsent({ isAdsAllowed }: { isAdsAllowed: boolean }): void {
-  deleteTrackerCookies();
-  if (!isAdsAllowed) forgetAttribution();
-  window.location.reload();
+/** Writes the choice and returns the cookie string, which the server call writes again first. */
+function writeConsentCookie(choice: ConsentChoice): string {
+  const cookieString = getConsentCookieString({ choice, now: new Date(), isSecure: window.location.protocol === "https:" });
+  document.cookie = cookieString;
+  return cookieString;
 }
 
 export function useConsent({ initialChoice, isGpcOnServer, containerId, scriptOrigin, nonce }: ConsentOptions) {
@@ -61,19 +60,22 @@ export function useConsent({ initialChoice, isGpcOnServer, containerId, scriptOr
   useEffect(() => {
     rememberLandingAttribution();
     if (!initialChoice) return;
-    applyAllowedConsent({ allowed: getAllowedConsent({ choice: initialChoice, isGpcOn: getBrowserGpc({ isGpcOnServer }) }), tagManager });
+    const hasNewClick = applyAllowedConsent({ allowed: getAllowedConsent({ choice: initialChoice, isGpcOn: getBrowserGpc({ isGpcOnServer }) }), tagManager });
+    // A returning visitor arriving from a new ad: the server keeps the click IDs for other tabs.
+    if (hasNewClick) void sendConsentToServer();
   }, [initialChoice, isGpcOnServer, tagManager]);
 
   const saveChoice = (next: ConsentChoice) => {
     const allowed = getAllowedConsent({ choice: next, isGpcOn });
     const previous = choice ? getAllowedConsent({ choice, isGpcOn }) : null;
-    writeConsentCookie(allowed);
+    const cookieString = writeConsentCookie(allowed);
     setChoice(allowed);
     if (previous && isTagManagerRunning() && isNarrower({ previous, next: allowed })) {
-      withdrawConsent({ isAdsAllowed: allowed.ads });
+      void withdrawConsent({ previous, next: allowed, cookieString });
       return;
     }
     applyAllowedConsent({ allowed, tagManager });
+    void sendConsentToServer({ cookieString });
   };
 
   return { choice, isGpcOn, saveChoice };

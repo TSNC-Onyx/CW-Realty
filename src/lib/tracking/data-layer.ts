@@ -90,7 +90,7 @@ function isNewlyAllowed({ previous, next }: { previous: ConsentChoice; next: Con
   return (next.analytics && !previous.analytics) || (next.ads && !previous.ads);
 }
 
-/** Tells running tags about a wider choice (a narrower one reloads the page instead). */
+/** Tells running tags about a wider choice, or, before a withdrawal reloads the page, what both choices allow. */
 export function updateTagConsent(choice: ConsentChoice): void {
   if (!runningConsent) return;
   const isWider = isNewlyAllowed({ previous: runningConsent, next: choice });

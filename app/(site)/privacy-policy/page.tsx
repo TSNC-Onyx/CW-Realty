@@ -111,7 +111,7 @@ export default async function PrivacyPolicyPage() {
             </li>
             <li>
               If you arrived from one of our ads, we keep the ad&apos;s click code and campaign name with your message
-              (&ldquo;cwr-attribution&rdquo; session storage until then).
+              (&ldquo;cwr-attribution&rdquo; session storage, and the &ldquo;cwr_attribution&rdquo; cookie for up to 90 days after the ad click).
             </li>
             <li>If you later buy or sell a home with us, we may tell Google and Meta about the sale, again with your email and phone only in hashed form.</li>
           </ul>

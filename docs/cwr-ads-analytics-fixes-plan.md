@@ -726,3 +726,12 @@ Deviations and choices made while building, each the smallest option faithful to
   landing is kept as it was (landing page and campaign tags too, not only `landedAt`): an address restored by
   D4 carries the click IDs but no campaign tags, so taking anything from the later landing would lose them.
   `isSameAttribution` compares every parameter, the landing page and the landing time.
+- **Step 7 — port 3100 held by another session.** From 13:11 on 2026-10-21 another worktree's server
+  (`admin-timeout-signout-button-6cbf74`) listened on port 3100, so Playwright reused it and served that
+  worktree's build (edge case 27). It was not stopped, because it belongs to another session. From step 7 on, the
+  e2e runs use an uncommitted scratch config (`playwright.port3200.config.ts`: the repo config with port 3200 and
+  no server reuse), deleted before the end. The earlier step 2, 4 and 9 runs used this worktree's build (their new
+  tests could only pass on it).
+- **Step 7 — privacy policy date.** The Advertising line gains the `cwr_attribution` cookie as R8 says; the
+  "Last updated" date (September 25, 2026) was left as is, since the plan does not mention it. The owner may want
+  it changed when this ships.
