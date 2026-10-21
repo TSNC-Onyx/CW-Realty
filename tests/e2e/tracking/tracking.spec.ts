@@ -259,6 +259,7 @@ test("each ID field says whether it is live, not saved yet, or off", async ({ pa
   const pixel = page.getByLabel("Pixel ID (optional)");
   await expect(container).toHaveAccessibleDescription(live);
   await expect(pixel).toHaveAccessibleDescription(/Off — nothing saved$/);
+  await expect(pixel).toHaveAccessibleDescription(/Meta server connection only/);
 
   // Act
   await container.fill("GTM-OTHER12");

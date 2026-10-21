@@ -34,6 +34,25 @@ describe("getStatusLines", () => {
   });
 });
 
+describe("the browser Pixel line", () => {
+  it("always explains that the browser Pixel lives in Tag Manager", () => {
+    // Arrange
+    const settings = [
+      { row: null, container: null },
+      { row: { ...ROW, meta_pixel_id: "1234567890" }, container: { containerId: "GTM-AB12CD3", status: "published" as const } },
+    ];
+
+    // Act
+    const pixelLines = settings.map((setting) => getStatusLines(setting).find((line) => line.label.startsWith("Meta Pixel in visitors' browsers")));
+
+    // Assert
+    expect(pixelLines).toEqual([
+      { label: "Meta Pixel in visitors' browsers: set up inside Tag Manager, not on this page", kind: "info" },
+      { label: "Meta Pixel in visitors' browsers: set up inside Tag Manager, not on this page", kind: "info" },
+    ]);
+  });
+});
+
 describe("getSavedMessage", () => {
   it("warns after saving a container Google can't find", () => {
     // Act

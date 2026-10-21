@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 
 import { LoadProblem } from "@/components/admin/load-problem";
@@ -9,7 +9,7 @@ import { getQueryLoad } from "@/lib/admin/load-result";
 import { reportPageLoad } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
 import { checkSavedContainer, type ContainerCheck } from "@/lib/admin/tracking/container-check";
-import { getStatusLines, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
+import { getStatusLines, type StatusLine, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
@@ -18,6 +18,17 @@ import { ICON_SIZE } from "@/lib/design/icon-sizes";
 export const metadata: Metadata = { title: "Ads & analytics" };
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
+
+const STATUS_ICONS: Record<StatusLine["kind"], { Icon: LucideIcon; className: string }> = {
+  ready: { Icon: CircleCheck, className: "text-success" },
+  attention: { Icon: CircleAlert, className: "text-muted" },
+  info: { Icon: Info, className: "text-muted" },
+};
+
+function StatusIcon({ kind }: { kind: StatusLine["kind"] }) {
+  const { Icon, className } = STATUS_ICONS[kind];
+  return <Icon aria-hidden size={ICON_SIZE.inline} className={`mt-1 shrink-0 ${className}`} />;
+}
 
 function getReviewText(reviewedAt: string | null): string {
   const lastReview = reviewedAt ? `Last reviewed ${DATE_FORMAT.format(new Date(reviewedAt))}.` : "Not reviewed yet.";
@@ -35,14 +46,14 @@ function TrackingSettings({ row, container }: { row: TrackingSettingsRow | null;
       <ul className="mb-10 grid max-w-prose gap-2">
         {getStatusLines({ row, container }).map((line) => (
           <li key={line.label} className="flex items-start gap-2">
-            {line.isReady ? <CircleCheck aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-success" /> : <CircleAlert aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-muted" />}
+            <StatusIcon kind={line.kind} />
             {line.label}
           </li>
         ))}
       </ul>
       <section aria-labelledby="review-heading" className="mb-12 max-w-prose border-t-2 border-ink pt-6">
         <h2 id="review-heading" className="type-h3 mb-2">Quarterly tag review</h2>
-        <p className="mb-4">{`Every 3 months, open Tag Manager and remove any tag you no longer use. ${getReviewText(row?.tags_reviewed_at ?? null)}`}</p>
+        <p className="mb-4">{`Every 3 months, open Tag Manager, remove any tag you no longer use, and check that the Meta Pixel tag uses the same Pixel ID as below. ${getReviewText(row?.tags_reviewed_at ?? null)}`}</p>
         <TagReviewButton />
       </section>
       <TrackingSettingsForm defaults={{ gtmContainerId: row?.gtm_container_id ?? "", metaPixelId: row?.meta_pixel_id ?? "" }} />
