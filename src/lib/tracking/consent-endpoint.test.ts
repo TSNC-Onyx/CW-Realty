@@ -71,6 +71,17 @@ describe("respondToConsentRequest", () => {
     expect(responses.map((response) => response.status)).toEqual([400, 400, 400]);
   });
 
+  it("counts the body's size in bytes, not characters", async () => {
+    // Arrange: 5,000 two-byte characters are 10,000 bytes, over the 8 KB limit.
+    const body = JSON.stringify({ attribution: "é".repeat(5000) });
+
+    // Act
+    const response = await respondToConsentRequest(buildRequest({ choice: { analytics: true, ads: true }, body }));
+
+    // Assert
+    expect(response.status).toBe(400);
+  });
+
   it("re-issues the consent cookie from the server", async () => {
     // Act
     const response = await respondToConsentRequest(buildRequest({ choice: { analytics: true, ads: false }, body: "{}" }));

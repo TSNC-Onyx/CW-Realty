@@ -104,8 +104,8 @@ describe("sending a lead to Meta", () => {
 
     // Assert
     expect({ problem: reportProblem.mock.calls[0]?.[0], check: rpc.mock.calls[0] }).toEqual({
-      problem: { action: "tracking.meta_send", origin: "job", stage: "external", severity: "error", code: "http_400", detail: "Meta answered 400 (Meta error code 190)" },
-      check: ["touch_health_check", { p_name: "meta_conversions", p_is_ok: false, p_error: "Meta answered 400 (Meta error code 190)" }],
+      problem: { action: "tracking.meta_send", origin: "job", stage: "external", severity: "error", code: "http_400", detail: "Meta answered 400, error code 190" },
+      check: ["touch_health_check", { p_name: "meta_conversions", p_is_ok: false, p_error: "Meta answered 400, error code 190" }],
     });
   });
 

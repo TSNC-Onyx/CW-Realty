@@ -50,9 +50,27 @@ async function getConsentResponse(request: Request): Promise<Response> {
   return new Response(null, { status: HTTP_NO_CONTENT, headers });
 }
 
+// Stops reading once the body passes the limit, so an oversized request is never buffered whole.
+async function readTextWithinLimit(request: Request): Promise<string | null> {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let text = "";
+  let byteCount = 0;
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    byteCount += chunk.value.byteLength;
+    if (byteCount > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(chunk.value, { stream: true });
+  }
+  return text + decoder.decode();
+}
+
 async function readConsentBody(request: Request): Promise<ConsentBody | null> {
-  const text = await request.text();
-  if (text.length > MAX_BODY_BYTES) return null;
+  const text = await readTextWithinLimit(request);
+  if (text === null) return null;
   const parsed = consentBodySchema.safeParse(parseJsonOrUndefined(text));
   return parsed.success ? parsed.data : null;
 }

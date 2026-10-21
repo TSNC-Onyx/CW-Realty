@@ -133,6 +133,10 @@ test("click IDs are back in the address before Tag Manager starts after moving t
   // Assert
   await expect(page).toHaveURL(new RegExp(`gclid=${GCLID}`));
   await expect.poll(async () => (await getDataLayer(page)).some((entry) => (entry as { event?: string }).event === "gtm.js")).toBe(true);
+  // The site still moves between pages without a full page load after the restore (plan edge case 10).
+  await page.locator("header").getByRole("link").first().click();
+  await expect(page).toHaveURL((url) => url.pathname === "/" && !url.search.includes("gclid="));
+  expect(await page.evaluate(() => (window as unknown as { hasNotReloaded?: boolean }).hasNotReloaded)).toBe(true);
 });
 
 test("rejecting keeps click IDs out of the address", async ({ page, context }) => {

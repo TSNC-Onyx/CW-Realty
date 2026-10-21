@@ -83,14 +83,14 @@ describe("the Meta server connection line", () => {
 
   it("says the Meta connection is not working after a failure", () => {
     // Arrange
-    const check = getMetaCheck({ last_ok_at: "2026-10-01T14:00:00Z", last_error: "Meta answered 400 (Meta error code 190)", last_error_at: "2026-10-21T19:04:00Z" });
+    const check = getMetaCheck({ last_ok_at: "2026-10-01T14:00:00Z", last_error: "Meta answered 400, error code 190", last_error_at: "2026-10-21T19:04:00Z" });
 
     // Act
     const label = getMetaLabel({ isLoaded: true, check, lastProblemAt: "2026-10-21T19:04:00Z" });
 
     // Assert
     expect(label).toBe(
-      "Meta server connection: not working — the last lead couldn't be sent on Oct 21, 3:04 PM (Meta answered 400 (Meta error code 190)). Check the access token and the Pixel ID. Last success: Oct 1, 10:00 AM.",
+      "Meta server connection: not working — the last lead couldn't be sent on Oct 21, 3:04 PM (Meta answered 400, error code 190). Check the access token and the Pixel ID. Last success: Oct 1, 10:00 AM.",
     );
   });
 
