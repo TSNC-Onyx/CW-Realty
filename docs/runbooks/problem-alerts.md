@@ -50,6 +50,33 @@ Each background check watches another one, so a stopped check is caught by the n
 
 A failed or stuck (over 30 min) `cwr_*` scheduled job becomes a critical problem named "Nightly database clean-up". Its `detail` holds the job name and Postgres's message.
 
+## Forwarding to BuiltFor Ops
+
+Every error or critical problem is also sent to BuiltFor's Ops inbox (BuiltFor `tenant-alert-receiver`), so BuiltFor sees outages without being asked. A database job, `cwr_forward_builtfor`, runs every minute: it queues new error/critical problems in `cwr.builtfor_forwards` and sends them with pg_net. Warnings and info problems are never sent. Nothing about how problems are recorded or emailed here changes. Migration: `supabase/migrations/20261021000100_cwr_builtfor_forward.sql`.
+
+**Switch on** (SQL editor; the secret value comes from BuiltFor):
+
+```sql
+select vault.create_secret('<BuiltFor BUILTFOR_WEBHOOK_SECRET>', 'builtfor_webhook_secret');
+insert into cwr.builtfor_forward_settings (local_tenant_id, builtfor_tenant_id, builtfor_tenant_name, receiver_url, is_enabled)
+values (cwr.get_default_tenant_id(), '<CW Realty clients.tenant_id in BuiltFor>', 'CW Realty',
+        'https://tsdcxvmywimqfpdkevdx.supabase.co/functions/v1/tenant-alert-receiver', true);
+```
+
+Only problems recorded after `forward_from` (default: when the row was added) are sent.
+
+**Switch off:** `update cwr.builtfor_forward_settings set is_enabled = false;`
+
+**Check:**
+
+```sql
+select status, count(*), min(created_at), max(last_error) from cwr.builtfor_forwards group by status;
+```
+
+`pending` rows are waiting or retrying: failed sends retry with a growing wait (up to an hour). After 24 hours of failures a row becomes `dead`, and one critical problem with code `builtfor_forward_dead` is recorded here ("… alerts could not be delivered to BuiltFor Ops"); that problem is itself sent once the link works again. Usual causes: the Vault secret doesn't match BuiltFor's, or the receiver is down. `sent` rows are removed after 30 days.
+
+**Remove completely:** `docs/runbooks/builtfor-forward-down.sql`, then delete the Vault secret.
+
 ## After fixing
 
 Record what happened and the follow-up (Infra §7 "blameless review"). Until the Problems page exists, a developer resolves a group with:
