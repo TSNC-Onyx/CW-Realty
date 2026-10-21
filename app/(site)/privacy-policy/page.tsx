@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   description: "How Charlie Ward Realty collects, uses, and protects your information, including cookies and the chat assistant.",
 };
 
-const LAST_UPDATED = "September 25, 2026";
+const LAST_UPDATED = "October 21, 2026";
 
 function ContactSentence({ email, phone }: { email: string | null; phone: string | null }) {
   if (!email || !phone) return <p>Contact us through the Contact page, or visit our office.</p>;

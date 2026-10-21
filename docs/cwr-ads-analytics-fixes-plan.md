@@ -200,7 +200,7 @@ Every check is mechanical: a named test passes, a command exits 0, or a `grep` m
   `user_data.fbc` = `fb.1.{landedAt}.{fbclid}`).
 
 **R6 — Meta failures are recorded and shown (finding 6)**
-- Migration `supabase/migrations/20261021000100_cwr_meta_send_health.sql`: widen `health_checks_name_check` to
+- Migration `supabase/migrations/20261021000200_cwr_meta_send_health.sql`: widen `health_checks_name_check` to
   add `meta_conversions` (drop, add `not valid`, validate — the pattern in `20261012000200`); insert catalog rows
   `('tracking.meta_send', 'tracking', 'Send a lead to Meta', 'Ads & analytics', '{}')` and
   `('site.consent', 'site', 'Save cookie choices', 'Website visitors', '{}')`. Nothing else.
@@ -393,7 +393,7 @@ commit (message ends with the attribution line from the session). Order and depe
 0. **Baseline.** Run the Verification commands below on the untouched branch (the planner's results are in
    Regression safeguards; add the database and browser runs). Keep the output in the session's scratchpad for the
    completion report, not in the repository. Stop if any is red (stop rule).
-1. **Migration and catalog (R6, database part).** Files: `supabase/migrations/20261021000100_cwr_meta_send_health.sql`,
+1. **Migration and catalog (R6, database part).** Files: `supabase/migrations/20261021000200_cwr_meta_send_health.sql`,
    `supabase/tests/database/240-meta-send-health.test.sql`, `src/lib/observability/problem-catalog.ts`. Apply
    locally (`npx supabase migration up --local`). Check: `npm run db:check`, `npm run db:test` (all files pass),
    `npm run db:lint`, `npm run db:catalog` (125 actions).
@@ -539,7 +539,7 @@ fixed or the owner explicitly accepts it.
 
 ### Level 1 — Direct
 Files: listed per step above (new: `container-check.ts`, `status-lines.ts`, `meta-health.ts`, `consent-endpoint.ts`,
-`consent-sync.ts`, `app/consent/route.ts`, migration `20261021000100`, pgTAP `240`, their tests; changed:
+`consent-sync.ts`, `app/consent/route.ts`, migration `20261021000200`, pgTAP `240`, their tests; changed:
 `actions.ts`, `page.tsx`, `tracking-settings-form.tsx`, `lead-tracking.ts`, `meta-conversions.ts`,
 `attribution.ts`, `attribution-store.ts`, `consent.ts`, `data-layer.ts`, `use-consent.ts`, `rate-limit.ts`,
 `health-notices.ts`, `problem-catalog.ts`, privacy policy page, `playwright.config.ts`, `README.md`, runbook, two
@@ -565,7 +565,7 @@ Contracts: `cwr.health_checks.name` allowed values; `startTagManager` options (`
 - Google and Meta (owner's accounts): first page views may now carry a click ID; Meta server events carry `fbc`
   more often. Risk: requires plan entry (done: D4–D6) — this is the intended improvement.
 - Problem emails (paused today) will include `tracking.meta_send` once resumed. Risk: low — grouped, labels only.
-- Production rollout needs migration `20261021000100` before the code that writes `meta_conversions`; otherwise
+- Production rollout needs migration `20261021000200` before the code that writes `meta_conversions`; otherwise
   `touch_health_check` fails its name check, which is caught and logged (lead unaffected). Risk: requires owner
   follow-up (listed below).
 - No item needs extra human approval beyond the owner's 2026-10-21 request recorded in the header.
@@ -610,7 +610,7 @@ database and import real content (step 11).
 
 ## Owner follow-ups (after the code is merged — not implementer steps)
 
-1. Approve applying migration `20261021000100_cwr_meta_send_health.sql` to production **before** the deploy that
+1. Approve applying migration `20261021000200_cwr_meta_send_health.sql` to production **before** the deploy that
    carries this code (a developer applies it; this plan applies nothing to production).
 2. In Tag Manager, follow the updated runbook: add the Conversion Linker and the Google tag with the `AW-…` ID
    (§2); on all four tags — the GA4 Google tag, the Google Ads Google tag, the Conversion Linker, and the Meta

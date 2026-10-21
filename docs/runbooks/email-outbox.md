@@ -26,6 +26,10 @@ Governs: every Charlie Ward Realty email. Design: `docs/cwr-email-outbox-plan.md
 
 **Step 1 — install (nothing changes for anyone yet).**
 1. Claude applies migrations `20261012000100` and `20261012000200` to the live project (with your OK).
+   The live project already has the later `20261021000200` (Meta send health, applied 2026-10-21), and
+   `20261012000200` rewrites the background-check names without `meta_conversions`. So, in one go: delete any
+   `meta_conversions` row from `cwr.health_checks` (the next lead sent to Meta writes it again), apply
+   `20261012000200`, then re-run the three `health_checks_name_check` lines from `20261021000200`.
 2. Deploy the worker: `npx supabase functions deploy email-worker --no-verify-jwt --project-ref egadvqpatnlkvgiiszzx` (or Claude deploys it with your OK).
 3. In Supabase → Edge Functions → Secrets, add:
    - `MAILERSEND_API_KEY` — the same key the Cloudflare Worker uses;
