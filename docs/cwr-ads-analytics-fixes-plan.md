@@ -1,6 +1,6 @@
 # Ads & analytics audit fixes — plan
 
-Status: APPROVED by owner 2026-10-21 (chat: apply fixes for all) — BUILDING
+Status: APPROVED by owner 2026-10-21 (chat: apply fixes for all) — BUILT 2026-10-21 (checker verdict PASS; local commits only, not pushed)
 
 - **Owner request:** on 2026-10-21 the owner asked to "apply fixes for all" twelve findings from the audit of
   Admin → Ads & analytics. That request approves the scope below, including the two items that the
