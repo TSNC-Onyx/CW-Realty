@@ -39,9 +39,12 @@ function applyAllowedConsent({ allowed, tagManager }: { allowed: ConsentChoice; 
   const hasNewClick = allowed.ads && keepAttribution();
   if (!allowed.ads) forgetAttribution();
   if (!hasAnyConsent(allowed)) return hasNewClick;
-  if (isTagManagerRunning()) updateTagConsent(allowed);
+  if (isTagManagerRunning()) {
+    updateTagConsent(allowed);
+    return hasNewClick;
+  }
   // Click IDs go back in the address only for Advertising, and only before the first start (plan D4).
-  else startTagManager({ ...tagManager, choice: allowed, beforeStart: allowed.ads ? restoreClickIdsInAddress : undefined });
+  startTagManager({ ...tagManager, choice: allowed, beforeStart: allowed.ads ? restoreClickIdsInAddress : undefined });
   return hasNewClick;
 }
 
