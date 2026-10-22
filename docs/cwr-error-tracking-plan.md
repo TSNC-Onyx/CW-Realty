@@ -348,7 +348,7 @@ Two new migrations, because Postgres refuses to use a new enum value in the same
     - Notices: "No one gets problem emails yet — switch someone on below"; "Email isn't set up — problem emails can't be sent".
     - With no one switched on, `sendProblemAlerts` only writes its heartbeat: no run is created, groups stay pending, and nothing is marked as alerted. The first digest after someone is switched on covers everything still pending. This is a known setup state, so it raises no critical.
 14. **Dashboard (owners):**
-    - "Problems — last 24 hours" card.
+    - ~~"Problems — last 24 hours" card~~ (removed 2026-10-22 at the owner's request; the log, notices, and problem emails are unchanged).
     - Dead-man notices for each stale `health_checks` row.
     - "The problem log isn't saving (service key missing)" when the service client is unavailable.
 15. **Navigation:** "Problems" entry, owners only.
