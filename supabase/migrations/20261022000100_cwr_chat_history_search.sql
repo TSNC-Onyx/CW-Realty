@@ -20,6 +20,14 @@ alter table cwr.chat_sessions
 comment on column cwr.chat_sessions.first_question is 'The first visitor message, cut to 300 characters, for the Chat history list.';
 comment on column cwr.chat_sessions.first_question_sort is 'first_question in lower case, so the A-Z sort ignores capitals.';
 
+-- The audit log already leaves out message text (chat_messages.body); the first question
+-- is a copy of it, so it is left out too. Set before the backfill below, whose updates
+-- are audited too.
+drop trigger chat_sessions_record_audit on cwr.chat_sessions;
+create trigger chat_sessions_record_audit
+  after insert or update or delete on cwr.chat_sessions
+  for each row execute function cwr.record_audit('first_question', 'first_question_sort');
+
 update cwr.chat_sessions s
 set question_count = a.questions,
     handoff_count = a.handoffs,
@@ -68,13 +76,6 @@ create trigger chat_messages_count
   after insert on cwr.chat_messages
   referencing new table as new_rows
   for each statement execute function cwr.count_chat_messages();
-
--- The audit log already leaves out message text (chat_messages.body); the first question
--- is a copy of it, so it is left out too.
-drop trigger chat_sessions_record_audit on cwr.chat_sessions;
-create trigger chat_sessions_record_audit
-  after insert or update or delete on cwr.chat_sessions
-  for each row execute function cwr.record_audit('first_question', 'first_question_sort');
 
 -- ---------------------------------------------------------------------------
 -- Activity figures for one span. Runs with the caller's rights, so Row Level Security
