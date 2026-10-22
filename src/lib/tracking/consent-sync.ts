@@ -35,8 +35,10 @@ async function runSyncLoop(): Promise<void> {
       await postConsent(signal);
     }
   } catch {
-    // Safe to stop: the browser's own cookie already holds the choice; the server's copy only
-    // makes it last longer in Safari, and the visitor is simply asked again later.
+    // Safe to stop: the browser's own cookie holds the choice (written again here, in case an
+    // older answer's cookie landed as the deadline hit); the server's copy only makes it last
+    // longer in Safari, and the visitor is simply asked again later.
+    if (newestChoiceCookie) document.cookie = newestChoiceCookie;
   }
 }
 

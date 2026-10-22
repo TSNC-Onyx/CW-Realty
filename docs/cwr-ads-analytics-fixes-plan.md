@@ -741,3 +741,12 @@ Deviations and choices made while building, each the smallest option faithful to
   `240-meta-send-health` (6); `npm run build` exit 0; privacy e2e exit 0 — 3 passed; tracking e2e exit 0 — 24
   passed (baseline 15). The local database was then reset and `npm run content:import:local` run. The
   independent review is left to the session that asked for this build.
+
+Follow-up after the independent review (owner asked 2026-10-21, "fix the 5 small notes"):
+
+- **Passing-failure note wording.** `getPassingFailureNote` starts its text with ". A try on…" (ending the
+  sentence before it) where R6 says " A try on…"; the full stop reads correctly after the "last lead sent" line.
+- **Meta error detail.** Reads "Meta answered 400, error code 190" instead of nested brackets.
+- **`/consent` body limit.** Counts bytes and stops reading past 8 KB instead of buffering the whole body.
+- **Consent sync deadline.** The newest choice cookie is written again if the 3-second deadline stops the calls.
+- **R4 e2e.** The restore test now also moves to another page afterwards (edge case 10).

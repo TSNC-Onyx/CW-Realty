@@ -134,4 +134,23 @@ describe("sendConsentToServer", () => {
     // Assert
     expect({ deadlines: timeout.mock.calls, calls: pendingCalls.length }).toEqual({ deadlines: [[3000]], calls: 2 });
   });
+
+  it("writes the newest choice again when the deadline stops the calls", async () => {
+    // Arrange
+    const deadline = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal);
+    const { sendConsentToServer } = await loadConsentSync();
+    const sending = sendConsentToServer({ cookieString: ACCEPT });
+    await settle();
+    void sendConsentToServer({ cookieString: REJECT });
+    // An older "accept" answer's cookie lands just as the deadline hits.
+    cookieWrites.push(ACCEPT);
+
+    // Act
+    deadline.abort(new DOMException("Timed out", "TimeoutError"));
+    await sending;
+
+    // Assert
+    expect(cookieWrites.at(-1)).toBe(REJECT);
+  });
 });

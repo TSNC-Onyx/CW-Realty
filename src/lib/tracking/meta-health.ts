@@ -23,7 +23,7 @@ function isRefusalStatus(status: number): boolean {
 }
 
 function getAnswerFailure({ status, metaErrorCode }: { status: number; metaErrorCode: number | null }): MetaSendFailure {
-  const errorCodeText = metaErrorCode === null ? "" : ` (Meta error code ${metaErrorCode})`;
+  const errorCodeText = metaErrorCode === null ? "" : `, error code ${metaErrorCode}`;
   const isRefusal = isRefusalStatus(status);
   return { severity: isRefusal ? "error" : "warning", code: `http_${status}`, detail: `Meta answered ${status}${errorCodeText}`, isRefusal };
 }
