@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { AreaCards } from "@/components/admin/dashboard/area-cards";
 import { HealthNotices } from "@/components/admin/dashboard/health-notices";
 import { LatestMessages } from "@/components/admin/dashboard/latest-messages";
-import { ProblemsCard } from "@/components/admin/dashboard/problems-card";
 import { QUICK_ACTIONS, QuickActions, type QuickAction } from "@/components/admin/dashboard/quick-actions";
 import { TodayStrip } from "@/components/admin/dashboard/today-strip";
 import { ButtonLink } from "@/components/ui/button-link";
@@ -30,7 +29,7 @@ function getQuickActions(areas: AdminArea[]): QuickAction[] {
 }
 
 function getHealthLoads(health: OwnerHealth | null): LoadResult<unknown>[] {
-  return health ? [health.checks, health.problemCounts, health.problemRecipientCount] : [];
+  return health ? [health.checks, health.problemRecipientCount] : [];
 }
 
 function SetupNotice() {
@@ -50,7 +49,7 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
   const admin = await requireAdminPage(ALL_ROLES);
   const now = new Date();
   const areas = getAreasForRole(admin.role).filter((area) => !DAILY_AREA_KEYS.has(area.key));
-  const [summary, threads, health] = await Promise.all([fetchDashboardSummary(admin, now), fetchLatestThreads(admin, LATEST_MESSAGE_COUNT), fetchOwnerHealth(admin, now)]);
+  const [summary, threads, health] = await Promise.all([fetchDashboardSummary(admin, now), fetchLatestThreads(admin, LATEST_MESSAGE_COUNT), fetchOwnerHealth(admin)]);
   const loadNotice = await reportPageLoad({ admin, action: "dashboard.load", results: [...summary.loads, threads, ...getHealthLoads(health)] });
   const quickActions = getQuickActions(areas);
   const isSetupIncomplete = admin.role === "owner" && !isServiceAccessConfigured();
@@ -84,10 +83,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
       <TodayStrip figures={summary.today} />
       <div className="dashboard-split">
         <LatestMessages threads={threads} emptyAction={emptyAction} notice={loadNotice} />
-        {(quickActions.length > 0 || health) && (
+        {quickActions.length > 0 && (
           <div className="grid content-start gap-6">
-            {quickActions.length > 0 && <QuickActions actions={quickActions} />}
-            {health && <ProblemsCard counts={health.problemCounts} />}
+            <QuickActions actions={quickActions} />
           </div>
         )}
       </div>
