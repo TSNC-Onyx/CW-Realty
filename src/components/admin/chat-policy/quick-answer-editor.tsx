@@ -17,7 +17,9 @@ import { callQuickAction } from "@/lib/observability/call-server-action";
 // Admin → Chatbot policy → "Chat topic buttons" (docs/cwr-chat-quick-answers-and-tests-plan.md §B):
 // one box per button with a word count and a chat-style preview, so the owner edits answers
 // without touching headings. Saving writes them into the draft (then test and publish as usual);
-// it waits while the policy editor holds unsaved text, so neither overwrites the other.
+// it waits while the policy editor holds unsaved text, so neither overwrites the other. The
+// buttons scroll in the same box as the test questions, so the page stays short (owner request
+// 2026-10-22); Save stays outside the box, always in view.
 
 const MAX_ANSWER_LENGTH = 600;
 const AIM_WORDS = 25;
@@ -48,10 +50,10 @@ function AnswerStatus({ text }: { text: string }) {
 function AnswerPreview({ row, text }: { row: QuickAnswerRow; text: string }) {
   if (text.trim() === "") return null;
   return (
-    <div aria-label={`Preview: ${row.label}`} role="group" className="type-small mt-2 max-w-sm bg-surface-soft px-4 py-3">
+    <div aria-label={`Preview: ${row.label}`} role="group" className="type-small mt-1 max-w-sm bg-surface-soft px-3 py-2">
       <p>{text.trim()}</p>
       {row.link && <p className="mt-2 inline-flex items-center gap-1 font-semibold underline">{row.link.label}<ArrowRight aria-hidden size={ICON_SIZE.inline} /></p>}
-      <p className="mt-2 text-muted">{`Source: Policy · Quick answer: ${row.label}`}</p>
+      <p className="mt-1 text-muted">{`Source: Policy · Quick answer: ${row.label}`}</p>
     </div>
   );
 }
@@ -61,9 +63,9 @@ function AnswerField({ row, text, onChange }: { row: QuickAnswerRow; text: strin
   // Saved answers are one line, so spacing and line breaks typed here don't count as changes.
   const savedState = getSavedState({ current: getSingleLineAnswer(text), saved: getSingleLineAnswer(row.text) });
   return (
-    <li className="border-t border-line py-4">
+    <li className="border-t border-line py-3 first:border-t-0">
       <label htmlFor={fieldId} className="block font-bold">{row.label}</label>
-      <p className="type-small mb-2 text-muted">{row.link ? `Links to “${row.link.label}” (${row.link.href})` : "No page link"}</p>
+      <p className="type-small mb-1 text-muted">{row.link ? `Links to “${row.link.label}” (${row.link.href})` : "No page link"}</p>
       <textarea id={fieldId} value={text} maxLength={MAX_ANSWER_LENGTH} rows={2} onChange={(event) => onChange(event.target.value)} aria-describedby={`${fieldId}-status`} className="field-input min-h-20" />
       <div id={`${fieldId}-status`}>
         <AnswerStatus text={text} />
@@ -126,11 +128,14 @@ export function QuickAnswerEditor({ rows, draftId, updatedAt }: QuickAnswerEdito
   return (
     <div className="max-w-prose">
       <p className="mb-2">Each button on the website chat shows its answer below, word for word. Keep answers short (about {AIM_WORDS} words); the link takes visitors to the full page. Saving updates your draft; run the tests, then publish.</p>
-      <ul>
-        {rows.map((row) => (
-          <AnswerField key={row.nodeId} row={row} text={texts[row.nodeId] ?? ""} onChange={(text) => setTexts((current) => ({ ...current, [row.nodeId]: text }))} />
-        ))}
-      </ul>
+      {/* Takes keyboard focus so arrow keys scroll it, like the test questions box. */}
+      <div role="region" aria-label={`Chat topic buttons, ${rows.length} in all`} tabIndex={0} className="policy-test-scroll border border-line px-4">
+        <ul>
+          {rows.map((row) => (
+            <AnswerField key={row.nodeId} row={row} text={texts[row.nodeId] ?? ""} onChange={(text) => setTexts((current) => ({ ...current, [row.nodeId]: text }))} />
+          ))}
+        </ul>
+      </div>
       <SaveControls isDirty={isDirty} isPending={isPending} hasUnsavedPolicyText={hasUnsavedPolicyText} message={message} onSave={handleSave} />
     </div>
   );
