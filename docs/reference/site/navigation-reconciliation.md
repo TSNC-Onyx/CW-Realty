@@ -16,16 +16,16 @@ Reconciles `CWR-sitemap.xml` and `CWR-routes.ts` (the owner's redirects file) ag
 | 8 | No 404, admin, or legally required pages listed | Add a 404 page (search + menu), `/admin` (not indexed, not in sitemap), an Equal Housing Opportunity line in the footer, and a footer link to the NC Real Estate Commission "Working with Real Estate Agents" disclosure, plus a "Cookie settings" control |
 | 9 | Existing database property records (25) do not match the 4 real listings and use test-style slugs (`mgp-001`) | Treated as demo/seed data: not imported into the new site, left untouched in place |
 
-## Menu (6 top-level items; Home added by owner choice 2026-09-26)
+## Menu (6 top-level items; Home added by owner choice 2026-09-26; About us moved second as a single page by owner choice 2026-10-22)
 
 | Menu item | Contains |
 |---|---|
 | Home | Home page (`/`); the footer reaches it through the logo instead of a column |
+| About us | `/about` (a single page; the footer column is headed "About"). Contact (`/contact`) left the menu 2026-10-22: it is reached from the header's "Contact us" button, the phone Call and Text buttons, the footer's phone and email, and page buttons |
 | Listings | Featured properties (`/listings`), Property search (`/property-search`) |
 | Services | Selected services (`/services/selected-services`, owner choice 2026-10-02), CWR TouchUp (`/services/cwr-touchup`), Property management (`/services/property-management`); overview at `/services` |
 | Team | `/team` and member pages (the footer link reads "CWR team") |
 | Resources | FAQs & Homework (`/resources`), Connections (`/connections`; an owner can hide it, which drops it here and sends its address to `/resources` — `docs/cwr-connections-page-switch-plan.md`) |
-| About | About us (`/about`), Contact (`/contact`) |
 
 Link-only pages (`UNLISTED_PAGE_PATHS` in `src/lib/site/navigation.ts`): none at the moment. The former link-only Seller consulting page became the listed Selected services page on 2026-10-02; `/services/seller-consulting` redirects there (301, `next.config.ts`).
 

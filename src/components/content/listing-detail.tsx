@@ -58,11 +58,13 @@ export function ListingDetail({ listing, contact }: { listing: Listing; contact:
   return (
     <>
       <div className="bg-page pt-12 lg:pt-24">
-        <Container className="grid gap-8 lg:grid-cols-12">
-          <div className="lg:col-span-8">
+        {/* One shrinkable column on phones: a long thumbnail row scrolls inside the gallery
+            instead of widening the page (8 thumbnails are 632px; seen 2026-10-22 at 320px). */}
+        <Container className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+          <div className="min-w-0 lg:col-span-8">
             <ListingGallery listing={listing} />
           </div>
-          <div className="lg:col-span-4">
+          <div className="min-w-0 lg:col-span-4">
             <Eyebrow>Featured property</Eyebrow>
             <h1 className="type-h1">{listing.streetAddress}</h1>
             <p className="type-lead mt-2 text-muted">{listing.cityLine}</p>
