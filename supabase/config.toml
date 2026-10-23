@@ -10,7 +10,7 @@ enabled = true
 port = 55321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
-schemas = ["public", "graphql_public", "cwr"]
+schemas = ["public", "graphql_public", "cwr", "summit"]
 # Extra schemas to add to the search_path of every request.
 extra_search_path = ["public", "extensions"]
 # The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
@@ -180,7 +180,8 @@ site_url = "http://127.0.0.1:3100"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000", "http://localhost:3100"]
+# 623 Summit shares this sign-in system; its owner page is served locally on 8623 for testing.
+additional_redirect_urls = ["http://127.0.0.1:3000", "http://localhost:3000", "http://localhost:3100", "http://localhost:8623/admin"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.
@@ -273,11 +274,11 @@ otp_expiry = 3600
 # sign-in-code changes. The hosted project gets the same settings from
 # scripts/push-auth-email-templates.mjs, which reads this file.
 [auth.email.template.invite]
-subject = "Your invite to the CWR admin portal"
+subject = "{{ if eq .RedirectTo `https://623summit.pages.dev/admin` `https://623summit.pages.dev/admin.html` `http://localhost:8623/admin` }}Your invite to the 623 Summit owner console{{ else }}Your invite to the CWR admin portal{{ end }}"
 content_path = "./supabase/templates/invite.html"
 
 [auth.email.template.recovery]
-subject = "Reset your CWR admin password"
+subject = "{{ if eq .RedirectTo `https://623summit.pages.dev/admin` `https://623summit.pages.dev/admin.html` `http://localhost:8623/admin` }}Reset your 623 Summit owner password{{ else }}Reset your CWR admin password{{ end }}"
 content_path = "./supabase/templates/recovery.html"
 
 [auth.email.template.confirmation]

@@ -23,7 +23,8 @@ const FORBIDDEN_PATTERNS = [
     reason: "writes data in a protected Supabase schema",
   },
   { pattern: /\bon\s+(auth|storage|vault|realtime)\./i, reason: "attaches a trigger or policy to a protected schema" },
-  { pattern: /cron\.unschedule\(\s*'(?!cwr_)/i, reason: "unschedules a cron job this build does not own" },
+  // summit_ jobs belong to 623 Summit, which shares this project (docs/runbooks/summit-shared-database.md).
+  { pattern: /cron\.unschedule\(\s*'(?!cwr_|summit_)/i, reason: "unschedules a cron job this build does not own" },
 ];
 
 function getSqlWithoutComments(sql) {

@@ -7,6 +7,7 @@
 import { FIRM_NAME, getBrandedEmailHtml, getEscapedHtml, type EmailButton } from "./layout.ts";
 import type { OutgoingEmail } from "./mailersend.ts";
 import { REPLY_PROMISE } from "./site-values.ts";
+import { getChosenBySite, getSummitAccountHtml, getSummitSubject, isSummitAccountType, SUMMIT_TEMPLATE_VARIABLES, type SummitAccountType } from "./summit.ts";
 
 export { getEscapedHtml };
 
@@ -428,12 +429,27 @@ function getFallbackFileName({ type, kind }: AccountEmailContent): string {
 
 /** The 13 Supabase fallback templates, filled with Supabase's placeholders (logo from the live site). */
 export function getAuthEmailTemplates(): AuthEmailTemplate[] {
-  return ACCOUNT_EMAILS.map((content) => ({
-    type: content.type,
-    kind: content.kind,
-    fileName: getFallbackFileName(content),
-    subject: content.subject,
-    allowedVariables: content.allowedVariables,
-    html: `${getAccountHtml(content, { values: SUPABASE_PLACEHOLDERS })}\n`,
-  }));
+  return ACCOUNT_EMAILS.map((content) => {
+    const template = {
+      type: content.type,
+      kind: content.kind,
+      fileName: getFallbackFileName(content),
+      subject: content.subject,
+      allowedVariables: content.allowedVariables,
+      html: getAccountHtml(content, { values: SUPABASE_PLACEHOLDERS }),
+    };
+    const withSummit = isSummitAccountType(content.type) ? getWithSummitVersion(template, content.type) : template;
+    return { ...withSummit, html: `${withSummit.html}\n` };
+  });
+}
+
+// Reset and invite are also sent for 623 Summit, which shares the sign-in system; the CWR text
+// stays exactly as it was in the else branch.
+function getWithSummitVersion(template: AuthEmailTemplate, type: SummitAccountType): AuthEmailTemplate {
+  return {
+    ...template,
+    subject: getChosenBySite({ summit: getSummitSubject(type), cwr: template.subject }),
+    allowedVariables: [...template.allowedVariables, ...SUMMIT_TEMPLATE_VARIABLES],
+    html: getChosenBySite({ summit: getSummitAccountHtml(type), cwr: template.html }),
+  };
 }
