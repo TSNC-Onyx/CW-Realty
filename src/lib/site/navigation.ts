@@ -15,8 +15,9 @@ export const CONNECTIONS_PAGE_PATH = "/connections";
 
 export type NavLink = { label: string; href: string };
 
+/** footer: a single-page item's footer column, when its heading or link reads differently there. */
 export type NavSection =
-  | { kind: "link"; label: string; href: string }
+  | { kind: "link"; label: string; href: string; footer?: { heading: string; linkLabel: string } }
   | { kind: "group"; label: string; links: NavLink[] };
 
 /** Owner switches that change which pages are listed; leaving them out lists every page. */
@@ -26,6 +27,9 @@ const ALL_PAGES_LISTED: PageListing = { isConnectionsPageVisible: true };
 
 export const MENU_SECTIONS: NavSection[] = [
   { kind: "link", label: "Home", href: HOME_PATH },
+  // Second, as a single page (owner choice 2026-10-22); Contact stays reachable from the header's
+  // "Contact us" button, the phone Call and Text buttons, the footer's phone and email, and page buttons.
+  { kind: "link", label: "About us", href: "/about", footer: { heading: "About", linkLabel: "About us" } },
   {
     kind: "group",
     label: "Listings",
@@ -43,21 +47,13 @@ export const MENU_SECTIONS: NavSection[] = [
       { label: "Property management", href: "/services/property-management" },
     ],
   },
-  { kind: "link", label: "Team", href: "/team" },
+  { kind: "link", label: "Team", href: "/team", footer: { heading: "Team", linkLabel: "CWR team" } },
   {
     kind: "group",
     label: "Resources",
     links: [
       { label: "FAQs & Homework", href: "/resources" },
       { label: "Connections", href: CONNECTIONS_PAGE_PATH },
-    ],
-  },
-  {
-    kind: "group",
-    label: "About",
-    links: [
-      { label: "About us", href: "/about" },
-      { label: "Contact", href: "/contact" },
     ],
   },
 ];
@@ -107,7 +103,7 @@ export function getFooterColumns(listing: PageListing = ALL_PAGES_LISTED): { hea
   const footerSections = getMenuSections(listing).filter((section) => section.kind === "group" || section.href !== HOME_PATH);
   return footerSections.map((section) =>
     section.kind === "link"
-      ? { heading: section.label, links: [{ label: "CWR team", href: section.href }] }
+      ? { heading: section.footer?.heading ?? section.label, links: [{ label: section.footer?.linkLabel ?? section.label, href: section.href }] }
       : { heading: section.label, links: section.links },
   );
 }

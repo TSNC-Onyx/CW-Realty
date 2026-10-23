@@ -24,9 +24,35 @@ describe("menu", () => {
     expect(count).toBeLessThanOrEqual(maxTopLevelItems);
   });
 
+  it("lists About us second, as a single page, then the rest in order (owner choice 2026-10-22)", () => {
+    // Arrange
+    const expectedLabels = ["Home", "About us", "Listings", "Services", "Team", "Resources"];
+
+    // Act
+    const labels = MENU_SECTIONS.map((section) => section.label);
+
+    // Assert
+    expect(labels).toEqual(expectedLabels);
+  });
+
+  it("gives single-page items their own footer heading and link wording", () => {
+    // Arrange
+    const singlePageHeadings = ["About", "Team"];
+
+    // Act
+    const columns = getFooterColumns().filter((column) => singlePageHeadings.includes(column.heading));
+
+    // Assert
+    expect(columns).toEqual([
+      { heading: "About", links: [{ label: "About us", href: "/about" }] },
+      { heading: "Team", links: [{ label: "CWR team", href: "/team" }] },
+    ]);
+  });
+
   it("lists every page from the navigation reconciliation", () => {
     // Arrange
     const expectedPaths = [
+      "/about",
       "/listings",
       "/property-search",
       "/services/selected-services",
@@ -35,8 +61,6 @@ describe("menu", () => {
       "/team",
       "/resources",
       "/connections",
-      "/about",
-      "/contact",
     ];
 
     // Act
