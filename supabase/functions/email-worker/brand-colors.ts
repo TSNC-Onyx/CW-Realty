@@ -14,3 +14,15 @@ export const EMAIL_COLORS = {
   "on-dark-muted": "#cfcfcf",
   gold: "#e6bd35",
 } as const;
+
+// 623 Summit's reset and invite emails (summit.ts) use 623's own palette, from its design tokens
+// in the 623Summit repo's CLAUDE.md. Kept here because this is the one file allowed raw values.
+export const SUMMIT_EMAIL_COLORS = {
+  page: "#FDFBF7",
+  header: "#2C4358",
+  surface: "#ffffff",
+  ink: "#1F1D19",
+  muted: "#6B6559",
+  gold: "#A88452",
+  onHeader: "#FDFBF7",
+} as const;
