@@ -12,6 +12,9 @@ export const SITE_FOOTER_ID = "site-footer";
 // The home link leads the header menu (owner choice 2026-09-26); the footer reaches home through its logo.
 const HOME_PATH = "/";
 export const CONNECTIONS_PAGE_PATH = "/connections";
+// 623 Summit, the owner's short-term rental, listed under Services (owner request 2026-10-22).
+export const SUMMIT_SITE_URL = "https://623summit.pages.dev";
+const EXTERNAL_LINK_PREFIX = "https://";
 
 export type NavLink = { label: string; href: string };
 
@@ -45,6 +48,7 @@ export const MENU_SECTIONS: NavSection[] = [
       { label: "Selected services", href: "/services/selected-services" },
       { label: "CWR TouchUp", href: "/services/cwr-touchup" },
       { label: "Property management", href: "/services/property-management" },
+      { label: "623@Summit (Airbnb)", href: SUMMIT_SITE_URL },
     ],
   },
   { kind: "link", label: "Team", href: "/team", footer: { heading: "Team", linkLabel: "CWR team" } },
@@ -110,6 +114,11 @@ export function getFooterColumns(listing: PageListing = ALL_PAGES_LISTED): { hea
 
 export function getAllMenuLinks(listing: PageListing = ALL_PAGES_LISTED): NavLink[] {
   return getFooterColumns(listing).flatMap((column) => column.links);
+}
+
+/** True for a link that leaves this site; menus open those in a new tab and say so. */
+export function isExternalHref(href: string): boolean {
+  return href.startsWith(EXTERNAL_LINK_PREFIX);
 }
 
 export function isCurrentPath(pathname: string, href: string): boolean {

@@ -5,7 +5,7 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { PageIntro } from "@/components/ui/page-intro";
 import { Section } from "@/components/ui/section";
 import { TextLink } from "@/components/ui/text-link";
-import { getAllMenuLinks } from "@/lib/site/navigation";
+import { getAllMenuLinks, isExternalHref } from "@/lib/site/navigation";
 import { fetchPageListing } from "@/lib/site/page-listing";
 
 // Navigation-reconciliation #8: a helpful 404 with the menu and a way to search homes.
@@ -34,7 +34,7 @@ export default async function NotFound() {
       <Section labelledBy="site-sections-heading">
         <h2 id="site-sections-heading" className="type-h3 mb-6">Popular pages</h2>
         <ul className="grid gap-x-8 gap-y-2 md:grid-cols-3">
-          {getAllMenuLinks(listing).map((link) => (
+          {getAllMenuLinks(listing).filter((link) => !isExternalHref(link.href)).map((link) => (
             <li key={link.href}>
               <Link href={link.href} className="flex min-h-11 items-center font-semibold underline underline-offset-4">
                 {link.label}
