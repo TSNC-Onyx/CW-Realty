@@ -7,6 +7,7 @@ import { useRef, type MouseEvent } from "react";
 
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Logo } from "@/components/layout/logo";
+import { MenuLink } from "@/components/layout/menu-link";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { CONTACT_PAGE_PATH, type ContactLinks } from "@/lib/site/contact-links";
 import { SITE_FOOTER_ID, isCurrentPath, isCurrentSection, type NavLink, type NavSection } from "@/lib/site/navigation";
@@ -27,14 +28,14 @@ function SubPageLink({ link, pathname, onNavigate }: NavigateProps & { link: Nav
   const isCurrent = isCurrentPath(pathname, link.href);
   return (
     <li>
-      <Link
+      <MenuLink
         href={link.href}
         onClick={onNavigate}
         aria-current={isCurrent ? "page" : undefined}
         className={`nav-link-dark flex min-h-11 items-center pl-8 text-md underline-offset-4 ${isCurrent ? "font-bold underline" : ""}`}
       >
         {link.label}
-      </Link>
+      </MenuLink>
     </li>
   );
 }
