@@ -51,6 +51,9 @@ export function TurnstileField({ action, botCheck, fallback }: TurnstileFieldPro
           id={widgetId}
           siteKey={siteKey}
           options={{ action, size: "flexible", theme: "light", appearance: "interaction-only" }}
+          // The library's style (allowed by hash, src/lib/security/turnstile-style.ts) sets a 300px
+          // minimum that would overflow a 320px phone; !important cancels it so the box fills its column.
+          className="min-w-0!"
           scriptOptions={{ onError: handlers.onScriptError }}
           onSuccess={handlers.onSuccess}
           onExpire={handlers.onExpire}

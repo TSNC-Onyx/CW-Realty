@@ -1,3 +1,5 @@
+import { TURNSTILE_CONTAINER_STYLE_HASH } from "@/lib/security/turnstile-style";
+
 export const CONTENT_SECURITY_POLICY_HEADER = "Content-Security-Policy";
 export const NONCE_HEADER = "x-nonce";
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
@@ -81,7 +83,12 @@ export function getContentSecurityPolicy(options: ContentSecurityPolicyOptions):
     "form-action 'self'",
     "frame-ancestors 'none'",
   ];
-  if (!options.isDevelopment) directives.push("upgrade-insecure-requests");
+  if (!options.isDevelopment) {
+    // Only the Quick Check container's own style attribute; development already allows inline
+    // styles, which this directive would override.
+    directives.push(`style-src-attr 'unsafe-hashes' ${TURNSTILE_CONTAINER_STYLE_HASH}`);
+    directives.push("upgrade-insecure-requests");
+  }
   return directives.join("; ");
 }
 
