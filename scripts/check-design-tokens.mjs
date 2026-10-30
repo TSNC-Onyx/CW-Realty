@@ -1,15 +1,20 @@
 // Design token check, run in CI before any merge (Style §11.15).
 // Fails when app code uses a raw color, an arbitrary pixel/color value, a rounded
 // corner other than the approved circles, or an inline style (blocked by the CSP).
-// The only file allowed to hold raw values is the token file, app/globals.css.
+// The only file allowed to hold raw values is the token file, app/globals.css, plus the
+// one email exception (owner approved 2026-10-08): the email-worker's brand-colors.ts, which
+// email apps need as plain values and a test keeps equal to the tokens. The email-worker's
+// code (supabase/functions) is checked too.
 //
 // Usage: node scripts/check-design-tokens.mjs
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 
-const SOURCE_DIRS = ["app", "src"];
+const SOURCE_DIRS = ["app", "src", path.join("supabase", "functions")];
 const TOKEN_FILE = path.join("app", "globals.css");
+const EMAIL_COLOR_FILE = path.join("supabase", "functions", "email-worker", "brand-colors.ts");
+const RAW_VALUE_FILES = new Set([TOKEN_FILE, EMAIL_COLOR_FILE]);
 const SOURCE_FILE = /\.(tsx?|css)$/;
 const TEST_FILE = /\.test\.tsx?$/;
 const RULES = [
@@ -43,7 +48,7 @@ function getFileViolations(filePath) {
 }
 
 function getAllViolations() {
-  const filePaths = SOURCE_DIRS.flatMap(getSourceFiles).filter((filePath) => filePath !== TOKEN_FILE);
+  const filePaths = SOURCE_DIRS.flatMap(getSourceFiles).filter((filePath) => !RAW_VALUE_FILES.has(filePath));
   return filePaths.flatMap(getFileViolations);
 }
 

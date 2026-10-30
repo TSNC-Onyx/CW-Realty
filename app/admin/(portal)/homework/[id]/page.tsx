@@ -5,8 +5,9 @@ import { DownloadDetailsForm } from "@/components/admin/homework/download-detail
 import { CaptionsPanel, CoverPanel, DocumentFilePanel, VideoFilePanel, type StoredFile } from "@/components/admin/homework/homework-file-panels";
 import { VideoDetailsForm } from "@/components/admin/homework/video-details-form";
 import { LoadProblem } from "@/components/admin/load-problem";
-import { Message } from "@/components/ui/message";
+import { CreatedMessage } from "@/components/admin/uploads/created-message";
 import { TextLink } from "@/components/ui/text-link";
+import { getMissedCount } from "@/lib/admin/created-href";
 import { getItemCover, getStoredFileDetail } from "@/lib/admin/homework/item-labels";
 import { fetchAdminHomeworkItem, type AdminHomeworkItem } from "@/lib/admin/homework/queries";
 import { showPageNotFound } from "@/lib/admin/record-page-not-found";
@@ -15,7 +16,7 @@ import { EDITOR_ROLES, requireAdminPage } from "@/lib/admin/require-admin";
 
 export const metadata: Metadata = { title: "Edit Homework item" };
 
-type EditHomeworkPageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> };
+type EditHomeworkPageProps = { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string; missed?: string }> };
 
 function getStoredFile(item: AdminHomeworkItem): StoredFile | null {
   const detail = getStoredFileDetail(item);
@@ -28,7 +29,7 @@ function VideoSections({ item }: { item: AdminHomeworkItem }) {
       <VideoFilePanel itemId={item.id} file={getStoredFile(item)} hasUploadedCover={item.photo_path !== null && !item.is_photo_from_video} />
       <CoverPanel itemId={item.id} title={item.title} cover={getItemCover(item)} isFromVideo={item.is_photo_from_video} />
       <CaptionsPanel itemId={item.id} title={item.title} hasCaptions={item.captions_path !== null} />
-      <VideoDetailsForm mode="edit" itemId={item.id} defaults={{ title: item.title, description: item.description, isSpanish: item.is_spanish, isVisible: item.is_visible }} />
+      <VideoDetailsForm itemId={item.id} defaults={{ title: item.title, description: item.description, isSpanish: item.is_spanish, isVisible: item.is_visible }} />
     </div>
   );
 }
@@ -56,6 +57,7 @@ function DownloadSections({ item }: { item: AdminHomeworkItem }) {
 }
 
 function getCreatedMessage(item: AdminHomeworkItem): string {
+  if (item.kind === "video" && item.file_name) return "It shows on the Homework page now. Change anything below, or go back to the list.";
   if (item.kind === "video") return "Upload the video below. It shows on the Homework page once uploaded.";
   if (item.kind === "file") return "Upload the file below. It shows on the Homework page once uploaded.";
   return "The link is saved. Change anything below, or go back to the list.";
@@ -73,7 +75,7 @@ function ItemLoadProblem({ notice }: { notice: LoadProblemNotice | null }) {
 }
 
 export default async function EditHomeworkItemPage({ params, searchParams }: EditHomeworkPageProps) {
-  const [{ id }, { created }] = await Promise.all([params, searchParams]);
+  const [{ id }, { created, missed }] = await Promise.all([params, searchParams]);
   const admin = await requireAdminPage(EDITOR_ROLES);
   const parsedId = z.uuid().safeParse(id);
   if (!parsedId.success) return showPageNotFound({ admin, path: `/admin/homework/${id}` });
@@ -89,13 +91,7 @@ export default async function EditHomeworkItemPage({ params, searchParams }: Edi
       <div className="mb-10">
         <TextLink href="/resources" hasArrow>View on the Homework page</TextLink>
       </div>
-      {created && (
-        <div className="mb-8 max-w-prose">
-          <Message tone="success" title={item.kind === "video" ? "Video added" : "Item added"}>
-            <p>{getCreatedMessage(item)}</p>
-          </Message>
-        </div>
-      )}
+      {created && <CreatedMessage title={item.kind === "video" ? "Video added" : "Item added"} nextStep={getCreatedMessage(item)} missedCount={getMissedCount(missed)} fileNoun="file" />}
       {item.kind === "video" ? <VideoSections item={item} /> : <DownloadSections item={item} />}
     </>
   );

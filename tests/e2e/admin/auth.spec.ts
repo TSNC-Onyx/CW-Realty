@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { HAS_ADMIN_DATABASE, addOldSignInCode, createTestAdmin, fetchResetLink, signInFully, signInWithPassword, waitForBotCheck } from "./admin-helpers";
+import { HAS_ADMIN_DATABASE, addOldSignInCode, createTestAdmin, fetchResetLink, fetchSignInLink, signInFully, signInWithPassword, waitForBotCheck } from "./admin-helpers";
 
 // Sign-in with email and password only (owner choice 2026-10-09, docs/cwr-password-only-sign-in-plan.md).
 
@@ -100,6 +100,18 @@ test("a reset link lets someone choose an 8-character password and go straight i
   await expect(page.getByRole("heading", { level: 1, name: "Dashboard" })).toBeVisible();
   await page.getByRole("button", { name: "Sign out" }).click();
   await signInFully(page, { ...admin, password: newPassword });
+});
+
+test("a sign-in link made outside the site does not sign anyone in", async ({ page, baseURL }) => {
+  // Arrange
+  const admin = await createTestAdmin("owner");
+  const link = await fetchSignInLink({ email: admin.email, baseUrl: baseURL ?? "" });
+
+  // Act
+  await page.goto(link);
+
+  // Assert
+  await expect(page).toHaveURL(/\/admin\/login\?reason=link-expired/);
 });
 
 test("a 7-character password is refused with a plain reason", async ({ page, baseURL }) => {

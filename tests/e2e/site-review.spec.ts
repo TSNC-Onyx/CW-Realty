@@ -35,6 +35,20 @@ test.describe("menu", () => {
     await expect(page.locator("header").getByRole("link", { name: "Property management" })).toBeVisible();
   });
 
+  test("the Services menu ends with 623@Summit, which opens in a new tab (owner request 2026-10-22)", async ({ page }) => {
+    // Arrange
+    await page.goto("/");
+
+    // Act
+    await page.getByRole("button", { name: "Services" }).click();
+    const summitLink = page.locator("header").getByRole("link", { name: "623@Summit (Airbnb) (opens in a new tab)" });
+
+    // Assert
+    await expect(summitLink).toHaveAttribute("href", "https://623summit.pages.dev");
+    await expect(summitLink).toHaveAttribute("target", "_blank");
+    await expect(summitLink).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
   test("the footer has no Home column", async ({ page }) => {
     // Arrange
     await page.goto("/");

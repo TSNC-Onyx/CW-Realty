@@ -12,11 +12,15 @@ export const SITE_FOOTER_ID = "site-footer";
 // The home link leads the header menu (owner choice 2026-09-26); the footer reaches home through its logo.
 const HOME_PATH = "/";
 export const CONNECTIONS_PAGE_PATH = "/connections";
+// 623 Summit, the owner's short-term rental, listed under Services (owner request 2026-10-22).
+export const SUMMIT_SITE_URL = "https://623summit.pages.dev";
+const EXTERNAL_LINK_PREFIX = "https://";
 
 export type NavLink = { label: string; href: string };
 
+/** footer: a single-page item's footer column, when its heading or link reads differently there. */
 export type NavSection =
-  | { kind: "link"; label: string; href: string }
+  | { kind: "link"; label: string; href: string; footer?: { heading: string; linkLabel: string } }
   | { kind: "group"; label: string; links: NavLink[] };
 
 /** Owner switches that change which pages are listed; leaving them out lists every page. */
@@ -26,6 +30,9 @@ const ALL_PAGES_LISTED: PageListing = { isConnectionsPageVisible: true };
 
 export const MENU_SECTIONS: NavSection[] = [
   { kind: "link", label: "Home", href: HOME_PATH },
+  // Second, as a single page (owner choice 2026-10-22); Contact stays reachable from the header's
+  // "Contact us" button, the phone Call and Text buttons, the footer's phone and email, and page buttons.
+  { kind: "link", label: "About us", href: "/about", footer: { heading: "About", linkLabel: "About us" } },
   {
     kind: "group",
     label: "Listings",
@@ -41,23 +48,16 @@ export const MENU_SECTIONS: NavSection[] = [
       { label: "Selected services", href: "/services/selected-services" },
       { label: "CWR TouchUp", href: "/services/cwr-touchup" },
       { label: "Property management", href: "/services/property-management" },
+      { label: "623@Summit (Airbnb)", href: SUMMIT_SITE_URL },
     ],
   },
-  { kind: "link", label: "Team", href: "/team" },
+  { kind: "link", label: "Team", href: "/team", footer: { heading: "Team", linkLabel: "CWR team" } },
   {
     kind: "group",
     label: "Resources",
     links: [
       { label: "FAQs & Homework", href: "/resources" },
       { label: "Connections", href: CONNECTIONS_PAGE_PATH },
-    ],
-  },
-  {
-    kind: "group",
-    label: "About",
-    links: [
-      { label: "About us", href: "/about" },
-      { label: "Contact", href: "/contact" },
     ],
   },
 ];
@@ -107,13 +107,18 @@ export function getFooterColumns(listing: PageListing = ALL_PAGES_LISTED): { hea
   const footerSections = getMenuSections(listing).filter((section) => section.kind === "group" || section.href !== HOME_PATH);
   return footerSections.map((section) =>
     section.kind === "link"
-      ? { heading: section.label, links: [{ label: "CWR team", href: section.href }] }
+      ? { heading: section.footer?.heading ?? section.label, links: [{ label: section.footer?.linkLabel ?? section.label, href: section.href }] }
       : { heading: section.label, links: section.links },
   );
 }
 
 export function getAllMenuLinks(listing: PageListing = ALL_PAGES_LISTED): NavLink[] {
   return getFooterColumns(listing).flatMap((column) => column.links);
+}
+
+/** True for a link that leaves this site; menus open those in a new tab and say so. */
+export function isExternalHref(href: string): boolean {
+  return href.startsWith(EXTERNAL_LINK_PREFIX);
 }
 
 export function isCurrentPath(pathname: string, href: string): boolean {

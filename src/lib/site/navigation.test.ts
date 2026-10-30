@@ -9,6 +9,7 @@ import {
   getListedPagePaths,
   getMenuSections,
   isCurrentPath,
+  isExternalHref,
   isCurrentSection,
 } from "@/lib/site/navigation";
 
@@ -24,19 +25,44 @@ describe("menu", () => {
     expect(count).toBeLessThanOrEqual(maxTopLevelItems);
   });
 
+  it("lists About us second, as a single page, then the rest in order (owner choice 2026-10-22)", () => {
+    // Arrange
+    const expectedLabels = ["Home", "About us", "Listings", "Services", "Team", "Resources"];
+
+    // Act
+    const labels = MENU_SECTIONS.map((section) => section.label);
+
+    // Assert
+    expect(labels).toEqual(expectedLabels);
+  });
+
+  it("gives single-page items their own footer heading and link wording", () => {
+    // Arrange
+    const singlePageHeadings = ["About", "Team"];
+
+    // Act
+    const columns = getFooterColumns().filter((column) => singlePageHeadings.includes(column.heading));
+
+    // Assert
+    expect(columns).toEqual([
+      { heading: "About", links: [{ label: "About us", href: "/about" }] },
+      { heading: "Team", links: [{ label: "CWR team", href: "/team" }] },
+    ]);
+  });
+
   it("lists every page from the navigation reconciliation", () => {
     // Arrange
     const expectedPaths = [
+      "/about",
       "/listings",
       "/property-search",
       "/services/selected-services",
       "/services/cwr-touchup",
       "/services/property-management",
+      "https://623summit.pages.dev",
       "/team",
       "/resources",
       "/connections",
-      "/about",
-      "/contact",
     ];
 
     // Act
@@ -44,6 +70,43 @@ describe("menu", () => {
 
     // Assert
     expect(paths).toEqual(expectedPaths);
+  });
+});
+
+describe("623 Summit link", () => {
+  it("ends the Services list with 623@Summit (owner request 2026-10-22)", () => {
+    // Arrange
+    const services = MENU_SECTIONS.find((section) => section.label === "Services");
+
+    // Act
+    const lastLink = services?.kind === "group" ? services.links.at(-1) : undefined;
+
+    // Assert
+    expect(lastLink).toEqual({ label: "623@Summit (Airbnb)", href: "https://623summit.pages.dev" });
+  });
+
+  it("counts only links that leave the site as external", () => {
+    // Act
+    const results = ["https://623summit.pages.dev", "/services/cwr-touchup", "/"].map(isExternalHref);
+
+    // Assert
+    expect(results).toEqual([true, false, false]);
+  });
+
+  it("is never marked as the current page", () => {
+    // Act
+    const isCurrent = isCurrentPath("/services/cwr-touchup", "https://623summit.pages.dev");
+
+    // Assert
+    expect(isCurrent).toBe(false);
+  });
+
+  it("stays out of the sitemap's page list", () => {
+    // Act
+    const paths = getListedPagePaths();
+
+    // Assert
+    expect(paths).not.toContain("https://623summit.pages.dev");
   });
 });
 

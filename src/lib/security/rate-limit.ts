@@ -55,3 +55,8 @@ export async function isOverGuidedLimit(visitorKey: string | null): Promise<bool
 export async function isOverProblemReportLimit(visitorKey: string | null): Promise<boolean> {
   return isOverLimit({ bindingName: PROBLEM_REPORT_RATE_LIMITER, keyPrefix: "problem", visitorKey });
 }
+
+/** Cookie choices: a separate count on the problem-report limiter (20 a minute), so no new binding is needed. */
+export async function isOverConsentLimit(visitorKey: string | null): Promise<boolean> {
+  return isOverLimit({ bindingName: PROBLEM_REPORT_RATE_LIMITER, keyPrefix: "consent", visitorKey, problemAction: "site.consent" });
+}

@@ -67,13 +67,24 @@ test.describe("keyboard and menus", () => {
   test("the current page is marked for screen readers", async ({ page }) => {
     // Arrange
     await page.setViewportSize(VIEWPORTS.desktop);
-    await page.goto("/about");
+    await page.goto("/services/cwr-touchup");
 
     // Act
-    await page.getByRole("button", { name: "About (current section)" }).click();
+    await page.getByRole("button", { name: "Services (current section)" }).click();
 
     // Assert
-    await expect(page.locator('header a[aria-current="page"]:visible')).toHaveText("About us");
+    await expect(page.locator('header a[aria-current="page"]:visible')).toHaveText("CWR TouchUp");
+  });
+
+  test("About us is a single menu link, marked as the current page on About", async ({ page }) => {
+    // Arrange
+    await page.setViewportSize(VIEWPORTS.desktop);
+
+    // Act
+    await page.goto("/about");
+
+    // Assert
+    await expect(page.getByRole("banner").getByRole("link", { name: "About us" })).toHaveAttribute("aria-current", "page");
   });
 
   test("Call, Text, and Chat stay on screen on phones", async ({ page }) => {
@@ -137,14 +148,14 @@ test.describe("desktop sub-menus with a mouse", () => {
 
   test("the down arrow opens a sub-menu from the keyboard", async ({ page }) => {
     // Arrange
-    const aboutButton = page.getByRole("button", { name: "About" });
-    await aboutButton.focus();
+    const resourcesButton = page.getByRole("button", { name: "Resources" });
+    await resourcesButton.focus();
 
     // Act
     await page.keyboard.press("ArrowDown");
 
     // Assert
-    await expect(aboutButton).toHaveAttribute("aria-expanded", "true");
+    await expect(resourcesButton).toHaveAttribute("aria-expanded", "true");
   });
 });
 

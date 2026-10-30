@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useId, useRef, type FocusEvent, type KeyboardEvent, type MouseEvent, type PointerEvent } from "react";
 
+import { MenuLink } from "@/components/layout/menu-link";
 import { useNavMenus, type NavMenus } from "@/components/layout/use-nav-menus";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { isCurrentPath, isCurrentSection, type NavLink, type NavSection } from "@/lib/site/navigation";
@@ -26,14 +27,14 @@ type DisclosureLinkProps = { link: NavLink; isCurrent: boolean; onNavigate: () =
 function DisclosureLink({ link, isCurrent, onNavigate }: DisclosureLinkProps) {
   return (
     <li>
-      <Link
+      <MenuLink
         href={link.href}
         onClick={onNavigate}
         aria-current={isCurrent ? "page" : undefined}
         className={`nav-link-dark flex min-h-11 items-center px-4 text-base ${isCurrent ? "font-bold" : "font-semibold"}`}
       >
         {link.label}
-      </Link>
+      </MenuLink>
     </li>
   );
 }

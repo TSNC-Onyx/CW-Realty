@@ -1,4 +1,4 @@
-import { CircleAlert, CircleCheck } from "lucide-react";
+import { CircleAlert, CircleCheck, Info, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 
 import { LoadProblem } from "@/components/admin/load-problem";
@@ -6,11 +6,12 @@ import { TagReviewButton } from "@/components/admin/tracking/tag-review-button";
 import { TrackingSettingsForm } from "@/components/admin/tracking/tracking-settings-form";
 import { TextLink } from "@/components/ui/text-link";
 import { getQueryLoad } from "@/lib/admin/load-result";
-import { reportPageLoad } from "@/lib/admin/report-page-load";
+import { reportPageLoad, type LoadProblemNotice } from "@/lib/admin/report-page-load";
 import { OWNER_ROLES, requireAdminPage, type AdminContext } from "@/lib/admin/require-admin";
+import { checkSavedContainer, type ContainerCheck } from "@/lib/admin/tracking/container-check";
+import { getMetaHealth, getStatusLines, type MetaCheckRow, type MetaHealth, type MetaProblemRow, type StatusLine, type TrackingSettingsRow } from "@/lib/admin/tracking/status-lines";
 import { isTagReviewDue } from "@/lib/admin/tracking/tag-review";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
-import { getTagServerOrigin } from "@/lib/tracking/tag-server";
 
 // Owner-only "Ads & analytics" (Features §3–4, plan decisions 6 and 16).
 
@@ -18,23 +19,19 @@ export const metadata: Metadata = { title: "Ads & analytics" };
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" });
 
-type TrackingSettingsRow = { gtm_container_id: string | null; meta_pixel_id: string | null; tags_reviewed_at: string | null };
+type LoadedPage = { isLoaded: true; row: TrackingSettingsRow | null; container: ContainerCheck; metaHealth: MetaHealth };
 
-type StatusLine = { label: string; isReady: boolean };
+type TrackingPageState = LoadedPage | { isLoaded: false; notice: LoadProblemNotice | null };
 
-function getMetaStatus(row: TrackingSettingsRow | null): StatusLine {
-  if (!row?.meta_pixel_id) return { label: "Meta server connection: off (no Pixel ID)", isReady: false };
-  if (!process.env.META_CAPI_ACCESS_TOKEN) return { label: "Meta server connection: waiting for the access token (your developer adds it to the website's settings)", isReady: false };
-  return { label: "Meta server connection: on", isReady: true };
-}
+const STATUS_ICONS: Record<StatusLine["kind"], { Icon: LucideIcon; className: string }> = {
+  ready: { Icon: CircleCheck, className: "text-success" },
+  attention: { Icon: CircleAlert, className: "text-muted" },
+  info: { Icon: Info, className: "text-muted" },
+};
 
-function getStatusLines(row: TrackingSettingsRow | null): StatusLine[] {
-  const hasTagServer = getTagServerOrigin(process.env.TAG_SERVER_URL) !== null;
-  return [
-    { label: row?.gtm_container_id ? "Tracking: on after each visitor agrees" : "Tracking: off — visitors see no cookie banner", isReady: Boolean(row?.gtm_container_id) },
-    getMetaStatus(row),
-    { label: hasTagServer ? "Server-side tagging: on" : "Server-side tagging: off (optional)", isReady: hasTagServer },
-  ];
+function StatusIcon({ kind }: { kind: StatusLine["kind"] }) {
+  const { Icon, className } = STATUS_ICONS[kind];
+  return <Icon aria-hidden size={ICON_SIZE.inline} className={`mt-1 shrink-0 ${className}`} />;
 }
 
 function getReviewText(reviewedAt: string | null): string {
@@ -47,20 +44,51 @@ async function fetchTrackingSettings({ supabase, tenantId }: AdminContext) {
   return getQueryLoad({ part: "tracking settings", result, empty: null });
 }
 
-function TrackingSettings({ row }: { row: TrackingSettingsRow | null }) {
+async function fetchMetaCheck({ supabase, tenantId }: AdminContext) {
+  const result = await supabase.from("health_checks").select("name, last_ok_at, last_error, last_error_at").eq("tenant_id", tenantId).eq("name", "meta_conversions").maybeSingle<MetaCheckRow>();
+  return getQueryLoad({ part: "Meta connection check", result, empty: null });
+}
+
+async function fetchLastMetaProblem({ supabase, tenantId }: AdminContext) {
+  const result = await supabase
+    .from("problem_events")
+    .select("occurred_at")
+    .eq("tenant_id", tenantId)
+    .eq("action", "tracking.meta_send")
+    .order("occurred_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<MetaProblemRow>();
+  return getQueryLoad({ part: "last Meta send problem", result, empty: null });
+}
+
+// The settings come first: without them nothing else is shown. Then Google and the two Meta
+// reads run together, so the page waits at most one 3-second check longer (plan R1, R6).
+async function fetchPageState(admin: AdminContext): Promise<TrackingPageState> {
+  const settings = await fetchTrackingSettings(admin);
+  if (!settings.isLoaded) return { isLoaded: false, notice: await reportPageLoad({ admin, action: "tracking.load", results: [settings] }) };
+  const [container, check, lastProblem] = await Promise.all([
+    checkSavedContainer({ containerId: settings.data?.gtm_container_id ?? null, action: "tracking.load" }),
+    fetchMetaCheck(admin),
+    fetchLastMetaProblem(admin),
+  ]);
+  const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings, check, lastProblem] });
+  return { isLoaded: true, row: settings.data, container, metaHealth: getMetaHealth({ check, lastProblem, notice }) };
+}
+
+function TrackingSettings({ row, container, metaHealth }: Omit<LoadedPage, "isLoaded">) {
   return (
     <>
       <ul className="mb-10 grid max-w-prose gap-2">
-        {getStatusLines(row).map((line) => (
+        {getStatusLines({ row, container, metaHealth }).map((line) => (
           <li key={line.label} className="flex items-start gap-2">
-            {line.isReady ? <CircleCheck aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-success" /> : <CircleAlert aria-hidden size={ICON_SIZE.inline} className="mt-1 shrink-0 text-muted" />}
+            <StatusIcon kind={line.kind} />
             {line.label}
           </li>
         ))}
       </ul>
       <section aria-labelledby="review-heading" className="mb-12 max-w-prose border-t-2 border-ink pt-6">
         <h2 id="review-heading" className="type-h3 mb-2">Quarterly tag review</h2>
-        <p className="mb-4">{`Every 3 months, open Tag Manager and remove any tag you no longer use. ${getReviewText(row?.tags_reviewed_at ?? null)}`}</p>
+        <p className="mb-4">{`Every 3 months, open Tag Manager, remove any tag you no longer use, and check that the Meta Pixel tag uses the same Pixel ID as below. ${getReviewText(row?.tags_reviewed_at ?? null)}`}</p>
         <TagReviewButton />
       </section>
       <TrackingSettingsForm defaults={{ gtmContainerId: row?.gtm_container_id ?? "", metaPixelId: row?.meta_pixel_id ?? "" }} />
@@ -70,8 +98,7 @@ function TrackingSettings({ row }: { row: TrackingSettingsRow | null }) {
 
 export default async function TrackingPage() {
   const admin = await requireAdminPage(OWNER_ROLES);
-  const settings = await fetchTrackingSettings(admin);
-  const notice = await reportPageLoad({ admin, action: "tracking.load", results: [settings] });
+  const page = await fetchPageState(admin);
   return (
     <>
       <h1 className="type-h1 mb-2">Ads &amp; analytics</h1>
@@ -80,7 +107,7 @@ export default async function TrackingPage() {
         <TextLink href="/privacy-policy#cookies" hasArrow>See what the privacy policy tells visitors</TextLink>
       </div>
       {/* No form without the saved settings: saving blanks would switch tracking off. */}
-      {settings.isLoaded ? <TrackingSettings row={settings.data} /> : <LoadProblem notice={notice} title="The saved settings didn't load" />}
+      {page.isLoaded ? <TrackingSettings row={page.row} container={page.container} metaHealth={page.metaHealth} /> : <LoadProblem notice={page.notice} title="The saved settings didn't load" />}
     </>
   );
 }

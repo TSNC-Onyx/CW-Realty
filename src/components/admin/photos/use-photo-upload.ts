@@ -129,22 +129,30 @@ export function getPhotoStepProblem(error: unknown): Omit<ClientProblem, "shownM
   return { stage: problem.stage, severity: problem.severity, code: problem.code, detail: problem.detail };
 }
 
+export type PhotoFileUpload = { photo: UploadedPhoto; error: null } | { photo: null; error: string };
+
+type PhotoFileUploadOptions = { target: PhotoTarget; file: File; onProgress: (progress: UploadProgress) => void };
+
+/** Prepares and sends one photo to a record; every failure is recorded and returned as the message to show. */
+export async function uploadPhotoFile({ target, file, onProgress }: PhotoFileUploadOptions): Promise<PhotoFileUpload> {
+  try {
+    onProgress({ stage: "preparing", share: 0, error: null });
+    const encoded = await preparePhoto(file, (share) => onProgress({ stage: "preparing", share, error: null }));
+    onProgress({ stage: "uploading", share: 0, error: null });
+    return { photo: await sendEncodedPhoto(target, encoded), error: null };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { photo: null, error: await getShownMessage(getFailure(error)) };
+  }
+}
+
 export function usePhotoUpload(target: PhotoTarget) {
   const [progress, setProgress] = useState<UploadProgress>(IDLE_PROGRESS);
 
   const uploadPhoto = async (file: File): Promise<UploadedPhoto | null> => {
-    try {
-      setProgress({ stage: "preparing", share: 0, error: null });
-      const encoded = await preparePhoto(file, (share) => setProgress({ stage: "preparing", share, error: null }));
-      setProgress({ stage: "uploading", share: 0, error: null });
-      const uploaded = await sendEncodedPhoto(target, encoded);
-      setProgress(IDLE_PROGRESS);
-      return uploaded;
-    } catch (error) {
-      unstable_rethrow(error);
-      setProgress({ stage: "idle", share: 0, error: await getShownMessage(getFailure(error)) });
-      return null;
-    }
+    const upload = await uploadPhotoFile({ target, file, onProgress: setProgress });
+    setProgress(upload.error === null ? IDLE_PROGRESS : { stage: "idle", share: 0, error: upload.error });
+    return upload.photo;
   };
 
   return { progress, uploadPhoto, clearError: () => setProgress(IDLE_PROGRESS) };

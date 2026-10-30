@@ -78,4 +78,26 @@ describe("getHealthNotices", () => {
     // Assert
     expect(notices).toEqual([]);
   });
+
+  it("warns while leads can't be sent to Meta", () => {
+    // Arrange
+    const checks = [getCheck({ name: "meta_conversions", last_ok_at: "2026-09-20T12:00:00Z", last_error: "Meta answered 400, error code 190", last_error_at: "2026-09-27T15:00:00Z" })];
+
+    // Act
+    const notices = getHealthNotices({ checks, now: NOW });
+
+    // Assert
+    expect(notices.map((notice) => notice.title)).toEqual(["Leads can't be sent to Meta"]);
+  });
+
+  it("never calls the Meta check stale", () => {
+    // Arrange
+    const checks = [getCheck({ name: "meta_conversions", last_run_at: "2026-01-01T00:00:00Z", last_ok_at: "2026-01-01T00:00:00Z" })];
+
+    // Act
+    const notices = getHealthNotices({ checks, now: NOW });
+
+    // Assert
+    expect(notices).toEqual([]);
+  });
 });

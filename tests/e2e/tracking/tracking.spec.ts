@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Response } from "@playwright/test";
 
 import { HAS_ADMIN_DATABASE, createTestAdmin, signInFully, waitForBotCheck } from "../admin/admin-helpers";
 import { getCornerViolations, getGoldOnLightViolations, getSmallTextViolations, getTapTargetViolations } from "../design-checks";
@@ -30,6 +30,14 @@ function getBanner(page: Page) {
 async function fetchConsentCookie(page: Page): Promise<{ analytics: boolean; ads: boolean } | null> {
   const cookie = (await page.context().cookies()).find((entry) => entry.name === "cwr_consent");
   return cookie ? JSON.parse(decodeURIComponent(cookie.value)) : null;
+}
+
+async function fetchCookieNames(page: Page): Promise<string[]> {
+  return (await page.context().cookies()).map((cookie) => cookie.name);
+}
+
+function isConsentCall(response: Response): boolean {
+  return response.url().endsWith("/consent") && response.request().method() === "POST";
 }
 
 async function sendContactForm(page: Page, email: string): Promise<void> {
@@ -71,6 +79,21 @@ test("Reject all saves the choice and keeps every tracker off", async ({ page, c
   expect({ cookie: await fetchConsentCookie(page), trackerRequests }).toMatchObject({ cookie: { analytics: false, ads: false }, trackerRequests: [] });
 });
 
+test("if the server can't be reached the choice still works", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await page.route("**/consent", (route) => route.abort());
+  await page.goto("/");
+
+  // Act
+  await getBanner(page).getByRole("button", { name: "Reject all" }).click();
+  await page.reload();
+
+  // Assert
+  await expect(getBanner(page)).toHaveCount(0);
+  expect(await fetchConsentCookie(page)).toMatchObject({ analytics: false, ads: false });
+});
+
 test("Accept all starts Tag Manager with the page nonce, after consent defaults of denied", async ({ page, context }) => {
   // Arrange
   const trackerRequests = await watchTrackerRequests(context);
@@ -88,6 +111,45 @@ test("Accept all starts Tag Manager with the page nonce, after consent defaults 
     defaults: ["consent", "default", { ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied", analytics_storage: "denied", wait_for_update: 500 }],
     update: ["consent", "update", { ad_storage: "granted", ad_user_data: "granted", ad_personalization: "granted", analytics_storage: "granted" }],
   });
+});
+
+/** Lands on the home page from an ad, then moves to another page without a full page load. */
+async function moveAwayFromAdLanding(page: Page): Promise<void> {
+  await page.goto(`/?gclid=${GCLID}`);
+  await page.evaluate(() => Object.assign(window, { hasNotReloaded: true }));
+  await page.getByRole("navigation", { name: "Main" }).getByRole("link").first().click();
+  await expect(page).not.toHaveURL(/gclid=/);
+  expect(await page.evaluate(() => (window as unknown as { hasNotReloaded?: boolean }).hasNotReloaded)).toBe(true);
+}
+
+test("click IDs are back in the address before Tag Manager starts after moving to another page", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await moveAwayFromAdLanding(page);
+
+  // Act
+  await getBanner(page).getByRole("button", { name: "Accept all" }).click();
+
+  // Assert
+  await expect(page).toHaveURL(new RegExp(`gclid=${GCLID}`));
+  await expect.poll(async () => (await getDataLayer(page)).some((entry) => (entry as { event?: string }).event === "gtm.js")).toBe(true);
+  // The site still moves between pages without a full page load after the restore (plan edge case 10).
+  await page.locator("header").getByRole("link").first().click();
+  await expect(page).toHaveURL((url) => url.pathname === "/" && !url.search.includes("gclid="));
+  expect(await page.evaluate(() => (window as unknown as { hasNotReloaded?: boolean }).hasNotReloaded)).toBe(true);
+});
+
+test("rejecting keeps click IDs out of the address", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await moveAwayFromAdLanding(page);
+
+  // Act
+  await getBanner(page).getByRole("button", { name: "Reject all" }).click();
+
+  // Assert
+  await expect(getBanner(page)).toHaveCount(0);
+  expect(page.url()).not.toContain("gclid=");
 });
 
 test("a tap on the phone number is reported as a call once the visitor agrees", async ({ page, context }) => {
@@ -122,6 +184,25 @@ test("withdrawing consent deletes tracker cookies and reloads without Tag Manage
   // Assert
   const cookieNames = (await context.cookies()).map((cookie) => cookie.name);
   expect({ hasGaCookie: cookieNames.includes("_ga"), consent: await fetchConsentCookie(page) }).toMatchObject({ hasGaCookie: false, consent: { analytics: false, ads: false } });
+});
+
+test("allowing Advertising after Analytics sends cwr_consent_update", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await page.goto("/");
+  await getBanner(page).getByRole("button", { name: "Cookie settings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cookie settings" });
+  await dialog.getByRole("checkbox", { name: "Analytics" }).check();
+  await dialog.getByRole("button", { name: "Save choices" }).click();
+  await expect.poll(async () => (await getDataLayer(page)).some((entry) => (entry as { event?: string }).event === "gtm.js")).toBe(true);
+
+  // Act
+  await page.getByRole("contentinfo").getByRole("link", { name: "Cookie settings" }).click();
+  await dialog.getByRole("checkbox", { name: "Advertising" }).check();
+  await dialog.getByRole("button", { name: "Save choices" }).click();
+
+  // Assert
+  await expect.poll(async () => (await getDataLayer(page)).filter((entry) => (entry as { event?: string }).event === "cwr_consent_update").length).toBe(1);
 });
 
 test("Global Privacy Control keeps advertising off and says why", async ({ browser }) => {
@@ -230,7 +311,74 @@ test("a lead who rejected cookies carries no ad click IDs", async ({ page }) => 
   await sendContactForm(page, email);
 
   // Assert
-  expect(await fetchLeadAttribution(email)).toBeNull();
+  expect({ attribution: await fetchLeadAttribution(email), hasClickCookie: (await fetchCookieNames(page)).includes("cwr_attribution") }).toEqual({ attribution: null, hasClickCookie: false });
+});
+
+test("the server re-issues the consent cookie after a choice", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await page.goto("/");
+
+  // Act
+  const [response] = await Promise.all([page.waitForResponse(isConsentCall), getBanner(page).getByRole("button", { name: "Accept all" }).click()]);
+
+  // Assert
+  const setCookie = (await response.headerValue("set-cookie")) ?? "";
+  const maxAge = Number(/cwr_consent=[^\n]*?Max-Age=(\d+)/.exec(setCookie)?.[1]);
+  expect({ hasConsentCookie: setCookie.includes("cwr_consent="), isMaxAgeLeftOf180Days: maxAge >= 15551000 && maxAge <= 15552000 }).toEqual({ hasConsentCookie: true, isMaxAgeLeftOf180Days: true });
+});
+
+test("no consent call on a page load without new click IDs", async ({ page, context, baseURL }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  const savedChoice = encodeURIComponent(JSON.stringify({ v: 1, analytics: true, ads: true, at: new Date().toISOString() }));
+  await context.addCookies([{ name: "cwr_consent", value: savedChoice, url: baseURL ?? "" }]);
+  const consentCalls: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/consent")) consentCalls.push(request.url());
+  });
+
+  // Act
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  await page.goto("/about");
+  await page.waitForLoadState("networkidle");
+
+  // Assert
+  expect(consentCalls).toEqual([]);
+});
+
+test("a lead sent from a new tab keeps the ad click", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  const email = `new-tab-${Date.now()}@example.com`;
+  await page.goto(`/contact?gclid=${GCLID}`);
+  await Promise.all([page.waitForResponse(isConsentCall), getBanner(page).getByRole("button", { name: "Accept all" }).click()]);
+  const newTab = await context.newPage();
+  await newTab.goto("/contact");
+
+  // Act
+  await sendContactForm(newTab, email);
+
+  // Assert
+  expect((await fetchLeadAttribution(email))?.gclid).toBe(GCLID);
+});
+
+test("withdrawing Advertising deletes the click cookie", async ({ page, context }) => {
+  // Arrange
+  await watchTrackerRequests(context);
+  await page.goto(`/contact?gclid=${GCLID}`);
+  await Promise.all([page.waitForResponse(isConsentCall), getBanner(page).getByRole("button", { name: "Accept all" }).click()]);
+  await expect.poll(() => fetchCookieNames(page)).toContain("cwr_attribution");
+
+  // Act
+  await page.getByRole("contentinfo").getByRole("link", { name: "Cookie settings" }).click();
+  const dialog = page.getByRole("dialog", { name: "Cookie settings" });
+  await dialog.getByRole("checkbox", { name: "Advertising" }).uncheck();
+  await Promise.all([page.waitForEvent("load"), dialog.getByRole("button", { name: "Save choices" }).click()]);
+
+  // Assert
+  expect(await fetchCookieNames(page)).not.toContain("cwr_attribution");
 });
 
 test("owners see tracking is on and get a clear message for a wrong container ID", async ({ page }) => {
@@ -259,6 +407,7 @@ test("each ID field says whether it is live, not saved yet, or off", async ({ pa
   const pixel = page.getByLabel("Pixel ID (optional)");
   await expect(container).toHaveAccessibleDescription(live);
   await expect(pixel).toHaveAccessibleDescription(/Off — nothing saved$/);
+  await expect(pixel).toHaveAccessibleDescription(/Meta server connection only/);
 
   // Act
   await container.fill("GTM-OTHER12");
@@ -278,4 +427,19 @@ test("each ID field says whether it is live, not saved yet, or off", async ({ pa
   // Assert
   await expect(container).toHaveValue(TEST_CONTAINER_ID);
   await expect(container).toHaveAccessibleDescription(live);
+});
+
+test("saving a container Google can't be reached for still saves and says so", async ({ page }) => {
+  // Arrange: Playwright's web server points the container check at a closed local port (plan D2).
+  const owner = await createTestAdmin("owner");
+  await signInFully(page, owner);
+  await page.goto("/admin/tracking");
+
+  // Act
+  await page.getByLabel("Container ID (optional)").fill(TEST_CONTAINER_ID);
+  await page.getByRole("button", { name: "Save changes" }).click();
+
+  // Assert
+  await expect(page.getByRole("status").filter({ hasText: "We couldn't reach Google" })).toBeVisible();
+  await expect(page.getByText("we couldn't reach Google just now")).toBeVisible();
 });

@@ -4,37 +4,18 @@ import type { HealthCheck } from "@/lib/admin/health/health-notices";
 import { getLoaded, getLoadFailure, getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext } from "@/lib/admin/require-admin";
 
-// Owner-only reads for the dashboard: background check stamps and the last day's problem
-// count, through the owner's own session (RLS: owners only).
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const SERIOUS_SEVERITIES = ["error", "critical"];
-// Website visitors' problems are counted on their own line, so the team's figure keeps its meaning.
-const VISITOR_ORIGINS = ["server_visitor", "browser_visitor"];
+// Owner-only reads for the dashboard: background check stamps and problem-email recipients,
+// through the owner's own session (RLS: owners only).
 
 /**
- * total and serious: the team's own problems; serious = errors or worse. visitors: website
- * visitors' problems. groups: how many distinct problems (team and visitors) happened.
+ * problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4).
+ * isOutboxLive: problem emails go out only through the email outbox (docs/cwr-email-outbox-plan.md).
  */
-export type ProblemCounts = { total: number; serious: number; visitors: number; groups: number };
-
-/** problemRecipientCount: active recipients an owner chose for problem emails (owner decision D4). */
-export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemCounts: LoadResult<ProblemCounts>; problemRecipientCount: LoadResult<number> };
+export type OwnerHealth = { checks: LoadResult<HealthCheck[]>; problemRecipientCount: LoadResult<number>; isOutboxLive: boolean };
 
 async function fetchHealthChecks({ supabase, tenantId }: AdminContext): Promise<LoadResult<HealthCheck[]>> {
   const result = await supabase.from("health_checks").select("name, last_run_at, last_ok_at, last_error, last_error_at, created_at").eq("tenant_id", tenantId).returns<HealthCheck[]>();
   return getQueryLoad({ part: "background checks", result, empty: [] });
-}
-
-async function fetchProblemCounts({ supabase, tenantId }: AdminContext, now: Date): Promise<LoadResult<ProblemCounts>> {
-  const dayAgo = new Date(now.getTime() - DAY_MS).toISOString();
-  const countSince = () => supabase.from("problem_events").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("occurred_at", dayAgo);
-  const countTeamSince = () => countSince().not("origin", "in", `(${VISITOR_ORIGINS.join(",")})`);
-  const countGroups = () => supabase.from("problem_groups").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).gte("last_seen_at", dayAgo);
-  const [all, serious, visitors, groups] = await Promise.all([countTeamSince(), countTeamSince().in("severity", SERIOUS_SEVERITIES), countSince().in("origin", VISITOR_ORIGINS), countGroups()]);
-  const error = all.error ?? serious.error ?? visitors.error ?? groups.error;
-  if (error) return getLoadFailure("problems in the last 24 hours", error);
-  return getLoaded({ total: all.count ?? 0, serious: serious.count ?? 0, visitors: visitors.count ?? 0, groups: groups.count ?? 0 });
 }
 
 async function fetchProblemRecipientCount({ supabase, tenantId }: AdminContext): Promise<LoadResult<number>> {
@@ -44,8 +25,13 @@ async function fetchProblemRecipientCount({ supabase, tenantId }: AdminContext):
 }
 
 /** null for managers and staff: only owners see how the site itself is doing. */
-export async function fetchOwnerHealth(admin: AdminContext, now: Date): Promise<OwnerHealth | null> {
+export async function fetchOwnerHealth(admin: AdminContext): Promise<OwnerHealth | null> {
   if (admin.role !== "owner") return null;
-  const [checks, problemCounts, problemRecipientCount] = await Promise.all([fetchHealthChecks(admin), fetchProblemCounts(admin, now), fetchProblemRecipientCount(admin)]);
-  return { checks, problemCounts, problemRecipientCount };
+  const [checks, problemRecipientCount, live] = await Promise.all([
+    fetchHealthChecks(admin),
+    fetchProblemRecipientCount(admin),
+    admin.supabase.rpc("is_email_outbox_live", { p_tenant_id: admin.tenantId }),
+  ]);
+  // If the switch can't be read, the dashboard keeps the safe "paused" wording.
+  return { checks, problemRecipientCount, isOutboxLive: !live.error && live.data === true };
 }

@@ -3,7 +3,6 @@ import "server-only";
 import { after } from "next/server";
 import { headers } from "next/headers";
 
-import { ALERT_QUEUE_BINDING } from "@/lib/jobs/alert-jobs";
 import type { ProblemRetryQueue } from "@/lib/observability/problem-retry";
 import { getCloudflareBinding } from "@/lib/platform/cloudflare-bindings";
 import { getActionContext } from "@/lib/observability/action-context";
@@ -13,6 +12,8 @@ import { REQUEST_ID_HEADER } from "@/lib/observability/request-id";
 import { getReference } from "@/lib/observability/reference";
 import { isReferenceWorthy, type ProblemEvent, type ProblemOrigin, type ProblemRecordResult } from "@/lib/observability/problem-types";
 import { createServiceClient, isServiceAccessConfigured } from "@/lib/supabase/service-client";
+
+import { ALERT_QUEUE_BINDING } from "../../../supabase/functions/email-worker/jobs.ts";
 
 // Server-side entry point for recording a problem (docs/cwr-error-tracking-plan.md).
 // Warnings and worse are written before the person is answered, so the reference they see

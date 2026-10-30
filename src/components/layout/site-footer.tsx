@@ -2,6 +2,7 @@ import { House, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/layout/logo";
+import { MenuLink } from "@/components/layout/menu-link";
 import { CookieSettingsLink } from "@/components/tracking/cookie-settings-link";
 import { Container } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
@@ -59,9 +60,10 @@ function FooterColumns({ listing }: { listing: PageListing }) {
           <ul>
             {column.links.map((link) => (
               <li key={link.href}>
-                <Link href={link.href} className={`${FOOTER_LINK_CLASS} text-base`}>
+                {/* py-1: a link that wraps onto two lines still sits apart from the next one; one-line links keep their 44px height. */}
+                <MenuLink href={link.href} className={`${FOOTER_LINK_CLASS} py-1 text-base`}>
                   {link.label}
-                </Link>
+                </MenuLink>
               </li>
             ))}
           </ul>

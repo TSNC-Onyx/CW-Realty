@@ -152,6 +152,7 @@ export const PROBLEM_ACTIONS = {
   "tracking.load": { label: "Load ads & analytics settings" },
   "tracking.save": { label: "Save ads & analytics settings", fn: "saveTrackingSettingsAction" },
   "tracking.mark_reviewed": { label: "Mark tags reviewed", fn: "markTagsReviewedAction" },
+  "tracking.meta_send": { label: "Send a lead to Meta" },
 
   "contact.load": { label: "Load contact & footer settings" },
   "contact.save": { label: "Save contact & footer settings", fn: "saveSiteSettingsAction" },
@@ -183,6 +184,7 @@ export const PROBLEM_ACTIONS = {
   "site.chat_handoff": { label: "Ask for a person from the chat" },
   "site.chat_widget": { label: "Use the chat window" },
   "site.listing_photo": { label: "Show a listing photo" },
+  "site.consent": { label: "Save cookie choices" },
   "site.page_crash": { label: "Open a website page" },
   "site.browser_error": { label: "Browser error on a website page" },
 

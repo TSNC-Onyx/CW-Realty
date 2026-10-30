@@ -9,7 +9,7 @@ test("the privacy policy names every tracker, storage key, and the chat's AI pro
 
   // Assert
   const policy = page.getByRole("main");
-  for (const text of ["Anthropic", "cwr-chat", "cwr_consent", "cwr-attribution", "Google Analytics", "Google Ads", "Meta Pixel", "Cloudflare Turnstile", "Global Privacy Control", "one year after its last message"]) {
+  for (const text of ["Anthropic", "cwr-chat", "cwr_consent", "cwr-attribution", "cwr_attribution", "Google Analytics", "Google Ads", "Meta Pixel", "Cloudflare Turnstile", "Global Privacy Control", "one year after its last message"]) {
     await expect(policy).toContainText(text);
   }
 });

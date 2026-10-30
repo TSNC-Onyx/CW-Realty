@@ -11,12 +11,18 @@ export type ActionState = {
   responseId: string;
   /** Set only by the sign-in and password-reset forms: the page is out of date and must reload. */
   recovery?: "refresh";
+  /** Set by create actions: the new record, so the page can upload its files and then open it. */
+  createdId?: string;
 };
 
 export const IDLE_ACTION_STATE: ActionState = { status: "idle", message: "", fieldErrors: {}, values: {}, responseId: "idle" };
 
 export function getSuccessState(message: string, values: Record<string, string> = {}): ActionState {
   return { status: "success", message, fieldErrors: {}, values, responseId: crypto.randomUUID() };
+}
+
+export function getCreatedState(message: string, createdId: string): ActionState {
+  return { ...getSuccessState(message), createdId };
 }
 
 export function getErrorState({ message, fieldErrors = {}, values = {} }: { message: string; fieldErrors?: FieldErrors; values?: Record<string, string> }): ActionState {

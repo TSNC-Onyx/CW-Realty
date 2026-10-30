@@ -17,7 +17,7 @@ People see that code on screen for anything worse than a typing mistake, for exa
 
 ## Who gets the emails
 
-**Problem emails are paused** (owner decision 2026-09-30): the Cloudflare account's Workers Free plan allows 5 Cron Triggers and all are in use, so the 5-minute sender has no schedule. Problems are still recorded; the dashboard and Notifications page say emails are paused. To resume: free a Cron Trigger or move to Workers Paid, set `"triggers": { "crons": ["*/5 * * * *"] }` in `wrangler.jsonc` and `ARE_PROBLEM_EMAILS_PAUSED = false` in `src/lib/jobs/problem-alert-schedule.ts`, then deploy (the sender's first run recreates its heartbeat, removed by migration `20260930000100`).
+**Problem emails resume with the email outbox** (owner decision 2026-10-12, `docs/cwr-email-outbox-plan.md`). They were paused on 2026-09-30 because the Cloudflare account had no free Cron Trigger. Now a database job (`cwr_problem_digest`, every 5 minutes) adds a digest job to the outbox, and the email-worker sends it. Until the outbox is switched on (`docs/runbooks/email-outbox.md`, step 2), they stay paused, and the dashboard and Notifications page say so.
 
 An owner switches people on with **Send problem emails** on Admin → Notifications (owner decision D4, 2026-09-27; build plan open item 10).
 
@@ -49,6 +49,33 @@ Each background check watches another one, so a stopped check is caught by the n
 | Problem emails are failing | Alert sender | The MailerSend key or sender address is wrong or revoked; fix it in the Worker's secrets. Pending problems go out on the next run (retries back off up to an hour) |
 
 A failed or stuck (over 30 min) `cwr_*` scheduled job becomes a critical problem named "Nightly database clean-up". Its `detail` holds the job name and Postgres's message.
+
+## Forwarding to BuiltFor Ops
+
+Every error or critical problem is also sent to BuiltFor's Ops inbox (BuiltFor `tenant-alert-receiver`), so BuiltFor sees outages without being asked. A database job, `cwr_forward_builtfor`, runs every minute: it queues new error/critical problems in `cwr.builtfor_forwards` and sends them with pg_net. Warnings and info problems are never sent. Nothing about how problems are recorded or emailed here changes. Migration: `supabase/migrations/20261021000100_cwr_builtfor_forward.sql`.
+
+**Switch on** (SQL editor; the secret value comes from BuiltFor):
+
+```sql
+select vault.create_secret('<BuiltFor BUILTFOR_WEBHOOK_SECRET>', 'builtfor_webhook_secret');
+insert into cwr.builtfor_forward_settings (local_tenant_id, builtfor_tenant_id, builtfor_tenant_name, receiver_url, is_enabled)
+values (cwr.get_default_tenant_id(), 'f25f2615-2262-4d95-8926-36277920572f', 'Charlie Ward Realty',
+        'https://tsdcxvmywimqfpdkevdx.supabase.co/functions/v1/tenant-alert-receiver', true);
+```
+
+Only problems recorded after `forward_from` (default: when the row was added) are sent.
+
+**Switch off:** `update cwr.builtfor_forward_settings set is_enabled = false;`
+
+**Check:**
+
+```sql
+select status, count(*), min(created_at), max(last_error) from cwr.builtfor_forwards group by status;
+```
+
+`pending` rows are waiting or retrying: failed sends retry with a growing wait (up to an hour). After 24 hours of failures a row becomes `dead`, and one critical problem with code `builtfor_forward_dead` is recorded here ("… alerts could not be delivered to BuiltFor Ops"); that problem is itself sent once the link works again. Usual causes: the Vault secret doesn't match BuiltFor's, or the receiver is down. `sent` rows are removed after 30 days.
+
+**Remove completely:** `docs/runbooks/builtfor-forward-down.sql`, then delete the Vault secret.
 
 ## After fixing
 

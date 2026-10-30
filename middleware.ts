@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { ADMIN_LOGIN_PATH, isAdminPath, isPublicAdminPath } from "@/lib/admin/paths";
 import { checkAdminSession, type SessionProblem } from "@/lib/admin/session-middleware";
-import { createJobDatabase } from "@/lib/jobs/alert-jobs";
+import { createJobDatabase } from "./supabase/functions/email-worker/jobs.ts";
 import { recordProblem } from "@/lib/observability/record-problem";
 import { REQUEST_ID_HEADER, getRequestId } from "@/lib/observability/request-id";
 import { fetchRedirectDecision, type RedirectDecision } from "@/lib/redirects/lookup";
