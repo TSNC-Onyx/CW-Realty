@@ -68,10 +68,7 @@ function SentConfirmation({ sentTo }: { sentTo: NonNullable<RequestFormState["se
       <h2 ref={headingRef} tabIndex={-1} className="type-h1 outline-none">
         {`Thanks, ${firstName}. Your message is in.`}
       </h2>
-      <p className="type-lead">
-        {`We'll reply ${REPLY_PROMISE}.`}
-        {sentTo.email ? ` We sent a copy to ${sentTo.email}.` : ""}
-      </p>
+      <p className="type-lead">{`We'll reply ${REPLY_PROMISE}.`}</p>
       <div className="flex w-full flex-col gap-3 md:w-auto md:flex-row">
         <ButtonLink href="/listings" size="l" variant="main" isFullWidthOnMobile>
           Browse featured listings

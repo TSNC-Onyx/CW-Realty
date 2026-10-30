@@ -46,7 +46,8 @@ test.describe("contact form", () => {
 
     // Assert
     await expect(page.getByRole("heading", { name: "Thanks, Jordan. Your message is in." })).toBeFocused();
-    await expect(page.getByText("We sent a copy to jordan@example.com.")).toBeVisible();
+    // The form can't know whether a copy will be emailed, so it makes no claim (owner decision D3, 2026-10-29).
+    await expect(page.getByText(/We sent a copy/)).toHaveCount(0);
   });
 });
 
