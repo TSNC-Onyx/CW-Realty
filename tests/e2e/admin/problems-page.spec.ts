@@ -62,7 +62,8 @@ test("a reference that never reached the log says where to look instead", async 
   await expect(page.getByText(/Not in the log: it was only written to the server log/)).toBeVisible();
 });
 
-test("the list shows open problems and the dashboard links to it", async ({ page }) => {
+// The dashboard has no Problems card (owner removed it 2026-10-22), so the admin menu is the way in.
+test("the list shows open problems and the admin menu links to it", async ({ page }) => {
   // Arrange
   const message = `Listed crash ${randomUUID()}`;
   await recordTestCrash(message);
@@ -70,7 +71,7 @@ test("the list shows open problems and the dashboard links to it", async ({ page
   await page.goto("/admin");
 
   // Act
-  await page.getByRole("link", { name: "See problems" }).click();
+  await page.getByRole("navigation", { name: "Admin" }).getByRole("link", { name: "Problems" }).click();
 
   // Assert
   await expect(page.getByRole("link", { name: /Admin portal: Open an admin page/ }).first()).toBeVisible();
