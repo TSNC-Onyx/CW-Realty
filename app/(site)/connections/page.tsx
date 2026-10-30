@@ -22,6 +22,7 @@ import { getCallHref, getDisplayPhone } from "@/lib/site/phone";
 export const metadata: Metadata = {
   title: "Connections",
   description: "Trusted local professionals Charlie Ward Realty refers clients to.",
+  alternates: { canonical: "/connections" },
 };
 
 const HIDDEN_PAGE_DESTINATION = "/resources";

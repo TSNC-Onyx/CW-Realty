@@ -8,6 +8,7 @@ import { fetchTeamMembers } from "@/lib/content/team";
 export const metadata: Metadata = {
   title: "CWR team",
   description: "Meet the brokers and specialists of Charlie Ward Realty.",
+  alternates: { canonical: "/team" },
 };
 
 export default async function TeamPage() {

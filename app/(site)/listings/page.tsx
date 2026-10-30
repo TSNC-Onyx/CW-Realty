@@ -10,17 +10,36 @@ import { PageIntro } from "@/components/ui/page-intro";
 import { Section } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { LISTINGS_PAGE_SIZE, fetchListingsPage } from "@/lib/content/listings";
-import { getPageNumber, getTotalPages } from "@/lib/content/page-number";
+import { getPageCanonical, getPageNumber, getTotalPages } from "@/lib/content/page-number";
 import { CONTACT_PAGE_PATH, getContactLinks } from "@/lib/site/contact-links";
 import { fetchSiteSettings } from "@/lib/site/site-settings";
 
-export const metadata: Metadata = {
+const LISTINGS_PATH = "/listings";
+
+const LISTINGS_METADATA: Metadata = {
   title: "Featured properties",
   description: "Homes and commercial properties listed by Charlie Ward Realty in Greensboro and the Triad.",
-  alternates: { canonical: "/listings" },
 };
 
 type ListingsPageProps = { searchParams: Promise<{ page?: string | string[] }> };
+
+/** Each page of listings names itself as canonical (?page=1 → /listings); pages that don't exist name none. */
+export async function generateMetadata({ searchParams }: ListingsPageProps): Promise<Metadata> {
+  const page = getPageNumber((await searchParams).page);
+  if (page === null) return LISTINGS_METADATA;
+  const canonical = await fetchListingsCanonical(page);
+  return canonical ? { ...LISTINGS_METADATA, alternates: { canonical } } : LISTINGS_METADATA;
+}
+
+async function fetchListingsCanonical(page: number): Promise<string | null> {
+  try {
+    const { totalCount } = await fetchListingsPage(page);
+    return getPageCanonical({ basePath: LISTINGS_PATH, page, totalPages: getTotalPages(totalCount, LISTINGS_PAGE_SIZE) });
+  } catch {
+    // The page itself shows the error screen for the same failure; the metadata just leaves out the canonical.
+    return null;
+  }
+}
 
 async function NoListings() {
   const contact = getContactLinks(await fetchSiteSettings());
@@ -66,7 +85,7 @@ export default async function ListingsPage({ searchParams }: ListingsPageProps) 
                 </li>
               ))}
             </ul>
-            <Pagination basePath="/listings" currentPage={page} totalPages={totalPages} />
+            <Pagination basePath={LISTINGS_PATH} currentPage={page} totalPages={totalPages} />
           </>
         )}
       </Section>

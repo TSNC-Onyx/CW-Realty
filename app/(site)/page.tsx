@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import type { Metadata } from "next";
 
 import { SitePhotoImage } from "@/components/content/responsive-photo";
 import { TeamCard } from "@/components/content/team-card";
@@ -70,6 +71,11 @@ const REVIEWS: Review[] = [
     detail: "Greensboro, NC",
   },
 ];
+
+// The home page keeps the site-wide title; it only names its canonical address (visitor-audit R8).
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 // A database problem must not blank the home page: the team preview is left out and the
 // error is logged (Infra §3).

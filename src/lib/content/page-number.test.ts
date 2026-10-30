@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getPageNumber, getTotalPages } from "@/lib/content/page-number";
+import { getPageCanonical, getPageNumber, getTotalPages } from "@/lib/content/page-number";
 
 describe("getPageNumber", () => {
   it.each([
@@ -46,5 +46,21 @@ describe("getTotalPages", () => {
 
     // Assert
     expect(totalPages).toBe(2);
+  });
+});
+
+describe("getPageCanonical", () => {
+  it.each([
+    { page: 1, totalPages: 3, canonical: "/listings" },
+    { page: 2, totalPages: 3, canonical: "/listings?page=2" },
+    { page: 3, totalPages: 3, canonical: "/listings?page=3" },
+    { page: 4, totalPages: 3, canonical: null },
+    { page: null, totalPages: 3, canonical: null },
+  ])("page $page of $totalPages → $canonical", ({ page, totalPages, canonical }) => {
+    // Act
+    const result = getPageCanonical({ basePath: "/listings", page, totalPages });
+
+    // Assert
+    expect(result).toBe(canonical);
   });
 });

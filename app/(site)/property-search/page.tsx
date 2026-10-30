@@ -15,6 +15,7 @@ import { fetchSiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "Property search",
   description: "Search homes for sale across the Triad with Charlie Ward Realty.",
+  alternates: { canonical: "/property-search" },
 };
 
 export default async function PropertySearchPage() {

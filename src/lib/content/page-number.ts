@@ -12,3 +12,9 @@ export function getPageNumber(rawPage: string | string[] | undefined): number | 
 export function getTotalPages(totalCount: number, pageSize: number): number {
   return Math.max(1, Math.ceil(totalCount / pageSize));
 }
+
+/** The canonical address of one page of a list: page 1 is the bare list; a page that doesn't exist has none. */
+export function getPageCanonical({ basePath, page, totalPages }: { basePath: string; page: number | null; totalPages: number }): string | null {
+  if (page === null || page > totalPages) return null;
+  return page === 1 ? basePath : `${basePath}?page=${page}`;
+}

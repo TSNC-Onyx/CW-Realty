@@ -13,6 +13,7 @@ import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 export const metadata: Metadata = {
   title: "About us",
   description: "Charlie Ward Realty serves Greensboro, High Point, Winston-Salem, and the greater Triad in North Carolina.",
+  alternates: { canonical: "/about" },
 };
 
 const OWNER_SLUG = "charlie-ward";

@@ -30,6 +30,7 @@ const BUTTON_ROW_CLASSES = "w-full xl:w-auto";
 export const metadata: Metadata = {
   title: "Selected services",
   description: "Pick the real estate help you need from Charlie Ward Realty: buyer and seller plans with clear prices.",
+  alternates: { canonical: "/services/selected-services" },
 };
 
 // A team-data problem must not blank the page: the intro shows the broker without a photo (Infra §3).

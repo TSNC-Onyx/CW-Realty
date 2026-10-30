@@ -16,6 +16,7 @@ import { fetchSiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "Property management",
   description: "Trusted property management in Greensboro, High Point, and Winston-Salem, NC: tenant placement, rent collection, repairs, and compliance.",
+  alternates: { canonical: "/services/property-management" },
 };
 
 const CTA_LABEL = "Get expert property management";

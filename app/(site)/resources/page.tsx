@@ -18,6 +18,7 @@ import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
 export const metadata: Metadata = {
   title: "FAQs & Homework",
   description: "Short videos and guides for buying and selling a home in the Triad, from Charlie Ward Realty.",
+  alternates: { canonical: "/resources" },
 };
 
 const SPANISH = "es";

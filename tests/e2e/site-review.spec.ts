@@ -1,6 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-import { VIEWPORTS } from "./pages";
+import { CONTENT_PAGE_PATHS, PUBLIC_PAGE_PATHS, VIEWPORTS } from "./pages";
 
 // Owner-approved changes of 2026-09-26 (docs/cwr-site-review-round-plan.md).
 
@@ -135,4 +135,51 @@ test("CWR TouchUp shows what homeowners say before how it works", async ({ page 
 
   // Assert
   expect(headings.slice(0, 2)).toEqual(["We call it a game changer. Here's what our customers say.", "Three steps to a better sale"]);
+});
+
+// Canonical links (docs/visitor-audit-fixes-plan.md R8): exactly one per page, naming the page itself.
+
+/** Each canonical link's path and query; the site address in front comes from metadataBase. */
+async function getCanonicalPaths(page: Page): Promise<string[]> {
+  const hrefs = await page.locator('link[rel="canonical"]').evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+  return hrefs.map((href) => {
+    const url = new URL(href);
+    return `${url.pathname}${url.search}`;
+  });
+}
+
+for (const path of [...PUBLIC_PAGE_PATHS, ...CONTENT_PAGE_PATHS]) {
+  test(`${path} has exactly one canonical link, to itself`, async ({ page }) => {
+    // Arrange
+    await page.goto(path);
+
+    // Act
+    const canonicalPaths = await getCanonicalPaths(page);
+
+    // Assert
+    expect(canonicalPaths).toEqual([path]);
+  });
+}
+
+test("the first listings page, asked for by number, names /listings as its canonical", async ({ page }) => {
+  // Arrange
+  await page.goto("/listings?page=1");
+
+  // Act
+  const canonicalPaths = await getCanonicalPaths(page);
+
+  // Assert
+  expect(canonicalPaths).toEqual(["/listings"]);
+});
+
+test("a listings page number that is not valid has no canonical link", async ({ page }) => {
+  // Arrange
+  const response = await page.goto("/listings?page=abc");
+
+  // Act
+  const canonicalPaths = await getCanonicalPaths(page);
+
+  // Assert
+  expect(response?.status()).toBe(404);
+  expect(canonicalPaths).toEqual([]);
 });

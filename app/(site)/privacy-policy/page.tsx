@@ -14,6 +14,7 @@ import { fetchSiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "Privacy policy",
   description: "How Charlie Ward Realty collects, uses, and protects your information, including cookies and the chat assistant.",
+  alternates: { canonical: "/privacy-policy" },
 };
 
 const LAST_UPDATED = "October 21, 2026";

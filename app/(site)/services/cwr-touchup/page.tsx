@@ -14,6 +14,7 @@ import { fetchSiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "CWR TouchUp",
   description: "Make small, smart changes before you list and sell your home for or above market value — nothing due up front.",
+  alternates: { canonical: "/services/cwr-touchup" },
 };
 
 const VIDEO_SOURCE = "/video/cwr-touchup.mp4";
