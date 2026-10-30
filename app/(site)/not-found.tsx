@@ -8,7 +8,8 @@ import { TextLink } from "@/components/ui/text-link";
 import { getAllMenuLinks, isExternalHref } from "@/lib/site/navigation";
 import { fetchPageListing } from "@/lib/site/page-listing";
 
-// Navigation-reconciliation #8: a helpful 404 with the menu and a way to search homes.
+// Navigation-reconciliation #8: a helpful 404 with the menu and a way to browse listings
+// (button and wording chosen by the owner 2026-10-29, docs/visitor-audit-fixes-plan.md step 3.6).
 
 export const metadata: Metadata = {
   title: "Page not found",
@@ -22,11 +23,11 @@ export default async function NotFound() {
       <PageIntro
         eyebrow="Page not found"
         title="We can't find that page"
-        lead="The page may have moved when we rebuilt our website. Try one of these instead, or search for homes."
+        lead="The page may have moved when we rebuilt our website. Try one of these instead, or browse our listings."
       >
         <div className="mt-8 flex flex-col items-start gap-2 md:flex-row md:items-center md:gap-6">
-          <ButtonLink href="/property-search" size="l" variant="main" isFullWidthOnMobile>
-            Search for homes
+          <ButtonLink href="/listings" size="l" variant="main" isFullWidthOnMobile>
+            Browse listings
           </ButtonLink>
           <TextLink href="/" hasArrow>Go to the home page</TextLink>
         </div>

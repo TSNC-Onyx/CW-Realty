@@ -5,6 +5,7 @@ import { ButtonLink } from "@/components/ui/button-link";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { Container, Section } from "@/components/ui/section";
 import { fetchTeamMemberBySlug, type TeamMember } from "@/lib/content/team";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 
 // About page on the old site's layout: the owner's portrait beside the welcome
 // (owner-approved design and copy, 2026-09-26, docs/cwr-site-review-round-plan.md Step 6).
@@ -12,6 +13,7 @@ import { fetchTeamMemberBySlug, type TeamMember } from "@/lib/content/team";
 export const metadata: Metadata = {
   title: "About us",
   description: "Charlie Ward Realty serves Greensboro, High Point, Winston-Salem, and the greater Triad in North Carolina.",
+  alternates: { canonical: "/about" },
 };
 
 const OWNER_SLUG = "charlie-ward";
@@ -30,7 +32,7 @@ async function fetchOwnerOrNull(): Promise<TeamMember | null> {
   try {
     return await fetchTeamMemberBySlug(OWNER_SLUG);
   } catch (error) {
-    console.error("About page owner profile unavailable", error);
+    void reportLoadFailure("about_owner", error, "/about");
     return null;
   }
 }

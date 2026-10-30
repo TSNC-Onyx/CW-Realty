@@ -2,6 +2,9 @@ import { expect, test, type APIResponse } from "@playwright/test";
 
 import { MISSING_PAGE_PATH, VIEWPORTS } from "./pages";
 
+// Next.js 16.4 replaced the 404 title after load (finding F2); 2 s is well past that.
+const TITLE_SETTLE_MS = 2000;
+
 function getRedirect(response: APIResponse): { status: number; location: string } {
   const location = new URL(response.headers()["location"] ?? "", "http://placeholder");
   return { status: response.status(), location: location.pathname + location.search };
@@ -212,6 +215,42 @@ test.describe("redirects and missing pages", () => {
     expect(response?.status()).toBe(404);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("We can't find that page");
   });
+
+  test("the 404 page's main button leads to the listings (owner choice 2026-10-29)", async ({ page }) => {
+    // Arrange
+    await page.goto(MISSING_PAGE_PATH);
+
+    // Act
+    const intro = page.locator("main").first();
+
+    // Assert
+    await expect(intro.getByRole("link", { name: "Browse listings" })).toHaveAttribute("href", "/listings");
+    await expect(intro.getByText("The page may have moved when we rebuilt our website. Try one of these instead, or browse our listings.")).toBeVisible();
+    await expect(intro.getByRole("link", { name: "Go to the home page" })).toHaveAttribute("href", "/");
+  });
+
+  test("the 404 page's tab title still says Page not found once the page has settled", async ({ page }) => {
+    // Arrange
+    await page.goto(MISSING_PAGE_PATH);
+
+    // Act
+    await page.waitForTimeout(TITLE_SETTLE_MS);
+
+    // Assert
+    expect(await page.title()).toContain("Page not found");
+  });
+});
+
+test("/favicon.ico answers with the site icon", async ({ request }) => {
+  // Arrange
+  const path = "/favicon.ico";
+
+  // Act
+  const response = await request.get(path);
+
+  // Assert
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toMatch(/^image\/(x-icon|vnd\.microsoft\.icon)/);
 });
 
 test("preview and local hosts tell search engines not to index them", async ({ request }) => {

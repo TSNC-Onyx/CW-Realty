@@ -294,6 +294,7 @@ test.describe("with the local database", () => {
     await openChatOnDesktop(page);
     await page.getByRole("button", { name: "Talk to a person" }).click();
     await page.getByLabel("Full name").fill("Jordan Smith");
+    await page.getByLabel("Email").fill("jordan@example.com");
     await page.getByLabel("Phone").fill("(336) 555-0123");
     await page.getByLabel("What can we help with?").fill("Can I see 100 Main St this weekend?");
     await waitForBotCheck(page);
@@ -303,6 +304,8 @@ test.describe("with the local database", () => {
 
     // Assert
     await expect(page.getByRole("heading", { name: "Thanks, Jordan. A person will reply." })).toBeFocused();
-    await expect(page.getByText("Someone from our team will get back to you within one business day.")).toBeVisible();
+    await expect(page.getByText("Someone from our team will get back to you within one business day.", { exact: true })).toBeVisible();
+    // The form can't know whether a copy will be emailed, so it makes no claim (owner decision D3, 2026-10-29).
+    await expect(page.getByText(/We sent a copy/)).toHaveCount(0);
   });
 });

@@ -1,6 +1,10 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { waitForBotCheck } from "./admin/admin-helpers";
+import { VIEWPORTS } from "./pages";
+
+const TURNSTILE_SCRIPT = "**/challenges.cloudflare.com/turnstile/**";
+const TURNSTILE_CONTAINER = 'div[id^="cf-turnstile-"]';
 
 test.describe("contact form", () => {
   test.beforeEach(async ({ page }) => {
@@ -46,7 +50,8 @@ test.describe("contact form", () => {
 
     // Assert
     await expect(page.getByRole("heading", { name: "Thanks, Jordan. Your message is in." })).toBeFocused();
-    await expect(page.getByText("We sent a copy to jordan@example.com.")).toBeVisible();
+    // The form can't know whether a copy will be emailed, so it makes no claim (owner decision D3, 2026-10-29).
+    await expect(page.getByText(/We sent a copy/)).toHaveCount(0);
   });
 });
 
@@ -61,4 +66,60 @@ test.describe("CWR TouchUp request form", () => {
     // Assert
     await expect(page.locator("#touchup-request-form").getByRole("alert")).toContainText("Enter your phone number");
   });
+});
+
+// The Quick Check's own container style is allowed by the security policy, and its 300px
+// minimum is cancelled so the layout stays as it was (docs/visitor-audit-fixes-plan.md R9, D4).
+test.describe("Quick Check container", () => {
+  test.skip(!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY, "Needs the test site key");
+
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      const directives: string[] = [];
+      Object.assign(window, { styleViolations: directives });
+      document.addEventListener("securitypolicyviolation", (event) => {
+        if (event.violatedDirective.startsWith("style-src")) directives.push(event.violatedDirective);
+      });
+    });
+  });
+
+  /** Style-policy violations seen so far, whether the page scrolls sideways, and whether the container overflows its form. */
+  async function getContainerFit(page: Page) {
+    const container = page.locator(TURNSTILE_CONTAINER).first();
+    await expect(container).toBeAttached();
+    return container.evaluate((element) => ({
+      styleViolations: (window as unknown as { styleViolations: string[] }).styleViolations,
+      hasSidewaysScroll: document.documentElement.scrollWidth - document.documentElement.clientWidth > 0,
+      // Measured against the form: the container's own grid parent stretches to fit it.
+      isWiderThanColumn: element.getBoundingClientRect().width > (element.closest("form")?.getBoundingClientRect().width ?? 0),
+    }));
+  }
+
+  for (const [viewportName, viewport] of Object.entries({ smallPhone: VIEWPORTS.smallPhone, phone: VIEWPORTS.phone, desktop: VIEWPORTS.desktop })) {
+    test(`on first load the container breaks no style rule and fits the ${viewportName} column`, async ({ page }) => {
+      // Arrange
+      await page.setViewportSize(viewport);
+
+      // Act
+      await page.goto("/contact");
+      await waitForBotCheck(page);
+
+      // Assert
+      expect(await getContainerFit(page)).toEqual({ styleViolations: [], hasSidewaysScroll: false, isWiderThanColumn: false });
+    });
+
+    test(`after Try again rebuilds the check, the container still fits the ${viewportName} column`, async ({ page }) => {
+      // Arrange
+      await page.setViewportSize(viewport);
+      await page.route(TURNSTILE_SCRIPT, (route) => route.abort("blockedbyclient"));
+      await page.goto("/contact");
+      await page.getByRole("button", { name: "Try again" }).click({ timeout: 15_000 });
+
+      // Act
+      const fit = await getContainerFit(page);
+
+      // Assert
+      expect(fit).toEqual({ styleViolations: [], hasSidewaysScroll: false, isWiderThanColumn: false });
+    });
+  }
 });

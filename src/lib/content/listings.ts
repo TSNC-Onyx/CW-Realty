@@ -87,8 +87,9 @@ function getListingsQuery() {
 /**
  * One page (1-based) of live listings; a page past the end comes back empty.
  * Throws SupabaseQueryError when the database fails.
+ * Cached per request so the listings page and its metadata share one query.
  */
-export async function fetchListingsPage(page: number, pageSize = LISTINGS_PAGE_SIZE): Promise<ListingsPage> {
+export const fetchListingsPage = cache(async (page: number, pageSize = LISTINGS_PAGE_SIZE): Promise<ListingsPage> => {
   const query = getListingsQuery();
   if (!query) return { listings: [], totalCount: 0 };
   const from = (page - 1) * pageSize;
@@ -100,7 +101,7 @@ export async function fetchListingsPage(page: number, pageSize = LISTINGS_PAGE_S
   if (error?.code === RANGE_NOT_SATISFIABLE) return { listings: [], totalCount: 0 };
   if (error) throw new SupabaseQueryError(error.message, { operation: "fetchListingsPage", cause: error });
   return { listings: z.array(listingRowSchema).parse(rows).map(getListingFromRow), totalCount: count ?? 0 };
-}
+});
 
 export const fetchListingBySlug = cache(async (slug: string): Promise<Listing | null> => {
   const query = getListingsQuery();

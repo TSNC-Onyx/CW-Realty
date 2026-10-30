@@ -187,6 +187,7 @@ export const PROBLEM_ACTIONS = {
   "site.consent": { label: "Save cookie choices" },
   "site.page_crash": { label: "Open a website page" },
   "site.browser_error": { label: "Browser error on a website page" },
+  "site.page_load": { label: "Load part of a website page" },
 
   "unknown.unknown": { label: "Unlisted action" },
 } as const satisfies Record<string, ProblemActionDefinition>;

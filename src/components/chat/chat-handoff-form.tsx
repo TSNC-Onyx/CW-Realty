@@ -58,7 +58,7 @@ function HandoffSent({ sentTo }: { sentTo: NonNullable<RequestFormState["sentTo"
         <Check size={ICON_SIZE.badge} />
       </span>
       <h3 ref={headingRef} tabIndex={-1} className="type-h3 outline-none">{`Thanks, ${firstName}. A person will reply.`}</h3>
-      <p>{`Someone from our team will get back to you ${REPLY_PROMISE}.${sentTo.email ? ` We sent a copy to ${sentTo.email}.` : ""}`}</p>
+      <p>{`Someone from our team will get back to you ${REPLY_PROMISE}.`}</p>
     </div>
   );
 }

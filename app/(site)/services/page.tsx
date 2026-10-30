@@ -17,6 +17,7 @@ import { fetchSiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "Our services",
   description: "CWR TouchUp for sellers and property management for landlords and investors in the Triad, NC.",
+  alternates: { canonical: "/services" },
 };
 
 const CARD_PHOTO_SIZES = "(min-width: 1024px) 640px, (min-width: 768px) 50vw, 100vw";

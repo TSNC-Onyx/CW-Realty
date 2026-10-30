@@ -12,6 +12,7 @@ import { fetchSiteSettings, type SiteSettings } from "@/lib/site/site-settings";
 export const metadata: Metadata = {
   title: "Contact us",
   description: "Call, text, email, or send Charlie Ward Realty a message.",
+  alternates: { canonical: "/contact" },
 };
 
 function ContactDetail({ icon: Icon, label, children }: { icon: LucideIcon; label: string; children: ReactNode }) {

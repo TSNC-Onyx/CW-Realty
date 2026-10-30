@@ -9,6 +9,7 @@ import { PageIntro } from "@/components/ui/page-intro";
 import { Section } from "@/components/ui/section";
 import { fetchConnections, getCategoriesHeading, type Connection } from "@/lib/content/connections";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
 import { fetchPageListing } from "@/lib/site/page-listing";
 import { getCallHref, getDisplayPhone } from "@/lib/site/phone";
@@ -21,6 +22,7 @@ import { getCallHref, getDisplayPhone } from "@/lib/site/phone";
 export const metadata: Metadata = {
   title: "Connections",
   description: "Trusted local professionals Charlie Ward Realty refers clients to.",
+  alternates: { canonical: "/connections" },
 };
 
 const HIDDEN_PAGE_DESTINATION = "/resources";
@@ -32,7 +34,7 @@ async function fetchConnectionsOrEmpty(): Promise<Connection[]> {
   try {
     return await fetchConnections();
   } catch (error) {
-    console.error("Connections unavailable", error);
+    void reportLoadFailure("connections", error, "/connections");
     return [];
   }
 }

@@ -13,6 +13,7 @@ import { Container, Section } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { AGREEMENT_POINTS, DIRECT_LINE, PLAN_SECTIONS, getListPrice, type PlanSection } from "@/lib/content/selected-services";
 import { fetchTeamMemberBySlug, type TeamMember } from "@/lib/content/team";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { getContactLinks } from "@/lib/site/contact-links";
 import { fetchSiteSettings } from "@/lib/site/site-settings";
 
@@ -29,6 +30,7 @@ const BUTTON_ROW_CLASSES = "w-full xl:w-auto";
 export const metadata: Metadata = {
   title: "Selected services",
   description: "Pick the real estate help you need from Charlie Ward Realty: buyer and seller plans with clear prices.",
+  alternates: { canonical: "/services/selected-services" },
 };
 
 // A team-data problem must not blank the page: the intro shows the broker without a photo (Infra §3).
@@ -36,7 +38,7 @@ async function fetchBrokerOrNull(): Promise<TeamMember | null> {
   try {
     return await fetchTeamMemberBySlug(BROKER_SLUG);
   } catch (error) {
-    console.error("Broker profile unavailable", error);
+    void reportLoadFailure("broker_profile", error, "/services/selected-services");
     return null;
   }
 }
