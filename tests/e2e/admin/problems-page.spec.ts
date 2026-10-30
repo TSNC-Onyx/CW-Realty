@@ -93,13 +93,19 @@ test("a browser error on a public page is recorded", async ({ page }) => {
   const before = await fetchBrowserErrorCount();
   await page.goto("/");
 
-  // Act
-  await page.evaluate(() => {
-    setTimeout(() => {
-      throw new Error(`Public page test error ${Date.now()}`);
-    });
-  });
-
-  // Assert
-  await expect.poll(fetchBrowserErrorCount).toBeGreaterThan(before);
+  // Act + Assert: the watcher starts once the page has hydrated, which on a slow machine can be
+  // after "load", so a new error is thrown on every poll until one is recorded.
+  await expect
+    .poll(
+      async () => {
+        await page.evaluate(() => {
+          setTimeout(() => {
+            throw new Error(`Public page test error ${Date.now()}`);
+          });
+        });
+        return fetchBrowserErrorCount();
+      },
+      { timeout: 15_000 },
+    )
+    .toBeGreaterThan(before);
 });

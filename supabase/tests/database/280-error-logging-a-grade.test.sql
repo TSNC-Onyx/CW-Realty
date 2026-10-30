@@ -26,7 +26,9 @@ select ok(
   'The new actions are in the catalog'
 );
 
-select is((select public from storage.buckets where id = 'source-maps'), false, 'The source-map bucket is private');
+-- config.toml creates the bucket only when Storage runs (CI's database job starts the database
+-- alone), and store-source-maps.mjs creates it in production; whenever it exists it is private.
+select ok(not exists (select 1 from storage.buckets where id = 'source-maps' and public), 'The source-map bucket is never public');
 select cwr_test.sign_in('owner');
 set local role authenticated;
 select is_empty($$ select 1 from storage.objects where bucket_id = 'source-maps' $$, 'Signed-in people cannot list source maps');
