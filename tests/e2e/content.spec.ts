@@ -48,6 +48,29 @@ test("a listing page shows the address, price, and every photo with alt text", a
   expect(altTexts.length > 0 && altTexts.every((alt) => alt.trim().length > 0)).toBe(true);
 });
 
+test("a listing's share preview keeps the site name and large card and shows the listing photo", async ({ page }) => {
+  // Arrange
+  await page.goto(LISTING_PATH);
+
+  // Act
+  // Read from the whole document, the way link-preview crawlers do (metadata can stream into <body>).
+  const tags = await page.evaluate(() => {
+    const read = (selector: string) => document.querySelector(selector)?.getAttribute("content") ?? null;
+    return {
+      siteName: read('meta[property="og:site_name"]'),
+      type: read('meta[property="og:type"]'),
+      image: read('meta[property="og:image"]'),
+      twitterCard: read('meta[name="twitter:card"]'),
+      twitterImage: read('meta[name="twitter:image"]'),
+    };
+  });
+
+  // Assert
+  expect(tags).toMatchObject({ siteName: "Charlie Ward Realty", type: "website", twitterCard: "summary_large_image" });
+  expect(tags.image).toMatch(/\/storage\/v1\/object\/public\/.+\.webp$/);
+  expect(tags.twitterImage).toBe(tags.image);
+});
+
 test("the listings page shows sold homes with a Sold label", async ({ page }) => {
   // Arrange
   await page.goto("/listings");
