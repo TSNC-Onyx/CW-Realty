@@ -16,6 +16,12 @@ function getRecordedReference(crash: Error): string {
   return typeof reference === "string" ? reference : "an earlier record";
 }
 
+/** A public page: the error's name and our code locations only, as a message can repeat what a visitor typed. */
+export function getVisitorCrashCause({ crash, stackFrames }: { crash: Error; stackFrames: string }): CrashCause {
+  const cause = getCrashCause({ crash, stackFrames });
+  return { ...cause, detail: [crash.name, stackFrames].filter(Boolean).join("\n") };
+}
+
 export function getCrashCause({ crash, stackFrames }: { crash: Error; stackFrames: string }): CrashCause {
   if (crash.name === ALREADY_RECORDED_NAME) return { stage: "unexpected", severity: "info", code: "already_recorded", detail: `Already recorded as ${getRecordedReference(crash)}: ${crash.message}` };
   if (CLIENT_LEFT_PATTERN.test(crash.message) || crash.name === "AbortError") return { stage: "network", severity: "info", code: "client_left", detail: `${crash.message}\n${stackFrames}` };

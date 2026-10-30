@@ -28,6 +28,7 @@ export const PROBLEM_SECTIONS = {
   tracking: "Ads & analytics",
   contact: "Contact & footer",
   trash: "Trash",
+  problems: "Problems",
   jobs: "Background jobs",
   database: "Database",
   site: "Website visitors",
@@ -161,6 +162,10 @@ export const PROBLEM_ACTIONS = {
   "trash.restore": { label: "Restore from the trash", fn: "restoreFromTrashAction" },
   "trash.delete_forever": { label: "Delete forever", fn: "deleteForeverAction" },
 
+  "problems.load": { label: "Load problems" },
+  "problems.resolve": { label: "Mark a problem resolved", fn: "resolveProblemAction" },
+  "problems.show_trace": { label: "Show a problem's code location", fn: "fetchProblemTraceMapsAction" },
+
   "jobs.alert_email": { label: "Send an alert email" },
   "jobs.alert_dead_letter": { label: "Give up on an alert email" },
   "jobs.problem_alerts": { label: "Send problem alerts" },
@@ -180,6 +185,8 @@ export const PROBLEM_ACTIONS = {
   "site.chat_widget": { label: "Use the chat window" },
   "site.listing_photo": { label: "Show a listing photo" },
   "site.consent": { label: "Save cookie choices" },
+  "site.page_crash": { label: "Open a website page" },
+  "site.browser_error": { label: "Browser error on a website page" },
 
   "unknown.unknown": { label: "Unlisted action" },
 } as const satisfies Record<string, ProblemActionDefinition>;

@@ -8,6 +8,7 @@
 // @ts-ignore `.open-next/worker.js` is generated at build time
 import { default as nextHandler } from "./.open-next/worker.js";
 import { getSiteEmailSender, isSiteEmailConfigured } from "./src/lib/email-outbox/site-email-settings";
+import { getProblemRetryDelaySeconds, isProblemRetryJob, logAbandonedProblem, storeRetriedProblem, type ProblemRetryJob } from "./src/lib/observability/problem-retry";
 import { recordProblem } from "./src/lib/observability/record-problem";
 import type { ProblemEvent } from "./src/lib/observability/problem-types";
 import { SITE_URL } from "./src/lib/site/navigation";
@@ -18,7 +19,7 @@ import { processAlertJob } from "./supabase/functions/email-worker/process-alert
 
 type WorkerEnv = { SUPABASE_URL: string; SUPABASE_SERVICE_ROLE_KEY: string };
 
-type QueueMessage = { body: AlertJob; attempts: number; ack: () => void; retry: (options?: { delaySeconds?: number }) => void };
+type QueueMessage = { body: AlertJob | ProblemRetryJob; attempts: number; ack: () => void; retry: (options?: { delaySeconds?: number }) => void };
 
 type QueueBatch = { queue: string; messages: QueueMessage[] };
 
@@ -35,9 +36,20 @@ async function recordDroppedJob(deps: JobDependencies, error: JobDataError): Pro
   await deps.recordProblem({ action: "jobs.alert_email", stage: "job", severity: "warning", origin: "job", code: error.context.job.kind, detail: error.message });
 }
 
-async function handleAlert(message: QueueMessage, deps: JobDependencies): Promise<void> {
+async function handleProblemRetry({ message, job, deps }: { message: QueueMessage; job: ProblemRetryJob; deps: JobDependencies }): Promise<void> {
   try {
-    await processAlertJob(message.body, deps);
+    await storeRetriedProblem({ db: deps.db, job });
+    message.ack();
+  } catch {
+    message.retry({ delaySeconds: getProblemRetryDelaySeconds(message.attempts) });
+  }
+}
+
+async function handleAlert(message: QueueMessage, deps: JobDependencies): Promise<void> {
+  const job = message.body;
+  if (isProblemRetryJob(job)) return handleProblemRetry({ message, job, deps });
+  try {
+    await processAlertJob(job, deps);
     message.ack();
   } catch (error) {
     if (error instanceof JobDataError) {
@@ -50,7 +62,9 @@ async function handleAlert(message: QueueMessage, deps: JobDependencies): Promis
 }
 
 async function handleDeadLetter(message: QueueMessage, deps: JobDependencies): Promise<void> {
-  await recordDeadLetter(message.body, deps);
+  const job = message.body;
+  if (isProblemRetryJob(job)) logAbandonedProblem(job);
+  else await recordDeadLetter(job, deps);
   message.ack();
 }
 

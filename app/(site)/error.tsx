@@ -4,12 +4,14 @@ import { RotateCw } from "lucide-react";
 
 import { getButtonClassName } from "@/components/ui/button-link";
 import { Message } from "@/components/ui/message";
+import { useVisitorCrashReport } from "@/components/content/use-visitor-crash-report";
 import { Section } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 // Shown in place of a page's content when loading it fails; the header, footer, and
-// Call/Text/Chat bar keep working (Infra §3 "fail gracefully").
-export default function PageError({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+// Call/Text/Chat bar keep working (Infra §3 "fail gracefully"). The crash is reported.
+export default function PageError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  useVisitorCrashReport(error);
   return (
     <Section labelledBy="page-error-heading">
       <h1 id="page-error-heading" className="type-h1 mb-6">This page didn&apos;t load</h1>

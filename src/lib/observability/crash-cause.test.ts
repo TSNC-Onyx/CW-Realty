@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getCrashCause } from "@/lib/observability/crash-cause";
+import { getCrashCause, getVisitorCrashCause } from "@/lib/observability/crash-cause";
 import { ReportedProblemError } from "@/lib/observability/reported-problem-error";
 
 describe("how a server crash on an admin page is recorded", () => {
@@ -30,4 +30,13 @@ describe("how a server crash on an admin page is recorded", () => {
     // Assert
     expect(cause).toEqual({ stage: "unexpected", severity: "error", code: "TypeError", detail: "Cannot read properties of undefined\nat page.tsx:12" });
   });
+
+  it("records a public page's crash without its message, which could repeat what a visitor typed", () => {
+    // Act
+    const cause = getVisitorCrashCause({ crash: new TypeError("No listing for jo@example.com"), stackFrames: "at page (worker.js:1:2)" });
+
+    // Assert
+    expect(cause).toEqual({ stage: "unexpected", severity: "error", code: "TypeError", detail: "TypeError\nat page (worker.js:1:2)" });
+  });
 });
+
