@@ -241,6 +241,17 @@ test.describe("redirects and missing pages", () => {
   });
 });
 
+test("/favicon.ico answers with the site icon", async ({ request }) => {
+  // Arrange
+  const path = "/favicon.ico";
+
+  // Act
+  const response = await request.get(path);
+
+  // Assert
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toMatch(/^image\/(x-icon|vnd\.microsoft\.icon)/);
+});
 
 test("preview and local hosts tell search engines not to index them", async ({ request }) => {
   // Arrange
