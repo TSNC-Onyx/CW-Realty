@@ -3,6 +3,7 @@ import { connection } from "next/server";
 
 import { fetchListingSlugs } from "@/lib/content/listings";
 import { fetchTeamMembers } from "@/lib/content/team";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { SITE_URL, getListedPagePaths } from "@/lib/site/navigation";
 import { fetchPageListing } from "@/lib/site/page-listing";
 
@@ -15,7 +16,7 @@ async function fetchRecordPaths(): Promise<string[]> {
     const [listingSlugs, members] = await Promise.all([fetchListingSlugs(), fetchTeamMembers()]);
     return [...listingSlugs.map((slug) => `/listings/${slug}`), ...members.map((member) => `/team/${member.slug}`)];
   } catch (error) {
-    console.error("Sitemap records unavailable", error);
+    void reportLoadFailure("sitemap", error, "/sitemap.xml");
     return [];
   }
 }

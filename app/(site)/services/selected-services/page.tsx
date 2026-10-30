@@ -13,6 +13,7 @@ import { Container, Section } from "@/components/ui/section";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 import { AGREEMENT_POINTS, DIRECT_LINE, PLAN_SECTIONS, getListPrice, type PlanSection } from "@/lib/content/selected-services";
 import { fetchTeamMemberBySlug, type TeamMember } from "@/lib/content/team";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { getContactLinks } from "@/lib/site/contact-links";
 import { fetchSiteSettings } from "@/lib/site/site-settings";
 
@@ -36,7 +37,7 @@ async function fetchBrokerOrNull(): Promise<TeamMember | null> {
   try {
     return await fetchTeamMemberBySlug(BROKER_SLUG);
   } catch (error) {
-    console.error("Broker profile unavailable", error);
+    void reportLoadFailure("broker_profile", error, "/services/selected-services");
     return null;
   }
 }

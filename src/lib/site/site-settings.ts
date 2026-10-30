@@ -2,6 +2,7 @@ import { cache } from "react";
 import { z } from "zod";
 
 import { getLoaded, getLoadFailure, type LoadResult } from "@/lib/admin/load-result";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supabase/public-client";
 import type { E164Phone } from "@/lib/site/phone";
 
@@ -82,7 +83,7 @@ export const fetchSiteSettings = cache(async (): Promise<SiteSettings | null> =>
     const row = await fetchSiteSettingsRow();
     return row ? getSiteSettingsFromRow(row) : null;
   } catch (error) {
-    console.error("Site settings unavailable; rendering without contact details", error);
+    void reportLoadFailure("site_settings", error, null);
     return null;
   }
 });

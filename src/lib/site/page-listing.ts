@@ -1,5 +1,6 @@
 import { cache } from "react";
 
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supabase/public-client";
 import type { PageListing } from "@/lib/site/navigation";
 
@@ -25,7 +26,7 @@ export const fetchPageListing = cache(async (): Promise<PageListing> => {
   try {
     return await fetchPageListingRow();
   } catch (error) {
-    console.error(JSON.stringify({ message: "Page switches unavailable; every page stays listed", error: error instanceof Error ? error.name : "unknown" }));
+    void reportLoadFailure("page_listing", error, null);
     return ALL_PAGES_LISTED;
   }
 });

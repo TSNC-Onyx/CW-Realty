@@ -3,6 +3,7 @@ import "server-only";
 import { cache } from "react";
 import { z } from "zod";
 
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CWR_TENANT_SLUG, SupabaseQueryError, getPublicClient } from "@/lib/supabase/public-client";
 
 // Tag Manager and Meta Pixel IDs entered by the owner in "Ads & analytics" (plan decision 6).
@@ -37,7 +38,7 @@ export const fetchTrackingSettings = cache(async (): Promise<TrackingSettings> =
   try {
     return await fetchTrackingSettingsRow();
   } catch (error) {
-    console.error(JSON.stringify({ message: "Tracking settings unavailable; tracking stays off", error: error instanceof Error ? error.name : "unknown" }));
+    void reportLoadFailure("tracking_settings", error, null);
     return TRACKING_OFF;
   }
 });

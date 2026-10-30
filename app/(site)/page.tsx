@@ -10,6 +10,7 @@ import { TextLink } from "@/components/ui/text-link";
 import { getSitePhoto, type SitePhoto, type SitePhotoName } from "@/lib/content/site-photos";
 import { fetchTeamMembers, type TeamMember } from "@/lib/content/team";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
 
 // Home, Option C "photo first" (owner-approved design and copy, 2026-09-26,
@@ -76,7 +77,7 @@ async function fetchFeaturedTeamOrEmpty(): Promise<TeamMember[]> {
   try {
     return (await fetchTeamMembers()).slice(0, FEATURED_TEAM_COUNT);
   } catch (error) {
-    console.error("Home page team unavailable", error);
+    void reportLoadFailure("home_team", error, "/");
     return [];
   }
 }

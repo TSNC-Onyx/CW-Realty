@@ -9,6 +9,7 @@ import { Section } from "@/components/ui/section";
 import { getPhotoSources } from "@/lib/content/media";
 import { fetchHomework, type DownloadIcon, type HomeworkContent, type HomeworkDownload, type HomeworkVideo } from "@/lib/content/homework";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
+import { reportLoadFailure } from "@/lib/observability/report-load-failure";
 import { CONTACT_PAGE_PATH } from "@/lib/site/contact-links";
 
 // Homework (FAQs & Homework) from Admin → Homework: embedded videos and grouped downloads,
@@ -27,7 +28,7 @@ async function fetchHomeworkOrEmpty(): Promise<HomeworkContent> {
   try {
     return await fetchHomework();
   } catch (error) {
-    console.error("Homework unavailable", error);
+    void reportLoadFailure("homework", error, "/resources");
     return { videos: [], groups: [] };
   }
 }
