@@ -27,8 +27,10 @@ values ('f2700000-0000-0000-0000-000000000001', current_date + 30, current_date 
 select is(
   (select count(*)::int from pg_class c join pg_namespace n on n.oid = c.relnamespace
    where n.nspname = 'summit' and c.relkind = 'r' and c.relrowsecurity),
-  6,
-  'All six 623 tables have row level security on'
+  -- 10 since 20261031000100_summit_email_outbox.sql added email_settings, email_jobs,
+  -- link_requests and token_rotations (623Summit docs/guest-email-plan.md).
+  10,
+  'All ten 623 tables have row level security on'
 );
 
 select is(
@@ -45,6 +47,8 @@ select is(
     'blackouts:DELETE', 'blackouts:INSERT', 'blackouts:SELECT', 'blackouts:UPDATE',
     'booking_payments:DELETE', 'booking_payments:INSERT', 'booking_payments:SELECT',
     'bookings:DELETE', 'bookings:INSERT', 'bookings:SELECT', 'bookings:UPDATE',
+    -- Owners read the email queue and its settings (20261031000100_summit_email_outbox.sql).
+    'email_jobs:SELECT', 'email_settings:SELECT',
     'inquiries:DELETE', 'inquiries:INSERT', 'inquiries:SELECT', 'inquiries:UPDATE',
     'lookup_events:SELECT'
   ]::text[],
@@ -60,8 +64,9 @@ select is(
 
 select is(
   (select array_agg(jobname::text order by jobname) from cron.job where jobname like 'summit\_%'),
-  array['summit_expire_stale_holds', 'summit_purge_old_technical_data']::text[],
-  'Exactly two 623 scheduled jobs, named so the CW job watcher ignores them'
+  -- The email sweep and purge were added by 20261031000100_summit_email_outbox.sql.
+  array['summit_email_sweep', 'summit_expire_stale_holds', 'summit_purge_email_jobs', 'summit_purge_old_technical_data']::text[],
+  'Exactly four 623 scheduled jobs, named so the CW job watcher ignores them'
 );
 
 select is(
