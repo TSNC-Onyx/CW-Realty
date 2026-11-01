@@ -42,7 +42,8 @@ as $$
   order by 7 desc, 2;
 $$;
 
--- owner_alert_to without p_email, in its existing order.
+-- owner_alert_to without p_email, in its existing order. Callers lock the settings row in an
+-- earlier statement, so the list read here is the latest one.
 create function summit.get_alert_list_without(p_email text)
 returns extensions.citext[]
 language sql
@@ -67,10 +68,14 @@ as $$
 declare
   v_owner extensions.citext;
 begin
-  select a.email into v_owner from summit.admins a where lower(a.email::text) = lower(p_email);
+  -- Locks in remove_owner's order (owner row, then settings). A removal of the same person
+  -- finishes first and this then finds no owner; two saves at once go one after the other, and
+  -- the second reads the list the first wrote.
+  select a.email into v_owner from summit.admins a where lower(a.email::text) = lower(p_email) for share;
   if not summit.is_admin() or v_owner is null then
     raise exception 'not_owner' using errcode = '42501';
   end if;
+  perform 1 from summit.email_settings where id for update;
   update summit.email_settings
      set owner_alert_to = summit.get_alert_list_without(p_email)
        || case when p_on then array[v_owner] else array[]::extensions.citext[] end
@@ -101,6 +106,7 @@ begin
   if not found then
     raise exception 'not_found' using errcode = 'P0002';
   end if;
+  perform 1 from summit.email_settings where id for update;
   update summit.email_settings set owner_alert_to = summit.get_alert_list_without(p_email) where id;
   return true;
 end;
