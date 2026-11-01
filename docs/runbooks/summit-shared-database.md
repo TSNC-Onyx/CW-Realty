@@ -97,7 +97,8 @@ Change it in the SQL editor, for example `update summit.email_settings set is_li
 - Add: a 623 owner signs in at https://623summit.pages.dev/admin and uses **Invite an owner**. The new
   owner gets a 623-branded invite. Someone who already has a CWR login is simply added to the list
   and signs in with their existing password.
-- Remove: ask Claude to delete their row from `summit.admins`. Their login stays (it may also be a
+- Remove: an owner uses **Remove access** (or **Cancel the invite**) in the console's Owners tab,
+  which calls `summit.remove_owner()`. Nobody can remove themselves. Their login stays (it may also be a
   CWR login). To delete a login that is only a 623 login, use Supabase → Authentication → Users. The
   list of logins that belong only to 623 is:
   `select email from auth.users where email::extensions.citext in (select email from summit.admins) and id not in (select user_id from cwr.memberships);`
