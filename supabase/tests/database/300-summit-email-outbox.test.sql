@@ -433,7 +433,7 @@ select is(
 select is(
   (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'summit' and has_function_privilege('authenticated', p.oid, 'execute')),
-  array['generate_booking_reference', 'get_unavailable_ranges', 'is_admin']::text[],
+  array['generate_booking_reference', 'get_unavailable_ranges', 'is_admin', 'list_owners', 'remove_owner', 'set_owner_alerts']::text[],
   'R10: signed-in users can call none of the new functions'
 );
 select is(
