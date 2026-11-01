@@ -19,10 +19,18 @@ not on `summit.admins` sees nothing of 623 (`supabase/tests/database/270-summit-
 
 ## Names reserved for 623 Summit
 
-- Schema `summit`; cron jobs `summit_purge_old_technical_data`, `summit_expire_stale_holds`.
-- Edge Functions `submit-form`, `manage-booking`, `summit-invite-owner`. They are deployed from the
-  623Summit repo, never from this one. Never give a CWR function one of these names.
-- Function secret `SUMMIT_ALLOWED_ORIGIN` (the 623 site address).
+- Schema `summit`; cron jobs `summit_purge_old_technical_data`, `summit_expire_stale_holds`,
+  `summit_email_sweep` (every minute) and `summit_purge_email_jobs` (daily at 04:19).
+- Edge Functions `submit-form`, `manage-booking`, `summit-invite-owner`, `summit-email-worker`. They
+  are deployed from the 623Summit repo, never from this one. Never give a CWR function one of these
+  names.
+- Function secrets `SUMMIT_ALLOWED_ORIGIN` (the 623 site address), and for `summit-email-worker`:
+  `SUMMIT_EMAIL_FROM` (an address on CWR's verified MailerSend domain), `SUMMIT_EMAIL_FROM_NAME`
+  (default "623 Summit Avenue"), `SUMMIT_SITE_URL` (must be one of the `SUMMIT_ALLOWED_ORIGIN`
+  entries; default the first) and `SUMMIT_EMAIL_TRANSPORT` (`mailersend`, the default, or `log` on an
+  http site only). The worker also reads the project's shared `MAILERSEND_API_KEY`.
+- Vault secret `summit_email_worker_secret` (made by the migration; the database sends it when it
+  wakes `summit-email-worker`).
 - Migrations for `summit` live in this repo. The 623Summit repo has no migrations and must never run
   `supabase db push`.
 
@@ -34,6 +42,55 @@ not on `summit.admins` sees nothing of 623 (`supabase/tests/database/270-summit-
 3. Cloudflare → Turnstile → the CWR widget → Hostnames: `623summit.pages.dev`.
 4. The email templates are pushed with `node scripts/push-auth-email-templates.mjs` like any other
    template change (`docs/runbooks/auth-email-templates.md`).
+
+## 623's guest email queue
+
+623 has its own email queue in `summit`, built like CWR's outbox but separate from it
+(`supabase/migrations/20261031000100_summit_email_outbox.sql`, tests in
+`supabase/tests/database/300-summit-email-outbox.test.sql`; plan: 623Summit repo
+`docs/guest-email-plan.md`). Booking changes queue rows in `summit.email_jobs`; `summit-email-worker`
+claims and sends them through MailerSend. CWR's queue, worker and Notifications log never see them.
+
+The settings row is `summit.email_settings` (exactly one row):
+
+| Column | Meaning |
+|---|---|
+| `is_live` | Off by default. Off means nothing is queued, claimed or sent, and the 623 pages make no email promise. Waiting emails still expire after 48 hours. |
+| `worker_url` | The `summit-email-worker` address (`https://<ref>.supabase.co/functions/v1/summit-email-worker`). Null keeps the wake-up off. |
+| `reply_to` | Reply-To on guest emails. Empty: no Reply-To, and the footer gives the house phone. |
+| `owner_alert_to` | Addresses for owner alerts. Empty: no owner alerts are queued. |
+| `daily_limit` | Emails sent per 24 hours before claiming stops (default 200), protecting the MailerSend limits CWR shares. |
+
+Change it in the SQL editor, for example `update summit.email_settings set is_live = false;`.
+
+### Deploy order (each step owner-approved)
+
+1. Get the migration onto CW-Realty `main` (that push runs `supabase db push`; note it also ships
+   every other unreleased `build1` commit). Sending stays off.
+2. Deploy `summit-email-worker`, `manage-booking` and `submit-form` from the 623Summit repo.
+3. Set the secrets above, then `update summit.email_settings set worker_url = '<worker address>';`.
+4. Merge the 623Summit branch to its `main` (Cloudflare Pages publishes the pages).
+5. `update summit.email_settings set is_live = true;`
+6. Book a test stay under an address that is not an owner's; check the email arrives and its link
+   opens; cancel the test booking.
+
+### Undo, in this order
+
+1. `update summit.email_settings set is_live = false;` This stops queueing, claiming and wake-ups at
+   once.
+2. Revert the 623Summit commits, redeploy `manage-booking` and `submit-form`, delete
+   `summit-email-worker`, and publish the reverted pages. Until this is done the pages and functions
+   still read `email_guest`, `email_jobs` and `email_settings`, so do not run step 3 first.
+3. Only if asked, a new forward migration that:
+   - unschedules `summit_email_sweep` and `summit_purge_email_jobs`;
+   - drops the triggers `bookings_queue_email` and `email_jobs_wake_worker` and the new functions;
+   - drops `summit.email_jobs`, `summit.email_settings`, `summit.link_requests`,
+     `summit.token_rotations` and the types `summit.email_job_kind`, `summit.email_job_status`;
+   - drops `summit.bookings.email_guest`;
+   - runs `delete from summit.lookup_events where outcome = 'resend'`, then re-adds
+     `lookup_events_outcome_allowed` as `check (outcome in ('found', 'not_found'))`.
+4. Remove the Vault secret `summit_email_worker_secret` by hand in the SQL editor. A migration
+   cannot do it: `npm run db:check` forbids writing to `vault`.
 
 ## Adding and removing a 623 owner
 
@@ -64,6 +121,8 @@ deletes it later.
    ```sql
    select cron.unschedule('summit_purge_old_technical_data');
    select cron.unschedule('summit_expire_stale_holds');
+   select cron.unschedule('summit_email_sweep');
+   select cron.unschedule('summit_purge_email_jobs');
    drop schema summit cascade;
    ```
 
