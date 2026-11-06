@@ -2,20 +2,22 @@ import "server-only";
 
 import { getLoaded, getLoadFailure, getQueryLoad, type LoadResult } from "@/lib/admin/load-result";
 import type { AdminContext, AdminRole } from "@/lib/admin/require-admin";
+import { getStoredPart, type NameMetadata } from "@/lib/admin/users/name-schema";
 import { createServiceClient, isServiceAccessConfigured } from "@/lib/supabase/service-client";
 
-// People with access, with emails from Supabase Auth (service role, owner-only page).
+// People with access, with emails and names from Supabase Auth (service role, owner-only page).
+// A name is the shared login's user_metadata (first_name, last_name), the same one 623 Summit shows.
 
 const MAX_USERS = 1000;
 const UNKNOWN_EMAIL = "(unknown email)";
 const EMAIL_NOT_LOADED = "(email didn't load)";
 
-export type AdminUser = { userId: string; email: string; role: AdminRole; isCurrentUser: boolean };
+export type AdminUser = { userId: string; email: string; firstName: string | null; lastName: string | null; role: AdminRole; isCurrentUser: boolean };
 
 /** users: the people with access; authAccounts: whether their emails loaded. */
 export type AdminUsersLoad = { users: LoadResult<AdminUser[]>; authAccounts: LoadResult<unknown> };
 
-type AuthUser = { id: string; email?: string };
+type AuthUser = { id: string; email?: string; user_metadata?: NameMetadata };
 
 type Membership = { user_id: string; role: AdminRole };
 
@@ -39,6 +41,8 @@ function getAdminUser({ membership, authUsers, currentUserId }: { membership: Me
   return {
     userId: membership.user_id,
     email: authUsers.isLoaded ? (user?.email ?? UNKNOWN_EMAIL) : EMAIL_NOT_LOADED,
+    firstName: getStoredPart(user?.user_metadata?.first_name),
+    lastName: getStoredPart(user?.user_metadata?.last_name),
     role: membership.role,
     isCurrentUser: membership.user_id === currentUserId,
   };

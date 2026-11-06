@@ -60,7 +60,7 @@ test("only owners can delete forever; managers can restore", async ({ page }) =>
   await expect(page.getByRole("button", { name: `Delete ${name} forever` })).toHaveCount(0);
 });
 
-test("an owner invites a manager, and the new person appears with that role", async ({ page }) => {
+test("an owner invites a manager, and the new person appears with that role and name", async ({ page }) => {
   // Arrange
   const owner = await createTestAdmin("owner");
   const inviteEmail = `invited-${Date.now()}@test.cwr`;
@@ -68,13 +68,68 @@ test("an owner invites a manager, and the new person appears with that role", as
   await page.goto("/admin/users");
 
   // Act
+  await page.getByLabel("First name").fill("Invited");
+  await page.getByLabel("Last name").fill("Person");
   await page.getByLabel("Email").fill(inviteEmail);
   await page.getByLabel("Role").first().selectOption("manager");
   await page.getByRole("button", { name: "Send invite" }).click();
 
   // Assert
   await expect(page.getByRole("status").filter({ hasText: `Invite sent to ${inviteEmail}` })).toBeVisible();
-  await expect(page.getByRole("region", { name: "People with access" }).getByText(inviteEmail)).toBeVisible();
+  const row = page.getByRole("region", { name: "People with access" }).getByRole("listitem").filter({ hasText: inviteEmail });
+  await expect(row.getByText("Invited Person", { exact: true })).toBeVisible();
+});
+
+test("an invite with no name is refused, and the field says why", async ({ page }) => {
+  // Arrange
+  const owner = await createTestAdmin("owner");
+  await signInFully(page, owner);
+  await page.goto("/admin/users");
+
+  // Act
+  await page.getByLabel("Last name").fill("Person");
+  await page.getByLabel("Email").fill(`unnamed-${Date.now()}@test.cwr`);
+  await page.getByRole("button", { name: "Send invite" }).click();
+
+  // Assert
+  await expect(page.getByText("Enter a first name of up to 100 characters.")).toBeVisible();
+});
+
+test("an owner corrects another person's name", async ({ page }) => {
+  // Arrange
+  const owner = await createTestAdmin("owner");
+  const manager = await createTestAdmin("manager");
+  await signInFully(page, owner);
+  await page.goto("/admin/users");
+  const row = page.getByRole("region", { name: "People with access" }).getByRole("listitem").filter({ hasText: manager.email });
+
+  // Act
+  await row.getByRole("button", { name: `Add name for ${manager.email}` }).click();
+  await row.getByLabel("First name").fill("Morgan");
+  await row.getByLabel("Last name").fill("Hale");
+  await row.getByRole("button", { name: `Save the name for ${manager.email}` }).click();
+
+  // Assert
+  await expect(page.getByRole("status").filter({ hasText: "Name saved." })).toBeVisible();
+  await expect(row.getByText("Morgan Hale", { exact: true })).toBeVisible();
+  await expect(row.getByRole("button", { name: `Edit name for ${manager.email}` })).toBeVisible();
+});
+
+test("an owner corrects their own name", async ({ page }) => {
+  // Arrange
+  const owner = await createTestAdmin("owner");
+  await signInFully(page, owner);
+  await page.goto("/admin/users");
+  const row = page.getByRole("region", { name: "People with access" }).getByRole("listitem").filter({ hasText: owner.email });
+
+  // Act
+  await row.getByRole("button", { name: `Add name for ${owner.email}` }).click();
+  await row.getByLabel("First name").fill("Avery");
+  await row.getByLabel("Last name").fill("Owner");
+  await row.getByRole("button", { name: `Save the name for ${owner.email}` }).click();
+
+  // Assert
+  await expect(row.getByText("Avery Owner", { exact: true })).toBeVisible();
 });
 
 test("managers cannot open Users & roles", async ({ page }) => {
