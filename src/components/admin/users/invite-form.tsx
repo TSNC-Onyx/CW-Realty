@@ -9,6 +9,7 @@ import { useIdempotencyKey } from "@/components/admin/use-idempotency-key";
 import { getButtonClassName } from "@/components/ui/button-link";
 import { ROLE_OPTIONS } from "@/components/admin/users/role-options";
 import { inviteUserAction } from "@/lib/admin/users/actions";
+import { MAX_NAME_LENGTH } from "@/lib/admin/users/name-schema";
 import { ICON_SIZE } from "@/lib/design/icon-sizes";
 
 export function InviteForm({ idempotencyKey }: { idempotencyKey: string }) {
@@ -20,6 +21,8 @@ export function InviteForm({ idempotencyKey }: { idempotencyKey: string }) {
   return (
     <form ref={formRef} onSubmit={handleSubmit} noValidate className="grid max-w-form gap-6">
       <input type="hidden" name="idempotencyKey" value={key} />
+      <AdminField name="firstName" label="First name" autoComplete="off" maxLength={MAX_NAME_LENGTH} error={state.fieldErrors.firstName} />
+      <AdminField name="lastName" label="Last name" autoComplete="off" maxLength={MAX_NAME_LENGTH} error={state.fieldErrors.lastName} />
       <AdminField name="email" label="Email" type="email" error={state.fieldErrors.email} />
       <AdminSelect name="role" label="Role" options={ROLE_OPTIONS} defaultValue="manager" helperText="Managers edit listings, team, and contact details. Staff answer their assigned inbox messages. Owners can do everything." />
       <div>

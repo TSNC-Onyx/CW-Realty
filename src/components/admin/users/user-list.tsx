@@ -1,25 +1,34 @@
 "use client";
 
 import { Save, UserX } from "lucide-react";
-import { useId, useRef } from "react";
+import { useId, useRef, useState } from "react";
 
 import { QuickActionButton } from "@/components/admin/quick-action-button";
 import { SavedStateLine, useTypedValue } from "@/components/admin/saved-state";
+import { NameButton, NameForm } from "@/components/admin/users/name-editor";
 import { ROLE_OPTIONS } from "@/components/admin/users/role-options";
 import { changeRoleAction, removeAccessAction, restoreAccessAction } from "@/lib/admin/users/actions";
 import type { AdminRole } from "@/lib/admin/require-admin-roles";
 import { getSavedState } from "@/lib/admin/saved-state";
 
-export type UserListItem = { userId: string; email: string; role: AdminRole; isCurrentUser: boolean };
+export type UserListItem = { userId: string; email: string; firstName: string | null; lastName: string | null; role: AdminRole; isCurrentUser: boolean };
 
 function UserRow({ user }: { user: UserListItem }) {
   const selectId = useId();
   const roleRef = useRef<HTMLSelectElement>(null);
   const [typedRole, setTypedRole] = useTypedValue(user.role);
+  const displayName = [user.firstName, user.lastName].filter(Boolean).join(" ");
+  const [isNameOpen, setIsNameOpen] = useState(false);
+  const nameOpenerRef = useRef<HTMLButtonElement>(null);
+  const closeName = () => {
+    setIsNameOpen(false);
+    requestAnimationFrame(() => nameOpenerRef.current?.focus());
+  };
   return (
     <li className="grid gap-3 border-t border-line py-4 md:grid-cols-12 md:items-end">
       <div className="md:col-span-4">
-        <p className="font-bold break-all">
+        {displayName && <p className="font-bold break-words">{displayName}</p>}
+        <p className={`${displayName ? "text-muted" : "font-bold"} break-all`}>
           {user.email}
           {user.isCurrentUser && " (you)"}
         </p>
@@ -47,6 +56,7 @@ function UserRow({ user }: { user: UserListItem }) {
       </div>
       <div className="flex flex-wrap gap-2 md:col-span-5 md:justify-end">
         <QuickActionButton label="Save role" accessibleLabel={`Save the role for ${user.email}`} icon={Save} problemAction="users.change_role" onRun={() => changeRoleAction(user.userId, roleRef.current?.value ?? user.role)} />
+        <NameButton user={user} openerRef={nameOpenerRef} onOpen={() => setIsNameOpen(true)} />
         {!user.isCurrentUser && (
           <QuickActionButton
             label="Remove access"
@@ -58,6 +68,11 @@ function UserRow({ user }: { user: UserListItem }) {
           />
         )}
       </div>
+      {isNameOpen && (
+        <div className="md:col-span-12">
+          <NameForm user={user} onClose={closeName} />
+        </div>
+      )}
     </li>
   );
 }

@@ -21,7 +21,7 @@ not on `summit.admins` sees nothing of 623 (`supabase/tests/database/270-summit-
 
 - Schema `summit`; cron jobs `summit_purge_old_technical_data`, `summit_expire_stale_holds`,
   `summit_email_sweep` (every minute) and `summit_purge_email_jobs` (daily at 04:19).
-- Edge Functions `submit-form`, `manage-booking`, `summit-invite-owner`, `summit-email-worker`. They
+- Edge Functions `submit-form`, `manage-booking`, `summit-invite-owner`, `summit-owner-name`, `summit-email-worker`. They
   are deployed from the 623Summit repo, never from this one. Never give a CWR function one of these
   names.
 - Function secrets `SUMMIT_ALLOWED_ORIGIN` (the 623 site address), and for `summit-email-worker`:
@@ -102,6 +102,10 @@ Change it in the SQL editor, for example `update summit.email_settings set is_li
   CWR login). To delete a login that is only a 623 login, use Supabase → Authentication → Users. The
   list of logins that belong only to 623 is:
   `select email from auth.users where email::extensions.citext in (select email from summit.admins) and id not in (select user_id from cwr.memberships);`
+- Names: a person's first and last name live on the shared login (`user_metadata.first_name` and
+  `last_name`), so one name shows on both sites. 623 owners edit them in the Owners tab (the
+  `summit-owner-name` function); CWR owners edit them on Users & roles. Both write through the Auth
+  Admin API, never SQL. A name is a label and never grants access.
 
 ## Retiring the old project
 
@@ -116,7 +120,7 @@ deletes it later.
 2. Owner: remove `summit` from Exposed schemas, the two 623 redirect URLs, and the 623 Turnstile hostname.
 3. Templates: `node scripts/push-auth-email-templates.mjs --restore .auth-email-backup-<time>.json`.
 4. Functions: `npx supabase functions delete submit-form --project-ref egadvqpatnlkvgiiszzx` (and
-   `manage-booking`, `summit-invite-owner`), then `npx supabase secrets unset SUMMIT_ALLOWED_ORIGIN --project-ref egadvqpatnlkvgiiszzx`.
+   `manage-booking`, `summit-invite-owner`, `summit-owner-name`), then `npx supabase secrets unset SUMMIT_ALLOWED_ORIGIN --project-ref egadvqpatnlkvgiiszzx`.
 5. Database, as a new migration (it passes `npm run db:check` because `summit_` jobs belong to this repo):
 
    ```sql

@@ -130,6 +130,7 @@ export const PROBLEM_ACTIONS = {
   "users.load": { label: "Load users" },
   "users.invite": { label: "Invite a user", fn: "inviteUserAction" },
   "users.change_role": { label: "Change a user's role", fn: "changeRoleAction" },
+  "users.change_name": { label: "Change a user's name", fn: "changeNameAction" },
   "users.remove_access": { label: "Remove a user's access", fn: "removeAccessAction" },
   "users.restore_access": { label: "Undo removing a user's access", fn: "restoreAccessAction" },
   "users.reset_sign_in_codes": { label: "Reset a user's sign-in codes (retired 2026-10-09)" },
